@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const express = require("express");
 const session = require("express-session");
 const MongoStore = require('connect-mongo');
+const path = require('path');
 const basicRoutes = require("./routes/index");
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
@@ -66,10 +67,22 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/categories', categoryRoutes);
 
-// If no routes handled the request, it's a 404
-app.use((req, res, next) => {
-  res.status(404).send("Page not found.");
-});
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  // Set static folder
+  const clientBuildPath = path.join(__dirname, '../client/dist');
+  app.use(express.static(clientBuildPath));
+
+  // Any routes not caught by API will be redirected to index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(clientBuildPath, 'index.html'));
+  });
+} else {
+  // If no routes handled the request in development, it's a 404
+  app.use((req, res, next) => {
+    res.status(404).send("Page not found.");
+  });
+}
 
 // Error handling
 app.use((err, req, res, next) => {

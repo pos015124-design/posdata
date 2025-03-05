@@ -3,5 +3,8 @@ server/.env
 server/package-lock.json
 client/node_modules/
 client/package-lock.json
+client/dist/
 node_modules/
 package-lock.json
+.DS_Store
+.env

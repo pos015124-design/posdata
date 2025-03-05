@@ -3,13 +3,18 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "postinstall": "concurrently -n \"client,server\" \"npm run client-install\" \"npm run server-install\"",
+    "postinstall": "npm run client-install && npm run server-install && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "client": "cd client && npm run dev",
     "client-install": "cd client && npm install",
     "server": "cd server && npm run dev",
     "server-install": "cd server && npm install",
-    "start": "concurrently -n \"client,server\" \"npm run client\" \"npm run server\""
+    "build": "cd client && npm run build",
+    "dev": "concurrently -n \"client,server\" \"npm run client\" \"npm run server\"",
+    "start": "cd server && npm start"
+  },
+  "engines": {
+    "node": "18.x"
   },
   "author": "",
   "license": "ISC",
