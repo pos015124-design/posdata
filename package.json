@@ -6,12 +6,13 @@
     "postinstall": "npm run client-install && npm run server-install && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "client": "cd client && npm run dev",
-    "client-install": "cd client && npm install",
+    "client-install": "cd client && npm install --include=dev",
     "server": "cd server && npm run dev",
     "server-install": "cd server && npm install",
     "build": "cd client && npm run build",
     "dev": "concurrently -n \"client,server\" \"npm run client\" \"npm run server\"",
-    "start": "cd server && npm start"
+    "start": "cd server && npm start",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm run build"
   },
   "engines": {
     "node": "18.x"
