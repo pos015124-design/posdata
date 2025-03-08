@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const backendURL = 'http://localhost:3000';
+// Use relative URL in production, localhost in development
+const backendURL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';
 const api = axios.create({
   baseURL: backendURL,
   headers: {
@@ -40,12 +41,16 @@ api.interceptors.response.use(
     // If the error is due to an expired access token
     if (error.response?.status && [401, 403].includes(error.response.status) && !originalRequest._retry) {
       originalRequest._retry = true; // Mark the request as retried
-
-      try {
-        // Attempt to refresh the token
-        const { data } = await axios.post<{ accessToken: string }>(`${backendURL}/api/auth/refresh`, {
-          refreshToken: localStorage.getItem('refreshToken'),
-        });
+try {
+  // Attempt to refresh the token
+  const refreshURL = process.env.NODE_ENV === 'production'
+    ? '/api/auth/refresh'
+    : `${backendURL}/api/auth/refresh`;
+    
+  const { data } = await axios.post<{ accessToken: string }>(refreshURL, {
+    refreshToken: localStorage.getItem('refreshToken'),
+  });
+  accessToken = data.accessToken;
         accessToken = data.accessToken;
 
         // Retry the original request with the new token

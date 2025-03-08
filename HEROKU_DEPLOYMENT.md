@@ -106,13 +106,28 @@ If your main branch is named differently (e.g., master), use:
 git push heroku master
 ```
 
-### 4. Verify Deployment
+### 4. Create an Admin User
+
+After deploying, create an admin user with the following command:
+
+```bash
+heroku run npm run create-admin
+```
+
+This will create an admin user with the following credentials:
+
+- Email: admin@dukani.com
+- Password: admin123
+
+### 5. Verify Deployment
 
 Open the app in your browser:
 
 ```bash
 heroku open
 ```
+
+You should now be able to log in with the admin credentials.
 
 ## Troubleshooting
 
