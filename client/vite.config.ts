@@ -7,9 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-    },
+    }
   },
   server: {
+    port: 3000,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
@@ -17,4 +18,23 @@ export default defineConfig({
       }
     }
   },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    // Don't externalize react-router-dom for Heroku deployment
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-label',
+            '@radix-ui/react-slot'
+          ]
+        }
+      }
+    }
+  }
 })

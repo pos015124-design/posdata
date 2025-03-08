@@ -1,53 +1,86 @@
-# Heroku Deployment Guide for Dukani System
+# Deploying Dukani System to Heroku
 
-This guide explains how to deploy the Dukani System to Heroku.
+This guide provides step-by-step instructions for deploying the Dukani System application to Heroku.
 
 ## Prerequisites
 
-1. A Heroku account
-2. Heroku CLI installed on your computer
-3. Git installed on your computer
-4. MongoDB Atlas account (or another MongoDB provider)
-
-## Setup Environment Variables
-
-You need to set up the following environment variables in Heroku:
-
-1. `DATABASE_URL`: Your MongoDB connection string
-2. `JWT_SECRET`: A secret key for JWT token generation
-3. `NODE_ENV`: Set to "production"
+1. [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) installed
+2. Git repository initialized and all changes committed
+3. MongoDB Atlas account (or other MongoDB provider) for the database
 
 ## Deployment Steps
 
-### 1. Login to Heroku
+### 1. Create a Heroku App
 
 ```bash
-heroku login
+heroku create dukani-system
 ```
 
-### 2. Create a Heroku App
+### 2. Set Environment Variables
+
+Set the required environment variables in Heroku:
 
 ```bash
-heroku create your-app-name
-```
-
-### 3. Set Environment Variables
-
-```bash
-heroku config:set DATABASE_URL=your_mongodb_connection_string
-heroku config:set JWT_SECRET=your_jwt_secret
+heroku config:set DATABASE_URL=mongodb+srv://dukani:1bKAx0SismDokGpL@cluster0.abild.mongodb.net/dukaniDB?retryWrites=true&w=majority&appName=Cluster0
+heroku config:set JWT_SECRET=exrev-secret
 heroku config:set NODE_ENV=production
 ```
 
-### 4. Deploy to Heroku
+### 3. Set Up Git Repository for Heroku
+
+If you've already created a Heroku app and tried to clone it inside your existing project directory, you might have encountered Git repository conflicts. Here's how to properly set up your Git repository for Heroku deployment:
+
+1. First, make sure you're in the root directory of your project:
+
+```bash
+cd /path/to/dukani-system
+```
+
+2. If you've already tried to clone the Heroku repository inside your project, remove it:
+
+```bash
+rm -rf dukani-system
+```
+
+3. Initialize a Git repository (if not already initialized):
+
+```bash
+git init
+```
+
+4. Add all files to the repository:
 
 ```bash
 git add .
-git commit -m "Prepare for Heroku deployment"
+```
+
+5. Commit the changes:
+
+```bash
+git commit -m "Initial commit for Heroku deployment"
+```
+
+6. Add the Heroku remote:
+
+```bash
+heroku git:remote -a dukani-system
+```
+
+7. Push to Heroku:
+
+```bash
 git push heroku main
 ```
 
-### 5. Open the App
+If your main branch is named differently (e.g., master), use:
+
+```bash
+git push heroku master
+```
+
+### 4. Verify Deployment
+
+Open the app in your browser:
 
 ```bash
 heroku open
@@ -55,33 +88,65 @@ heroku open
 
 ## Troubleshooting
 
-If you encounter any issues, check the logs:
+### View Logs
+
+If you encounter issues, check the Heroku logs:
 
 ```bash
 heroku logs --tail
 ```
 
-Common issues:
+### Common Issues
 
-- Missing environment variables
-- Database connection problems
-- Build failures
+1. **Database Connection Issues**:
 
-## Manual Deployment
+   - Ensure your MongoDB Atlas IP whitelist includes Heroku's IPs or is set to allow access from anywhere (0.0.0.0/0)
+   - Verify the DATABASE_URL is correct
 
-If you prefer to deploy manually:
+2. **Build Failures**:
 
-1. Ensure you have the latest code committed
-2. Run:
+   - Check the build logs for any errors
+   - Run `heroku builds:output` to see detailed build logs
+
+3. **CORS Issues**:
+
+   - Check browser console for CORS errors
+
+4. **Missing Environment Variables**:
+
+   - Verify all required environment variables are set using `heroku config`
+
+5. **Client Build Issues**:
+
+   - If you encounter errors with the client build process, check the build logs
+   - Make sure all dependencies are properly installed
+
+6. **Dependencies vs. DevDependencies**:
+
+   - Heroku doesn't install devDependencies by default in production mode
+   - If you encounter errors related to missing dependencies, move them from devDependencies to dependencies in package.json
+   - Alternatively, you can tell Heroku to install devDependencies by setting:
+     ```bash
+     heroku config:set NPM_CONFIG_PRODUCTION=false
+     ```
+
+## Scaling
+
+To scale your application:
 
 ```bash
-git push heroku main
+heroku ps:scale web=1
 ```
 
 ## Monitoring
 
-You can monitor your application using the Heroku dashboard or with:
+Monitor your application's performance:
 
 ```bash
-heroku logs --tail
+heroku addons:create papertrail
+heroku addons:create newrelic
 ```
+
+## Database Backups
+
+For MongoDB Atlas, set up backups through their dashboard.

@@ -1,124 +1,92 @@
 # Dukani System
 
-A retail management system with POS, inventory management, staff management, and reporting features.
-
-## Database Management
-
-### Resetting the Database
-
-If you need to start fresh with a clean database, you can use the provided reset script:
-
-```bash
-# Navigate to the server directory
-cd server
-
-# Run the reset script
-node resetDatabase.js
-```
-
-This script will:
-
-1. Drop all collections in the database
-2. Create a new admin user
-3. Output the admin credentials
-
-**WARNING**: This will delete all data in the database. Make sure you have backups if needed.
-
-### Creating an Admin User
-
-If you just need to create an admin user without resetting the database:
-
-```bash
-# Navigate to the server directory
-cd server
-
-# Run the admin creation script
-node createAdmin.js
-```
-
-This will create an admin user with the following credentials:
-
-- Email: admin@dukani.com
-- Password: admin123
-- Role: admin (with full access to all system features)
-- All permissions enabled (dashboard, POS, inventory, customers, staff, reports, settings)
-
-If an admin user already exists, the script will not create a new one.
-
-> **Note:** You may see a warning about duplicate schema indexes on the email field. This is just a warning, not an error, and can be safely ignored. It occurs because the email field is marked as unique in the User model, which automatically creates an index.
-
-## Running the Application
-
-### Server
-
-```bash
-# Navigate to the server directory
-cd server
-
-# Install dependencies
-npm install
-
-# Start the server
-npm start
-```
-
-### Client
-
-```bash
-# Navigate to the client directory
-cd client
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
-```
+A retail management system for tracking inventory, sales, and customers.
 
 ## Features
 
-- Point of Sale (POS) system
 - Inventory management
-- Staff management
+- Sales tracking
 - Customer management
+- Staff management
+- Analytics and reporting
 - Expense tracking
-- Reporting and analytics
-- User permissions and role-based access control
 
-## User Roles and Permissions
+## Tech Stack
 
-The system uses a combination of roles and permissions for access control:
+- **Frontend**: React, TypeScript, Tailwind CSS, Radix UI
+- **Backend**: Node.js, Express
+- **Database**: MongoDB
 
-### Roles
+## Local Development
 
-There are two models that store role information:
+### Prerequisites
 
-1. **User Model**: Contains the authentication role ('admin' or 'user')
-2. **Staff Model**: Contains the business role ('Manager', 'Sales Clerk', etc.)
+- Node.js (>= 18.x)
+- npm (>= 9.x)
+- MongoDB
 
-When you create a user with the `createAdmin.js` script, it creates:
+### Setup
 
-- A User record with role='admin'
-- A Staff record with role='Manager'
+1. Clone the repository:
 
-### Permissions
+```bash
+git clone https://github.com/yourusername/dukani-system.git
+cd dukani-system
+```
 
-Each user has specific permissions that determine which parts of the system they can access:
+2. Install dependencies:
 
-- **dashboard**: Access to the main dashboard
-- **pos**: Access to the Point of Sale system
-- **inventory**: Access to inventory management
-- **customers**: Access to customer management
-- **staff**: Access to staff management
-- **reports**: Access to reports and analytics
-- **settings**: Access to system settings
+```bash
+npm install
+cd client && npm install
+cd ../server && npm install
+```
 
-When creating or editing a user, you can set these permissions individually. A user will only be able to access the pages for which they have the corresponding permission enabled.
+3. Create a `.env` file in the server directory:
 
-**Important**: All users are restricted by their specific permission settings, regardless of their role. The system will:
+```
+DATABASE_URL=mongodb+srv://dukani:1bKAx0SismDokGpL@cluster0.abild.mongodb.net/dukaniDB?retryWrites=true&w=majority&appName=Cluster0
+JWT_SECRET=exrev-secret
+NODE_ENV=development
+```
 
-1. **Hide navigation tabs** for features the user doesn't have permission to access
-2. **Prevent direct URL access** to restricted pages
-3. **Show an "Unauthorized" page** if a user attempts to access a restricted area
+4. Start the development server:
 
-Make sure to enable the appropriate permissions for each user based on their responsibilities.
+```bash
+npm run dev
+```
+
+This will start both the client and server in development mode.
+
+## Deployment
+
+### Heroku Deployment
+
+See [HEROKU_DEPLOYMENT.md](./HEROKU_DEPLOYMENT.md) for detailed instructions on deploying to Heroku.
+
+## Project Structure
+
+```
+dukani-system/
+├── client/             # React frontend
+│   ├── public/         # Static assets
+│   └── src/            # Source code
+│       ├── api/        # API client
+│       ├── components/ # UI components
+│       ├── contexts/   # React contexts
+│       ├── hooks/      # Custom hooks
+│       ├── lib/        # Utility functions
+│       ├── pages/      # Page components
+│       └── types/      # TypeScript types
+├── server/             # Express backend
+│   ├── config/         # Configuration
+│   ├── models/         # Mongoose models
+│   ├── routes/         # API routes
+│   ├── services/       # Business logic
+│   └── utils/          # Utility functions
+└── api/                # API functions (for serverless deployment)
+```
+
+## License
+
+ISC

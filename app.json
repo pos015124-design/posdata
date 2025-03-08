@@ -1,0 +1,33 @@
+{
+  "name": "Dukani System",
+  "description": "A retail management system for tracking inventory, sales, and customers",
+  "repository": "https://github.com/yourusername/dukani-system",
+  "logo": "https://node-js-sample.herokuapp.com/node.png",
+  "keywords": ["node", "express", "react", "mongodb", "retail"],
+  "env": {
+    "DATABASE_URL": {
+      "description": "MongoDB connection string",
+      "required": true
+    },
+    "JWT_SECRET": {
+      "description": "Secret key for JWT authentication",
+      "required": true,
+      "generator": "secret"
+    },
+    "NODE_ENV": {
+      "description": "Environment setting",
+      "value": "production"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  }
+}

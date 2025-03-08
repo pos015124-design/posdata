@@ -1,25 +1,22 @@
 {
-  "name": "Dukani System",
+  "name": "dukani-system",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "main": "server/server.js",
   "scripts": {
-    "postinstall": "npm run client-install && npm run server-install && npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "client": "cd client && npm run dev",
-    "client-install": "cd client && npm install --include=dev",
-    "server": "cd server && npm run dev",
-    "server-install": "cd server && npm install",
-    "build": "cd client && npm run build",
-    "dev": "concurrently -n \"client,server\" \"npm run client\" \"npm run server\"",
-    "start": "cd server && npm start",
-    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm run build"
+    "build": "cd client && npm install && npm run build",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "start": "cd server && node server.js",
+    "heroku-postbuild": "cd server && npm install && cd ../client && npm install && npm run build"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=18.x",
+    "npm": ">=9.x"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "cacheDirectories": [
+    "client/node_modules",
+    "server/node_modules"
+  ],
   "dependencies": {
     "concurrently": "^8.2.2"
   }

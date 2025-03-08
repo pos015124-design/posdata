@@ -1,10 +1,25 @@
-server/node_modules/
-server/.env
-server/package-lock.json
-client/node_modules/
-client/package-lock.json
-client/dist/
+# Dependencies
 node_modules/
-package-lock.json
-.DS_Store
+
+# Environment variables
 .env
+.env.local
+.env.development
+.env.production
+
+# Build outputs
+dist/
+build/
+
+# OS files
+.DS_Store
+
+# Vercel
+.vercel
+vercel.json
+
+# Heroku
+.npmrc
+npm-debug.log
+yarn-debug.log
+yarn-error.log
