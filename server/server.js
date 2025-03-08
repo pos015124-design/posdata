@@ -51,9 +51,6 @@ app.on("error", (error) => {
   console.error(error.stack);
 });
 
-// Basic Routes
-app.use(basicRoutes);
-
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -78,6 +75,9 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.resolve(clientBuildPath, 'index.html'));
   });
 } else {
+  // In development, use the basic routes
+  app.use(basicRoutes);
+  
   // If no routes handled the request in development, it's a 404
   app.use((req, res, next) => {
     res.status(404).send("Page not found.");
