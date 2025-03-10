@@ -2,7 +2,7 @@ import api from './api';
 
 // Description: Get sales analytics
 // Endpoint: GET /api/analytics/sales
-// Request: { dateRange?: 'day' | 'week' | 'month' | 'all' | 'custom', from?: string, to?: string }
+// Request: { dateRange?: 'day' | 'week' | 'month' | 'year' | 'all' | 'custom', from?: string, to?: string }
 // Response: {
 //   dailySales: Array<{ date: string, amount: number }>,
 //   popularItems: Array<{ _id: string, name: string, sales: number }>,
@@ -35,7 +35,7 @@ import api from './api';
 //     }
 //   }
 // }
-export const getSalesAnalytics = async (dateRange?: 'day' | 'week' | 'month' | 'all' | 'custom', from?: string, to?: string) => {
+export const getSalesAnalytics = async (dateRange?: 'day' | 'week' | 'month' | 'year' | 'all' | 'custom', from?: string, to?: string) => {
   try {
     let params: Record<string, string> = {};
     
@@ -60,13 +60,13 @@ export const getSalesAnalytics = async (dateRange?: 'day' | 'week' | 'month' | '
 
 // Description: Get inventory analytics
 // Endpoint: GET /api/analytics/inventory
-// Request: { dateRange?: 'day' | 'week' | 'month' | 'all' | 'custom', from?: string, to?: string }
+// Request: { dateRange?: 'day' | 'week' | 'month' | 'year' | 'all' | 'custom', from?: string, to?: string }
 // Response: {
 //   inventoryValue: { totalValue: number, totalItems: number, uniqueProducts: number },
 //   lowStockItems: Array<{ _id: string, name: string, stock: number, reorderPoint: number, category: string }>,
 //   stockByCategory: Array<{ category: string, count: number, totalStock: number, value: number }>
 // }
-export const getInventoryAnalytics = async (dateRange?: 'day' | 'week' | 'month' | 'all' | 'custom', from?: string, to?: string) => {
+export const getInventoryAnalytics = async (dateRange?: 'day' | 'week' | 'month' | 'year' | 'all' | 'custom', from?: string, to?: string) => {
   try {
     let params: Record<string, string> = {};
     

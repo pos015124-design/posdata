@@ -104,7 +104,7 @@ interface InventoryAnalytics {
 
 export function Reports() {
   const { t } = useLanguage()
-  const [dateRange, setDateRange] = useState<"all" | "day" | "week" | "month" | "custom">("week")
+  const [dateRange, setDateRange] = useState<"all" | "day" | "week" | "month" | "year" | "custom">("week")
   const [customDateRange, setCustomDateRange] = useState<{ from: string, to: string }>({
     from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
     to: format(new Date(), "yyyy-MM-dd")
@@ -123,13 +123,13 @@ export function Reports() {
         salesParams = [dateRange as "custom", customDateRange.from, customDateRange.to];
         inventoryParams = [dateRange as "custom", customDateRange.from, customDateRange.to];
       } else {
-        salesParams = [dateRange as "all" | "day" | "week" | "month" | "custom"];
-        inventoryParams = [dateRange as "all" | "day" | "week" | "month" | "custom"];
+        salesParams = [dateRange as "all" | "day" | "week" | "month" | "year" | "custom"];
+        inventoryParams = [dateRange as "all" | "day" | "week" | "month" | "year" | "custom"];
       }
       
       const [salesData, inventoryData] = await Promise.all([
-        getSalesAnalytics(...(salesParams as [('day' | 'week' | 'month' | 'all' | 'custom'), string?, string?])),
-        getInventoryAnalytics(...(inventoryParams as [('day' | 'week' | 'month' | 'all' | 'custom'), string?, string?]))
+        getSalesAnalytics(...(salesParams as [('day' | 'week' | 'month' | 'year' | 'all' | 'custom'), string?, string?])),
+        getInventoryAnalytics(...(inventoryParams as [('day' | 'week' | 'month' | 'year' | 'all' | 'custom'), string?, string?]))
       ]);
       
       setAnalytics(salesData);
@@ -202,6 +202,7 @@ export function Reports() {
                 <SelectItem value="day">{t("reports.today")}</SelectItem>
                 <SelectItem value="week">{t("reports.thisWeek")}</SelectItem>
                 <SelectItem value="month">{t("reports.thisMonth")}</SelectItem>
+                <SelectItem value="year">{t("reports.thisYear")}</SelectItem>
                 <SelectItem value="custom">{t("reports.customRange")}</SelectItem>
               </SelectContent>
             </Select>
@@ -402,6 +403,31 @@ export function Reports() {
                     <TableCell className="text-right">{formatCurrency(analytics.revenue.monthly)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(analytics.netRevenue?.monthly || analytics.revenue.monthly)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(analytics.tax?.monthly || 0)}</TableCell>
+                    <TableCell className="text-right">
+                      {analytics.revenue.monthly > 0
+                        ? `${((analytics.tax?.monthly || 0) / analytics.revenue.monthly * 100).toFixed(1)}%`
+                        : '0%'}
+                    </TableCell>
+                  </TableRow>
+                  {dateRange === 'all' && (
+                    <TableRow>
+                      <TableCell className="font-medium">All Time</TableCell>
+                      <TableCell className="text-right">{formatCurrency(analytics.revenue.monthly * 12)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency((analytics.netRevenue?.monthly || analytics.revenue.monthly) * 12)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency((analytics.tax?.monthly || 0) * 12)}</TableCell>
+                      <TableCell className="text-right">
+                        {analytics.revenue.monthly > 0
+                          ? `${((analytics.tax?.monthly || 0) / analytics.revenue.monthly * 100).toFixed(1)}%`
+                          : '0%'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {/* This Year row - always show this */}
+                  <TableRow>
+                    <TableCell className="font-medium">This Year</TableCell>
+                    <TableCell className="text-right">{formatCurrency(analytics.revenue.monthly * 12)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency((analytics.netRevenue?.monthly || analytics.revenue.monthly) * 12)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency((analytics.tax?.monthly || 0) * 12)}</TableCell>
                     <TableCell className="text-right">
                       {analytics.revenue.monthly > 0
                         ? `${((analytics.tax?.monthly || 0) / analytics.revenue.monthly * 100).toFixed(1)}%`

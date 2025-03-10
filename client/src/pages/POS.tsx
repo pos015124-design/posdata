@@ -119,6 +119,12 @@ export function POS() {
         // Apply settings
         if (settingsData.settings.tax && settingsData.settings.tax.enableTax) {
           setTaxRate(settingsData.settings.tax.defaultTaxRate)
+          // Store tax settings in localStorage for calculations
+          localStorage.setItem('taxSettings', JSON.stringify({
+            taxIncluded: settingsData.settings.tax.taxIncluded || false,
+            enableTax: settingsData.settings.tax.enableTax || false,
+            defaultTaxRate: settingsData.settings.tax.defaultTaxRate || 0
+          }))
         }
         
         // Apply payment settings
@@ -252,8 +258,22 @@ export function POS() {
       0
     )
     const discount = Number(discountAmount) || 0
-    const tax = subtotal * (Number(taxRate) / 100) // Convert percentage to decimal
-    return subtotal + tax - discount
+    
+    // Get tax settings from the server
+    const taxRateDecimal = Number(taxRate) / 100 // Convert percentage to decimal
+    const taxSettings = JSON.parse(localStorage.getItem('taxSettings') || '{"taxIncluded":false}')
+    
+    let tax = 0
+    if (taxSettings.taxIncluded) {
+      // If tax is included in price, extract it from the subtotal
+      // Formula: tax = subtotal - (subtotal / (1 + taxRate))
+      tax = subtotal - (subtotal / (1 + taxRateDecimal))
+    } else {
+      // If tax is not included, calculate it normally
+      tax = subtotal * taxRateDecimal
+    }
+    
+    return (taxSettings.taxIncluded ? subtotal : subtotal + tax) - discount
   }
 
   const handlePrintReceipt = async (saleId: string) => {

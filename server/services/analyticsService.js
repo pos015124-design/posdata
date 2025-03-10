@@ -49,6 +49,17 @@ class AnalyticsService {
         startDate = thisMonthStart;
         previousPeriodStart = lastMonthStart;
         previousPeriodEnd = lastMonthEnd;
+      } else if (dateRange === 'year') {
+        // Calculate this year's start date (January 1st of current year)
+        const thisYearStart = new Date(now.getFullYear(), 0, 1);
+        startDate = thisYearStart;
+        
+        // Calculate last year's start and end dates
+        const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+        const lastYearEnd = new Date(now.getFullYear(), 0, 0);
+        
+        previousPeriodStart = lastYearStart;
+        previousPeriodEnd = lastYearEnd;
       } else {
         // Default to 30 days if no valid dateRange is provided
         startDate = thirtyDaysAgo;
@@ -369,6 +380,10 @@ class AnalyticsService {
         startDate = thisWeekStart;
       } else if (dateRange === 'month') {
         startDate = thisMonthStart;
+      } else if (dateRange === 'year') {
+        // Calculate this year's start date (January 1st of current year)
+        const thisYearStart = new Date(now.getFullYear(), 0, 1);
+        startDate = thisYearStart;
       } else {
         // Default to 30 days if no valid dateRange is provided
         startDate = thirtyDaysAgo;
