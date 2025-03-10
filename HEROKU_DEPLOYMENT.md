@@ -111,7 +111,7 @@ git push heroku master
 After deploying, create an admin user with the following command:
 
 ```bash
-heroku run npm run create-admin
+heroku run "node server/createAdmin.js"
 ```
 
 This will create an admin user with the following credentials:
