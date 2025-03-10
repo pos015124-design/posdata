@@ -98,7 +98,17 @@ class SaleService {
 
       // Tax is now optional, default to 0 (no tax)
       const taxRate = saleData.taxRate || 0;
-      const tax = subtotal * taxRate;
+      
+      // Check if tax is included in price
+      let tax = 0;
+      if (saleData.taxIncluded) {
+        // If tax is included, extract it from the subtotal
+        // Formula: tax = subtotal - (subtotal / (1 + taxRate))
+        tax = subtotal - (subtotal / (1 + taxRate));
+      } else {
+        // If tax is not included, calculate it normally
+        tax = subtotal * taxRate;
+      }
 
       // Process discounts
       let discountAmount = 0;
@@ -189,6 +199,7 @@ class SaleService {
       const businessTaxId = settings?.business?.taxId || '';
       const receiptFooter = settings?.receipt?.footerText || 'Thank you for shopping!';
       const showTaxId = settings?.receipt?.showTaxId || false;
+      const taxIncluded = settings?.tax?.taxIncluded || false;
 
       // Format the receipt
       let receipt = `
@@ -207,10 +218,10 @@ Items:
       }
 
       receipt += `
----------------------
-Subtotal    ${sale.subtotal.toLocaleString()}
-Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()}
-`;
+      ---------------------
+      Subtotal    ${sale.subtotal.toLocaleString()}
+      Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()}${taxIncluded ? ' (Included in price)' : ''}
+      `;
 
       // Add discounts if any
       if (sale.discounts && sale.discounts.length > 0) {

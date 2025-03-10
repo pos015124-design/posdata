@@ -364,6 +364,9 @@ export function POS() {
         ? Number(amountPaid)
         : calculateTotal();
 
+      // Get tax settings from localStorage
+      const taxSettings = JSON.parse(localStorage.getItem('taxSettings') || '{"taxIncluded":false}');
+      
       const response = await processPayment({
         items: cart.map((item) => ({
           productId: item.productId,
@@ -375,6 +378,7 @@ export function POS() {
           ? [{ type: "fixed", amount: Number(discountAmount) }]
           : [],
         taxRate: Number(taxRate) / 100, // Convert percentage to decimal
+        taxIncluded: taxSettings.taxIncluded, // Pass whether tax is included in price
         amountPaid: paymentAmount,
         transactionNumber: (paymentMethod === "card" || paymentMethod === "mobile") ? transactionNumber : undefined,
       })

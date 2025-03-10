@@ -96,6 +96,7 @@ export const processPayment = async (data: {
   notes?: string,
   amountPaid?: number,
   taxRate?: number,
+  taxIncluded?: boolean,
   transactionNumber?: string
 }) => {
   try {
