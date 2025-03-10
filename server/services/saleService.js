@@ -123,7 +123,8 @@ class SaleService {
       }
 
       // Calculate total
-      const total = subtotal + tax - discountAmount;
+      // If tax is included in price, don't add it again to the subtotal
+      const total = saleData.taxIncluded ? subtotal - discountAmount : subtotal + tax - discountAmount;
 
       // Calculate change
       const amountPaid = saleData.amountPaid || total;
@@ -217,11 +218,19 @@ Items:
         receipt += `${item.quantity}x ${item.name.padEnd(15)} ${item.total.toLocaleString()}\n`;
       }
 
-      receipt += `
+      if (taxIncluded) {
+        receipt += `
+      ---------------------
+      Total (incl. tax)    ${sale.subtotal.toLocaleString()}
+      Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()} (Included in price)
+      `;
+      } else {
+        receipt += `
       ---------------------
       Subtotal    ${sale.subtotal.toLocaleString()}
-      Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()}${taxIncluded ? ' (Included in price)' : ''}
+      Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()}
       `;
+      }
 
       // Add discounts if any
       if (sale.discounts && sale.discounts.length > 0) {

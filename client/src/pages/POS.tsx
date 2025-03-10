@@ -266,14 +266,16 @@ export function POS() {
     let tax = 0
     if (taxSettings.taxIncluded) {
       // If tax is included in price, extract it from the subtotal
-      // Formula: tax = subtotal - (subtotal / (1 + taxRate))
+      // Formula: tax = subtotal - (subtotal / (1 + taxRateDecimal))
       tax = subtotal - (subtotal / (1 + taxRateDecimal))
     } else {
       // If tax is not included, calculate it normally
       tax = subtotal * taxRateDecimal
     }
     
-    return (taxSettings.taxIncluded ? subtotal : subtotal + tax) - discount
+    // If tax is included in price, don't add it to the subtotal
+    // Just subtract the discount from the subtotal
+    return taxSettings.taxIncluded ? subtotal - discount : subtotal + tax - discount
   }
 
   const handlePrintReceipt = async (saleId: string) => {
