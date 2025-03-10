@@ -220,16 +220,16 @@ Items:
 
       if (taxIncluded) {
         receipt += `
-      ---------------------
-      Total (incl. tax)    ${sale.subtotal.toLocaleString()}
-      Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()} (Included in price)
-      `;
+---------------------
+Total (incl. tax)    ${sale.subtotal.toLocaleString()}
+Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()} (Included in price)
+`;
       } else {
         receipt += `
-      ---------------------
-      Subtotal    ${sale.subtotal.toLocaleString()}
-      Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()}
-      `;
+---------------------
+Subtotal    ${sale.subtotal.toLocaleString()}
+Tax (${sale.taxRate}%)  ${sale.tax.toLocaleString()}
+`;
       }
 
       // Add discounts if any
@@ -237,7 +237,21 @@ Items:
         receipt += `Discount    ${sale.discounts.reduce((sum, d) => sum + d.amount, 0).toLocaleString()}\n`;
       }
 
-      receipt += `
+      // Show the correct total based on whether tax is included
+      if (taxIncluded) {
+        receipt += `
+---------------------
+Total      ${sale.subtotal.toLocaleString()}
+
+Payment: ${sale.paymentMethod.toUpperCase()}
+Amount Paid: ${sale.amountPaid.toLocaleString()}
+Change: ${sale.change.toLocaleString()}
+
+${receiptFooter}
+=====================
+`;
+      } else {
+        receipt += `
 ---------------------
 Total      ${sale.total.toLocaleString()}
 
@@ -248,6 +262,7 @@ Change: ${sale.change.toLocaleString()}
 ${receiptFooter}
 =====================
 `;
+      }
 
       return { receipt: receipt.trim() };
     } catch (error) {
