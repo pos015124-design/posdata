@@ -31,6 +31,7 @@ router.get('/recent', requireUser, async (req, res) => {
       subtotal: sale.subtotal,
       tax: sale.tax,
       taxRate: sale.taxRate || 0, // Include tax rate, default to 0 if not present
+      taxIncluded: sale.taxIncluded || false, // Include whether tax is included in price
       total: sale.total,
       paymentMethod: sale.paymentMethod,
       date: sale.createdAt,
@@ -64,7 +65,7 @@ router.get('/:id', requireUser, async (req, res) => {
 // Process payment/sale
 router.post('/payment/process', requireUser, async (req, res) => {
   try {
-    const { items, paymentMethod, customerId, discounts, notes, amountPaid, taxRate, transactionNumber } = req.body;
+    const { items, paymentMethod, customerId, discounts, notes, amountPaid, taxRate, taxIncluded, transactionNumber } = req.body;
     
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'Items are required and must be an array' });
@@ -84,6 +85,7 @@ router.post('/payment/process', requireUser, async (req, res) => {
         notes,
         amountPaid: parseFloat(amountPaid || 0),
         taxRate: parseFloat(taxRate || 0),
+        taxIncluded: taxIncluded || false,
         transactionNumber
       },
       req.user.userId

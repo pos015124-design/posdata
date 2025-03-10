@@ -69,6 +69,10 @@ const saleSchema = new Schema({
     default: 0,
     min: 0
   },
+  taxIncluded: {
+    type: Boolean,
+    default: false
+  },
   discounts: [discountSchema],
   total: {
     type: Number,

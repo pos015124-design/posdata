@@ -137,6 +137,7 @@ class SaleService {
         subtotal,
         tax,
         taxRate: taxRate * 100, // Store as percentage (e.g., 15 for 15%)
+        taxIncluded: saleData.taxIncluded || false, // Store whether tax is included in price
         discounts,
         total,
         paymentMethod: saleData.paymentMethod,

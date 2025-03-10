@@ -127,14 +127,24 @@ class AnalyticsService {
         }
       ]);
 
+      // Calculate this year's start date (January 1st of current year)
+      const thisYearStart = new Date(now.getFullYear(), 0, 1);
+      
+      // Calculate all time (no date filter)
+      const allTimeStart = new Date(0); // January 1, 1970
+      
       // Get revenue and tax data
       const [
         currentDayRevenue,
         currentWeekRevenue,
         currentMonthRevenue,
+        currentYearRevenue,
+        allTimeRevenue,
         currentDayTax,
         currentWeekTax,
-        currentMonthTax
+        currentMonthTax,
+        currentYearTax,
+        allTimeTax
       ] = await Promise.all([
         // Revenue
         Sale.aggregate([
@@ -149,6 +159,14 @@ class AnalyticsService {
           { $match: { createdAt: { $gte: thisMonthStart } } },
           { $group: { _id: null, total: { $sum: '$total' } } }
         ]),
+        Sale.aggregate([
+          { $match: { createdAt: { $gte: thisYearStart } } },
+          { $group: { _id: null, total: { $sum: '$total' } } }
+        ]),
+        Sale.aggregate([
+          { $match: { } }, // No date filter for all time
+          { $group: { _id: null, total: { $sum: '$total' } } }
+        ]),
         // Tax
         Sale.aggregate([
           { $match: { createdAt: { $gte: today } } },
@@ -160,6 +178,14 @@ class AnalyticsService {
         ]),
         Sale.aggregate([
           { $match: { createdAt: { $gte: thisMonthStart } } },
+          { $group: { _id: null, tax: { $sum: '$tax' } } }
+        ]),
+        Sale.aggregate([
+          { $match: { createdAt: { $gte: thisYearStart } } },
+          { $group: { _id: null, tax: { $sum: '$tax' } } }
+        ]),
+        Sale.aggregate([
+          { $match: { } }, // No date filter for all time
           { $group: { _id: null, tax: { $sum: '$tax' } } }
         ])
       ]);
@@ -296,6 +322,10 @@ class AnalyticsService {
                        (currentWeekTax.length > 0 ? currentWeekTax[0].tax : 0);
       const monthlyNet = (currentMonthRevenue.length > 0 ? currentMonthRevenue[0].total : 0) -
                         (currentMonthTax.length > 0 ? currentMonthTax[0].tax : 0);
+      const yearlyNet = (currentYearRevenue.length > 0 ? currentYearRevenue[0].total : 0) -
+                       (currentYearTax.length > 0 ? currentYearTax[0].tax : 0);
+      const allTimeNet = (allTimeRevenue.length > 0 ? allTimeRevenue[0].total : 0) -
+                        (allTimeTax.length > 0 ? allTimeTax[0].tax : 0);
 
       // Get cash in hand data
       const cashInHandData = await this.getCashInHandData(startDate);
@@ -306,17 +336,23 @@ class AnalyticsService {
         revenue: {
           daily: currentDayRevenue.length > 0 ? currentDayRevenue[0].total : 0,
           weekly: currentWeekRevenue.length > 0 ? currentWeekRevenue[0].total : 0,
-          monthly: currentMonthRevenue.length > 0 ? currentMonthRevenue[0].total : 0
+          monthly: currentMonthRevenue.length > 0 ? currentMonthRevenue[0].total : 0,
+          yearly: currentYearRevenue.length > 0 ? currentYearRevenue[0].total : 0,
+          allTime: allTimeRevenue.length > 0 ? allTimeRevenue[0].total : 0
         },
         tax: {
           daily: currentDayTax.length > 0 ? currentDayTax[0].tax : 0,
           weekly: currentWeekTax.length > 0 ? currentWeekTax[0].tax : 0,
-          monthly: currentMonthTax.length > 0 ? currentMonthTax[0].tax : 0
+          monthly: currentMonthTax.length > 0 ? currentMonthTax[0].tax : 0,
+          yearly: currentYearTax.length > 0 ? currentYearTax[0].tax : 0,
+          allTime: allTimeTax.length > 0 ? allTimeTax[0].tax : 0
         },
         netRevenue: {
           daily: dailyNet,
           weekly: weeklyNet,
-          monthly: monthlyNet
+          monthly: monthlyNet,
+          yearly: yearlyNet,
+          allTime: allTimeNet
         },
         cashInHand: cashInHandData,
         profitAndLoss: {

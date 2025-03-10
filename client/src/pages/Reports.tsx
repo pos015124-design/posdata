@@ -51,9 +51,9 @@ const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 interface SalesAnalytics {
   dailySales: Array<{ date: string; amount: number }>;
   popularItems: Array<{ _id: string; name: string; sales: number }>;
-  revenue: { daily: number; weekly: number; monthly: number };
-  tax?: { daily: number; weekly: number; monthly: number };
-  netRevenue?: { daily: number; weekly: number; monthly: number };
+  revenue: { daily: number; weekly: number; monthly: number; yearly?: number; allTime?: number };
+  tax?: { daily: number; weekly: number; monthly: number; yearly?: number; allTime?: number };
+  netRevenue?: { daily: number; weekly: number; monthly: number; yearly?: number; allTime?: number };
   cashInHand?: {
     openingBalance: number;
     closingBalance: number;
@@ -409,28 +409,27 @@ export function Reports() {
                         : '0%'}
                     </TableCell>
                   </TableRow>
-                  {dateRange === 'all' && (
-                    <TableRow>
-                      <TableCell className="font-medium">All Time</TableCell>
-                      <TableCell className="text-right">{formatCurrency(analytics.revenue.monthly * 12)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency((analytics.netRevenue?.monthly || analytics.revenue.monthly) * 12)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency((analytics.tax?.monthly || 0) * 12)}</TableCell>
-                      <TableCell className="text-right">
-                        {analytics.revenue.monthly > 0
-                          ? `${((analytics.tax?.monthly || 0) / analytics.revenue.monthly * 100).toFixed(1)}%`
-                          : '0%'}
-                      </TableCell>
-                    </TableRow>
-                  )}
+                  {/* All Time row - always show this */}
+                  <TableRow>
+                    <TableCell className="font-medium">All Time</TableCell>
+                    <TableCell className="text-right">{formatCurrency(analytics.revenue.allTime || 0)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(analytics.netRevenue?.allTime || 0)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(analytics.tax?.allTime || 0)}</TableCell>
+                    <TableCell className="text-right">
+                      {(analytics.revenue.allTime || 0) > 0
+                        ? `${((analytics.tax?.allTime || 0) / (analytics.revenue.allTime || 1) * 100).toFixed(1)}%`
+                        : '0%'}
+                    </TableCell>
+                  </TableRow>
                   {/* This Year row - always show this */}
                   <TableRow>
                     <TableCell className="font-medium">This Year</TableCell>
-                    <TableCell className="text-right">{formatCurrency(analytics.revenue.monthly * 12)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency((analytics.netRevenue?.monthly || analytics.revenue.monthly) * 12)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency((analytics.tax?.monthly || 0) * 12)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(analytics.revenue.yearly || 0)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(analytics.netRevenue?.yearly || 0)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(analytics.tax?.yearly || 0)}</TableCell>
                     <TableCell className="text-right">
-                      {analytics.revenue.monthly > 0
-                        ? `${((analytics.tax?.monthly || 0) / analytics.revenue.monthly * 100).toFixed(1)}%`
+                      {(analytics.revenue.yearly || 0) > 0
+                        ? `${((analytics.tax?.yearly || 0) / (analytics.revenue.yearly || 1) * 100).toFixed(1)}%`
                         : '0%'}
                     </TableCell>
                   </TableRow>

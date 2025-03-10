@@ -66,6 +66,7 @@ type Sale = {
   total: number
   paymentMethod: string
   date: string
+  taxIncluded?: boolean
 }
 
 export function POS() {
@@ -569,7 +570,10 @@ export function POS() {
                       <TableCell>
                         {sale.taxRate ? `${sale.taxRate}% (${formatCurrency(sale.tax || 0)})` : '-'}
                       </TableCell>
-                      <TableCell>{formatCurrency(sale.total)}</TableCell>
+                      <TableCell>
+                        {/* Display the correct total based on whether tax is included */}
+                        {formatCurrency(sale.taxIncluded ? sale.subtotal : sale.total)}
+                      </TableCell>
                       <TableCell className="capitalize">{sale.paymentMethod}</TableCell>
                       <TableCell>
                         <Button
