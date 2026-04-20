@@ -18,6 +18,8 @@ import { Customers } from "./pages/Customers"
 import { Settings } from "./pages/Settings"
 import Unauthorized from "./pages/Unauthorized"
 import { useAuth } from "./contexts/AuthContext"
+import HelpSystem from "./components/HelpSystem"
+import UserOnboarding from "./components/UserOnboarding"
 
 function RedirectBasedOnRole() {
   const { user, hasPermission } = useAuth();
@@ -90,6 +92,8 @@ function App() {
               </Route>
             </Routes>
             <Toaster />
+            <HelpSystem />
+            <UserOnboarding />
           </Router>
         </ThemeProvider>
       </LanguageProvider>

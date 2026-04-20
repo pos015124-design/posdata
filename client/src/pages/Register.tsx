@@ -48,7 +48,7 @@ export function Register() {
       };
       navigate("/login", { state })
     } catch (error: unknown) {
-      console.log("Register error:", error)
+
       const errorMessage = error instanceof Error ? error.message : "An error occurred during registration";
       toast({
         variant: "destructive",

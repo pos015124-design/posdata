@@ -10,15 +10,7 @@ export function PermissionRoute({ children, requiredPermission }: PermissionRout
   const { isAuthenticated, user, hasPermission } = useAuth();
   const location = useLocation();
 
-  console.log("Permission Route Check:", {
-    isAuthenticated,
-    user,
-    requiredPermission,
-    hasPermission: hasPermission(requiredPermission),
-    userRole: user?.role,
-    userPermissions: user?.permissions,
-    path: location.pathname
-  });
+  // Check if user has the required permission
 
   // First check if user is authenticated
   if (!isAuthenticated || !user) {

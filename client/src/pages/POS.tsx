@@ -113,9 +113,9 @@ export function POS() {
           getRecentSales(),
           getSettings()
         ])
-        setProducts(productsData.products)
-        setCustomers(customersData.customers)
-        setRecentSales(salesData.sales)
+        setProducts(productsData.products || [])
+        setCustomers(customersData.customers || [])
+        setRecentSales(salesData.sales || [])
         
         // Apply settings
         if (settingsData.settings.tax && settingsData.settings.tax.enableTax) {
@@ -514,7 +514,7 @@ export function POS() {
             </div>
             <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
               {products
-                .filter((product) =>
+                ?.filter((product) =>
                   product.name.toLowerCase().includes(searchTerm.toLowerCase())
                 )
                 .map((product) => (
@@ -531,7 +531,7 @@ export function POS() {
                       <div className="mt-1 lg:mt-2 font-bold text-sm sm:text-base">{formatCurrency(product.price)}</div>
                     </CardContent>
                   </Card>
-                ))}
+                )) || <p className="col-span-full text-center text-muted-foreground">No products available</p>}
             </div>
           </CardContent>
         </Card>
@@ -557,11 +557,11 @@ export function POS() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentSales.map((sale) => (
+                  {recentSales?.map((sale) => (
                     <TableRow key={sale._id}>
                       <TableCell>{formatDistanceToNow(new Date(sale.date), { addSuffix: true })}</TableCell>
                       <TableCell>
-                        {sale.items.map((item) => (
+                        {sale.items?.map((item) => (
                           <div key={item.name} className="text-sm">
                             {item.quantity}x {item.name}
                           </div>
@@ -610,11 +610,11 @@ export function POS() {
                       <SelectValue placeholder={t("pos.selectCustomer")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {customers.map((customer) => (
+                      {customers?.map((customer) => (
                         <SelectItem key={customer._id} value={customer._id}>
                           {customer.name}
                         </SelectItem>
-                      ))}
+                      )) || <SelectItem value="none">No customers</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>

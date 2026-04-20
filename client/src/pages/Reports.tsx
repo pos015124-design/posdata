@@ -132,8 +132,37 @@ export function Reports() {
         getInventoryAnalytics(...(inventoryParams as [('day' | 'week' | 'month' | 'year' | 'all' | 'custom'), string?, string?]))
       ]);
       
-      setAnalytics(salesData);
-      setInventoryData(inventoryData);
+      // Normalize salesData to ensure all required properties exist
+      const normalizedSalesData = {
+        ...salesData,
+        revenue: salesData?.revenue || { daily: 0, weekly: 0, monthly: 0 },
+        dailySales: salesData?.dailySales || [],
+        popularItems: salesData?.popularItems || [],
+        profitAndLoss: salesData?.profitAndLoss || {
+          revenue: { current: 0, previous: 0 },
+          expenses: { current: 0, previous: 0 },
+          costOfGoods: { current: 0, previous: 0 },
+          grossProfit: { current: 0, previous: 0 },
+          netProfit: { current: 0, previous: 0 },
+          categories: {
+            revenue: [],
+            expenses: []
+          }
+        },
+        tax: salesData?.tax || { daily: 0, weekly: 0, monthly: 0 },
+        netRevenue: salesData?.netRevenue || { daily: 0, weekly: 0, monthly: 0 }
+      };
+      
+      // Normalize inventoryData to ensure all required properties exist
+      const normalizedInventoryData = {
+        ...inventoryData,
+        inventoryValue: inventoryData?.inventoryValue || { totalValue: 0, totalItems: 0, uniqueProducts: 0 },
+        lowStockItems: inventoryData?.lowStockItems || [],
+        stockByCategory: inventoryData?.stockByCategory || []
+      };
+      
+      setAnalytics(normalizedSalesData);
+      setInventoryData(normalizedInventoryData);
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch analytics data:", error);

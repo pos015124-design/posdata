@@ -42,9 +42,7 @@ export function Staff() {
     try {
       setLoading(true);
       setError(null);
-      console.log("Fetching staff data...");
       const response = await getStaff();
-      console.log("Staff data received:", response.staff);
       setStaff(response.staff);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch staff";
@@ -65,7 +63,7 @@ export function Staff() {
 
   const handleUpdateStaff = async (updatedStaff: StaffMember) => {
     try {
-      console.log("Updating staff with data:", updatedStaff);
+
       
       if (!updatedStaff._id) {
         throw new Error("Staff ID is missing");
@@ -79,12 +77,11 @@ export function Staff() {
         phone: updatedStaff.phone || ""
       };
       
-      console.log(`Sending update request for staff ID: ${updatedStaff._id}`);
-      console.log("Staff data:", JSON.stringify(staffData, null, 2));
+
       
       // First update the basic staff information
       const result = await updateStaff(updatedStaff._id, staffData);
-      console.log("Basic update result:", result);
+
       
       // Performance update code removed
       

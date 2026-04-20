@@ -5,7 +5,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
 
-  console.log("Protected Route Check:", { isAuthenticated, user });
+
 
   if (!isAuthenticated || !user) {
     localStorage.removeItem("accessToken");

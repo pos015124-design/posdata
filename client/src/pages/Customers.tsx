@@ -139,9 +139,10 @@ export function Customers() {
   const fetchCustomers = async () => {
     try {
       const response = await getCustomers()
-      setCustomers(response.customers)
+      setCustomers(response.customers || [])
     } catch (error) {
       console.error('Failed to fetch customers:', error)
+      setCustomers([])
       toast({
         variant: "destructive",
         title: "Error",
@@ -154,12 +155,13 @@ export function Customers() {
     try {
       const response = await getRecentSales()
       // Filter sales for this customer
-      const customerSales = response.sales.filter(
+      const customerSales = (response.sales || []).filter(
         (sale: Sale) => sale.customer && sale.customer._id === customerId
       )
       setCustomerSales(customerSales)
     } catch (error) {
       console.error('Failed to fetch customer sales:', error)
+      setCustomerSales([])
       toast({
         variant: "destructive",
         title: "Error",
@@ -171,9 +173,10 @@ export function Customers() {
   const fetchCustomerPayments = async (customerId: string) => {
     try {
       const response = await getCustomerPayments(customerId)
-      setCustomerPayments(response.payments)
+      setCustomerPayments(response.payments || [])
     } catch (error) {
       console.error('Failed to fetch customer payments:', error)
+      setCustomerPayments([])
       toast({
         variant: "destructive",
         title: "Error",

@@ -94,7 +94,7 @@ export function Settings() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log("Loading settings from server...")
+
         
         // Fetch settings from the API
         const response = await getSettings();
@@ -105,13 +105,13 @@ export function Settings() {
         setReceiptSettings(response.settings.receipt);
         setPaymentSettings(response.settings.payment);
         
-        console.log("Settings loaded successfully");
+
         
         // Fetch categories
         try {
           const categoriesResponse = await getCategories();
           setCategories(categoriesResponse.categories);
-          console.log("Categories loaded successfully");
+
         } catch (categoryError) {
           console.error("Failed to load categories:", categoryError);
           toast({
@@ -138,7 +138,7 @@ export function Settings() {
   // Save all settings
   const saveSettings = async () => {
     try {
-      console.log("Saving settings to server...");
+
       
       // Prepare the settings object
       const settings = {

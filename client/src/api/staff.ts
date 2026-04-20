@@ -81,11 +81,7 @@ export const updateStaff = async (
       throw new Error('Name, role, and email are required fields');
     }
     
-    console.log('Updating staff with ID:', id);
-    console.log('Data being sent:', JSON.stringify(data, null, 2));
-    
     const response = await api.put(`/api/staff/${id}`, data);
-    console.log('Server response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error updating staff member:', error);

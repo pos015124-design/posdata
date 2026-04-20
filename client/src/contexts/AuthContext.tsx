@@ -58,8 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("refreshToken", response.refreshToken);
       }
       
-      console.log("Login successful, user data:", response.user);
-      console.log("User permissions:", response.user.permissions);
+
       
       localStorage.setItem("user", JSON.stringify(response.user));
       setIsAuthenticated(true);
@@ -73,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string, name?: string) => {
     try {
       const response = await apiRegister(email, password, name);
-      console.log("Register response:", response);
+
       
       // For registration, we don't expect an access token because new users need approval
       // We just return the success message to the user
@@ -110,16 +109,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     try {
       if (!isAuthenticated) {
-        console.log("Not refreshing user data - not authenticated");
+  
         return;
       }
       
-      console.log("Refreshing user data from server");
       const response = await getCurrentUser();
       
       if (response?.user) {
-        console.log("User data refreshed:", response.user);
-        console.log("Permissions:", response.user.permissions);
         
         // Store the updated user data
         localStorage.setItem("user", JSON.stringify(response.user));
@@ -139,14 +135,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Function to check if user has a specific permission
   const hasPermission = (permission: keyof Permissions): boolean => {
     if (!user) {
-      console.log(`Permission check for ${permission}: No user, returning false`);
       return false;
     }
     
-    // Check the specific permission for all users, including admins
-    const hasPermission = user.permissions?.[permission] || false;
-    console.log(`Permission check for ${permission}: User has permission: ${hasPermission}`, user.permissions);
-    return hasPermission;
+    // Admin and super_admin have all permissions by default
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      return true;
+    }
+    
+    // Check the specific permission for other users
+    const hasPerm = user.permissions?.[permission];
+    
+    // If permissions object exists, return the value, otherwise false
+    return hasPerm === true;
   };
 
   return (
