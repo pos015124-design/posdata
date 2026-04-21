@@ -1,406 +1,311 @@
-import { useState, useEffect } from "react"
-import { getExpenses, addExpense, getExpensesByDateRange } from "@/api/expenses"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/useToast"
-import { useLanguage } from "@/contexts/LanguageContext"
-import { format, subDays } from "date-fns"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { DollarSign, Plus, RefreshCw, Filter } from "lucide-react"
-import { formatCurrency } from "@/lib/format"
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { DollarSign, Plus, Edit, Trash2, X, TrendingUp } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
+import * as expensesApi from '../api/expenses';
 
-type Expense = {
-  _id: string
-  description: string
-  amount: number
-  category: string
-  date: string
-}
+export default function Expenses() {
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [dateRange, setDateRange] = useState<'all' | 'day' | 'week' | 'month'>('all');
+  const { toast } = useToast();
 
-export function Expenses() {
-  const { t } = useLanguage()
-  const [expenses, setExpenses] = useState<Expense[]>([])
-  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([])
-  const [addingExpense, setAddingExpense] = useState(false)
-  const [dateRange, setDateRange] = useState<"all" | "day" | "week" | "month" | "custom">("all")
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
-  const [customDateRange, setCustomDateRange] = useState<{ from: string, to: string }>({
-    from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
-    to: format(new Date(), "yyyy-MM-dd")
-  })
-  const [newExpense, setNewExpense] = useState({
-    description: "",
-    amount: "",
-    category: "",
+  const [formData, setFormData] = useState({
+    description: '',
+    amount: 0,
+    category: '',
     date: new Date().toISOString().split('T')[0],
-  })
-  const { toast } = useToast()
+    notes: ''
+  });
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [dateRange]);
 
   const fetchExpenses = async () => {
     try {
-      let data;
-      if (dateRange === 'custom') {
-        data = await getExpensesByDateRange(customDateRange.from, customDateRange.to);
-      } else {
-        data = await getExpenses(dateRange);
-      }
-      setExpenses(data.expenses)
-      setFilteredExpenses(data.expenses)
-    } catch (err) {
-      console.error("Error fetching expenses:", err);
+      setLoading(true);
+      const response = await expensesApi.getExpenses(dateRange);
+      setExpenses(response.expenses || []);
+    } catch (error) {
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: t("expenses.failedToFetch"),
-      })
+        title: 'Error',
+        description: 'Failed to load expenses',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  useEffect(() => {
-    fetchExpenses()
-  }, [dateRange, customDateRange])
-  
-  // Apply category filter
-  useEffect(() => {
-    let filtered = [...expenses];
-    
-    // Apply category filter
-    if (categoryFilter) {
-      filtered = filtered.filter(expense =>
-        expense.category.toLowerCase() === categoryFilter.toLowerCase()
-      );
-    }
-    
-    setFilteredExpenses(filtered);
-  }, [categoryFilter, expenses]);
+  const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
-  const handleAddExpense = async () => {
-    // Validate required fields
-    if (!newExpense.description.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: t("expenses.descriptionRequired"),
-      })
-      return
-    }
-    if (!newExpense.category) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: t("expenses.categoryRequired"),
-      })
-      return
-    }
-    if (!newExpense.amount || isNaN(Number(newExpense.amount)) || Number(newExpense.amount) <= 0) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: t("expenses.amountPositive"),
-      })
-      return
-    }
-    // Prepare payload: only send valid fields
-    const payload: any = {
-      description: newExpense.description.trim(),
-      amount: Number(newExpense.amount),
-      category: newExpense.category,
-      date: newExpense.date || new Date().toISOString().split('T')[0],
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'amount' ? parseFloat(value) || 0 : value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      const response = await addExpense(payload)
-      if (response.success) {
+      if (editingExpense) {
+        await expensesApi.updateExpense(editingExpense._id, formData);
         toast({
-          title: "Success",
-          description: t("expenses.expenseAdded"),
-        })
-        setAddingExpense(false)
-        setNewExpense({
-          description: "",
-          amount: "",
-          category: "",
-          date: new Date().toISOString().split('T')[0],
-        })
-        // Refresh expenses list with current date range
-        await fetchExpenses()
+          title: 'Success',
+          description: 'Expense updated successfully',
+        });
+      } else {
+        await expensesApi.addExpense(formData);
+        toast({
+          title: 'Success',
+          description: 'Expense added successfully',
+        });
       }
-    } catch (err) {
-      console.error("Error adding expense:", err);
+      setShowAddModal(false);
+      setEditingExpense(null);
+      resetForm();
+      fetchExpenses();
+    } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: t("expenses.failedToAdd"),
-      })
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to save expense',
+        variant: 'destructive',
+      });
     }
-  }
+  };
 
-  // Calculate total expenses, excluding inventory overages (which are actually income)
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => {
-    // Exclude "Inventory Overage Income" category from expenses total
-    if (expense.category === 'Inventory Overage Income') {
-      return sum; // Don't add to expenses
+  const handleEdit = (expense: any) => {
+    setEditingExpense(expense);
+    setFormData({
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      date: new Date(expense.date).toISOString().split('T')[0],
+      notes: expense.notes || ''
+    });
+    setShowAddModal(true);
+  };
+
+  const handleDelete = async (expenseId: string) => {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+    try {
+      await expensesApi.deleteExpense(expenseId);
+      toast({
+        title: 'Success',
+        description: 'Expense deleted successfully',
+      });
+      fetchExpenses();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete expense',
+        variant: 'destructive',
+      });
     }
-    return sum + expense.amount;
-  }, 0);
-  
-  // Calculate total income from inventory overages
-  const totalOverageIncome = filteredExpenses.reduce((sum, expense) => {
-    if (expense.category === 'Inventory Overage Income') {
-      return sum + expense.amount;
-    }
-    return sum;
-  }, 0);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      description: '',
+      amount: 0,
+      category: '',
+      date: new Date().toISOString().split('T')[0],
+      notes: ''
+    });
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold tracking-tight">{t("expenses.title")}</h2>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={fetchExpenses}
-            title={t("expenses.refreshData")}
-            className="h-9 w-9"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Select
-            value={dateRange}
-            onValueChange={(value: "all" | "day" | "week" | "month" | "custom") => setDateRange(value)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder={t("expenses.selectDateRange")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t("expenses.allTime")}</SelectItem>
-              <SelectItem value="day">{t("expenses.today")}</SelectItem>
-              <SelectItem value="week">{t("expenses.thisWeek")}</SelectItem>
-              <SelectItem value="month">{t("expenses.thisMonth")}</SelectItem>
-              <SelectItem value="custom">{t("expenses.customRange")}</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {dateRange === 'custom' && (
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                className="w-[140px]"
-                value={customDateRange.from}
-                onChange={(e) => setCustomDateRange({...customDateRange, from: e.target.value})}
-              />
-              <span className="text-sm">{t("expenses.to")}</span>
-              <Input
-                type="date"
-                className="w-[140px]"
-                value={customDateRange.to}
-                onChange={(e) => setCustomDateRange({...customDateRange, to: e.target.value})}
-              />
-            </div>
-          )}
-          <Button onClick={() => setAddingExpense(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t("expenses.addExpense")}
-          </Button>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Expenses</h1>
+          <p className="text-gray-600 mt-1">Track your business expenses</p>
         </div>
+        <Button
+          onClick={() => {
+            resetForm();
+            setEditingExpense(null);
+            setShowAddModal(true);
+          }}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Expense
+        </Button>
       </div>
 
-      {/* Category Filter */}
-      <div className="flex flex-wrap gap-3 items-center mt-4">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{t("expenses.filters")}:</span>
-        </div>
-        
-        <Select value={categoryFilter || "all"} onValueChange={(value) => setCategoryFilter(value === "all" ? null : value)}>
-          <SelectTrigger className="w-[180px] h-8">
-            <SelectValue placeholder={t("expenses.category")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("expenses.allCategories")}</SelectItem>
-            <SelectItem value="Utilities">{t("expenses.utilities")}</SelectItem>
-            <SelectItem value="Rent">{t("expenses.rent")}</SelectItem>
-            <SelectItem value="Salary">{t("expenses.salary")}</SelectItem>
-            <SelectItem value="Supplies">{t("expenses.supplies")}</SelectItem>
-            <SelectItem value="Maintenance">{t("expenses.maintenance")}</SelectItem>
-            <SelectItem value="Inventory Adjustments">{t("expenses.inventoryAdjustments")}</SelectItem>
-            <SelectItem value="Inventory Overage Income">{t("expenses.inventoryOverageIncome")}</SelectItem>
-            <SelectItem value="Other">{t("expenses.other")}</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        {categoryFilter && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCategoryFilter(null)}
-          >
-            <RefreshCw className="mr-2 h-3 w-3" />
-            {t("expenses.resetFilter")}
-          </Button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>{t("expenses.totalExpenses")}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
-          </CardContent>
-        </Card>
-        
-        {totalOverageIncome > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle>{t("expenses.inventoryOverageIncome")}</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(totalOverageIncome)}</div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <Card>
+      <Card className="border-0 shadow-lg">
         <CardHeader>
-          <CardTitle>{t("expenses.expenseHistory")}</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Expense Summary</CardTitle>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value as any)}
+              className="h-10 px-3 border rounded-md"
+            >
+              <option value="all">All Time</option>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("expenses.date")}</TableHead>
-                <TableHead>{t("expenses.description")}</TableHead>
-                <TableHead>{t("expenses.category")}</TableHead>
-                <TableHead>{t("expenses.amount")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredExpenses.length > 0 ? (
-                filteredExpenses.map((expense) => (
-                  <TableRow key={expense._id}>
-                    <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                    <TableCell>{expense.description}</TableCell>
-                    <TableCell>
-                      {expense.category === 'Inventory Overage Income' ? (
-                        <span className="text-green-600 font-medium">{expense.category} ({t("expenses.income")})</span>
-                      ) : (
-                        expense.category
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {expense.category === 'Inventory Overage Income' ? (
-                        <span className="text-green-600 font-medium">+{formatCurrency(expense.amount)}</span>
-                      ) : (
-                        formatCurrency(expense.amount)
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-4">
-                    {t("expenses.noExpensesFound")}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-6 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">Total Expenses</p>
+                  <p className="text-3xl font-bold mt-2">TZS {totalExpenses.toLocaleString()}</p>
+                </div>
+                <DollarSign className="w-12 h-12 opacity-50" />
+              </div>
+            </div>
+            <div className="p-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">Total Transactions</p>
+                  <p className="text-3xl font-bold mt-2">{expenses.length}</p>
+                </div>
+                <TrendingUp className="w-12 h-12 opacity-50" />
+              </div>
+            </div>
+            <div className="p-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">Average Expense</p>
+                  <p className="text-3xl font-bold mt-2">
+                    TZS {expenses.length > 0 ? Math.round(totalExpenses / expenses.length).toLocaleString() : 0}
+                  </p>
+                </div>
+                <DollarSign className="w-12 h-12 opacity-50" />
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <Dialog open={addingExpense} onOpenChange={setAddingExpense}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("expenses.addExpense")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t("expenses.description")}</label>
-              <Input
-                value={newExpense.description}
-                onChange={(e) =>
-                  setNewExpense({ ...newExpense, description: e.target.value })
-                }
-                placeholder={t("expenses.enterDescription")}
-              />
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-6">
+          {loading ? (
+            <div className="text-center py-8">Loading expenses...</div>
+          ) : expenses.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <DollarSign className="w-16 h-16 mx-auto mb-3 opacity-50" />
+              <p>No expenses recorded</p>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t("expenses.amount")} (TSh)</label>
-              <Input
-                type="number"
-                value={newExpense.amount}
-                onChange={(e) =>
-                  setNewExpense({ ...newExpense, amount: e.target.value })
-                }
-                placeholder={t("expenses.enterAmount")}
-              />
+          ) : (
+            <div className="space-y-3">
+              {expenses.map((expense) => (
+                <div key={expense._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex-1">
+                    <p className="font-semibold">{expense.description}</p>
+                    <p className="text-sm text-gray-600">
+                      {expense.category} • {new Date(expense.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xl font-bold text-red-600">-TZS {expense.amount?.toLocaleString()}</span>
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(expense)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600"
+                      onClick={() => handleDelete(expense._id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t("expenses.category")}</label>
-              <Select
-                onValueChange={(value) =>
-                  setNewExpense({ ...newExpense, category: value })
-                }
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Expense Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader className="relative">
+              <CardTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</CardTitle>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="absolute right-4 top-4 p-1 hover:bg-gray-100 rounded"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("expenses.selectCategory")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Utilities">{t("expenses.utilities")}</SelectItem>
-                  <SelectItem value="Rent">{t("expenses.rent")}</SelectItem>
-                  <SelectItem value="Salary">{t("expenses.salary")}</SelectItem>
-                  <SelectItem value="Supplies">{t("expenses.supplies")}</SelectItem>
-                  <SelectItem value="Maintenance">{t("expenses.maintenance")}</SelectItem>
-                  <SelectItem value="Other">{t("expenses.other")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t("expenses.date")}</label>
-              <Input
-                type="date"
-                value={newExpense.date}
-                onChange={(e) =>
-                  setNewExpense({ ...newExpense, date: e.target.value })
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddingExpense(false)}>
-              {t("expenses.cancel")}
-            </Button>
-            <Button onClick={handleAddExpense}>{t("expenses.addExpense")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <X className="w-5 h-5" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label>Description</Label>
+                  <Input name="description" value={formData.description} onChange={handleInputChange} required />
+                </div>
+
+                <div>
+                  <Label>Amount (TZS)</Label>
+                  <Input name="amount" type="number" value={formData.amount} onChange={handleInputChange} required />
+                </div>
+
+                <div>
+                  <Label>Category</Label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange as any}
+                    className="w-full h-10 px-3 border rounded-md"
+                    required
+                  >
+                    <option value="">Select category</option>
+                    <option value="utilities">Utilities</option>
+                    <option value="rent">Rent</option>
+                    <option value="supplies">Supplies</option>
+                    <option value="transport">Transport</option>
+                    <option value="salary">Salary</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label>Date</Label>
+                  <Input name="date" type="date" value={formData.date} onChange={handleInputChange} required />
+                </div>
+
+                <div>
+                  <Label>Notes (Optional)</Label>
+                  <textarea
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange as any}
+                    className="w-full min-h-[100px] px-3 py-2 border rounded-md"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600">
+                    {editingExpense ? 'Update Expense' : 'Add Expense'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
-  )
+  );
 }

@@ -11,7 +11,8 @@ import {
   Store,
   LogOut,
   Menu,
-  X
+  X,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -31,6 +32,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Package, label: 'Inventory', path: '/inventory' },
     { icon: Users, label: 'Customers', path: '/customers' },
     { icon: FileText, label: 'Orders', path: '/orders' },
+    { icon: DollarSign, label: 'Expenses', path: '/expenses' },
     { icon: Store, label: 'Sellers', path: '/sellers' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
