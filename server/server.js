@@ -64,13 +64,17 @@ const authLimiter = rateLimit({
   message: 'Too many login attempts from this IP, please try again later'
 });
 
-// Environment validation
+// Environment validation - skip exit for Vercel serverless
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
-  console.error(`Error: Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  process.exit(-1);
+  console.error(`Warning: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  // Don't exit in Vercel serverless environment, let it fail gracefully
+  if (process.env.VERCEL !== '1') {
+    console.error('Server cannot start without these variables');
+    process.exit(-1);
+  }
 }
 
 // Initialize Express app
