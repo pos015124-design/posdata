@@ -1,7 +1,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// Use relative URL in production, localhost in development
-const backendURL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+// Use environment variable for backend URL in production
+// For Vercel deployment (all-in-one): leave empty or use relative URL
+// For separate deployments: set VITE_API_URL to your Render backend URL
+const backendURL = import.meta.env.VITE_API_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001');
 
 const api = axios.create({
   baseURL: backendURL,
