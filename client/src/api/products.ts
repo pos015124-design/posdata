@@ -174,3 +174,20 @@ export const updateProduct = async (
     throw new Error('An unknown error occurred');
   }
 };
+
+// Description: Delete a product
+// Endpoint: DELETE /api/products/:id
+// Request: {}
+// Response: { success: boolean }
+export const deleteProduct = async (id: string) => {
+  try {
+    const response = await api.delete(`/api/products/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unknown error occurred');
+  }
+};
