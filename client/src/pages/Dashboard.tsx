@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
   ShoppingCart, 
@@ -10,9 +11,13 @@ import {
   DollarSign,
   Store
 } from 'lucide-react';
+import * as salesApi from '../api/sales';
+import * as customersApi from '../api/customers';
+import * as productsApi from '../api/products';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalSales: 0,
     totalOrders: 0,
@@ -20,23 +25,39 @@ export default function Dashboard() {
     totalProducts: 0,
     recentOrders: []
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch dashboard stats from API
-    // For now, using mock data
-    setStats({
-      totalSales: 12500,
-      totalOrders: 156,
-      totalCustomers: 89,
-      totalProducts: 234,
-      recentOrders: []
-    });
+    fetchDashboardStats();
   }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      const [salesRes, customersRes, productsRes] = await Promise.all([
+        salesApi.getAllSales(),
+        customersApi.getCustomers(),
+        productsApi.getProducts()
+      ]);
+
+      setStats({
+        totalSales: salesRes?.sales?.reduce((sum: number, sale: any) => sum + sale.total, 0) || 0,
+        totalOrders: salesRes?.sales?.length || 0,
+        totalCustomers: customersRes?.customers?.length || 0,
+        totalProducts: productsRes?.products?.length || 0,
+        recentOrders: salesRes?.sales?.slice(0, 5) || []
+      });
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const statCards = [
     {
       title: 'Total Sales',
-      value: `$${stats.totalSales.toLocaleString()}`,
+      value: `TZS ${stats.totalSales.toLocaleString()}`,
       icon: DollarSign,
       color: 'from-green-500 to-emerald-600',
       bgColor: 'bg-green-50'
@@ -71,7 +92,10 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">Welcome back, {user?.email}!</p>
         </div>
-        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+        <Button 
+          onClick={() => navigate('/pos')}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+        >
           <Store className="w-4 h-4 mr-2" />
           Go to POS
         </Button>
@@ -87,7 +111,7 @@ export default function Dashboard() {
                   <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
                   <div className="flex items-center mt-2 text-sm text-green-600">
                     <TrendingUp className="w-4 h-4 mr-1" />
-                    <span>+12.5% from last month</span>
+                    <span>Loading...</span>
                   </div>
                 </div>
                 <div className={`p-4 rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg`}>
@@ -117,15 +141,26 @@ export default function Dashboard() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+            <Button 
+              onClick={() => navigate('/pos')}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
               <ShoppingCart className="w-4 h-4 mr-2" />
               New Sale
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button 
+              onClick={() => navigate('/inventory')}
+              variant="outline" 
+              className="w-full"
+            >
               <Package className="w-4 h-4 mr-2" />
               Add Product
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button 
+              onClick={() => navigate('/customers')}
+              variant="outline" 
+              className="w-full"
+            >
               <Users className="w-4 h-4 mr-2" />
               Add Customer
             </Button>

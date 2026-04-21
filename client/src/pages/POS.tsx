@@ -1,40 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Store, ShoppingCart, Search, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import * as productsApi from '../api/products';
+import * as salesApi from '../api/sales';
 
 export default function POS() {
   const [selectedSeller, setSelectedSeller] = useState('');
   const [cart, setCart] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const mockProducts = [
-    { id: 1, name: 'Product 1', price: 25.00, seller: 'Seller A', stock: 50 },
-    { id: 2, name: 'Product 2', price: 15.50, seller: 'Seller B', stock: 30 },
-    { id: 3, name: 'Product 3', price: 42.00, seller: 'Seller A', stock: 20 },
-  ];
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await productsApi.getProducts();
+      setProducts(response.products || []);
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load products',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (selectedSeller === '' || product.seller === selectedSeller)
+  );
 
   const addToCart = (product: any) => {
-    const existing = cart.find((item) => item.id === product.id);
+    const existing = cart.find((item) => item._id === product._id);
     if (existing) {
       setCart(cart.map((item) => 
-        item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
       ));
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
+    toast({
+      title: 'Added',
+      description: `${product.name} added to cart`,
+    });
   };
 
-  const removeFromCart = (productId: number) => {
-    setCart(cart.filter((item) => item.id !== productId));
+  const removeFromCart = (productId: string) => {
+    setCart(cart.filter((item) => item._id !== productId));
   };
 
-  const updateQuantity = (productId: number, delta: number) => {
+  const updateQuantity = (productId: string, delta: number) => {
     setCart(cart.map((item) => {
-      if (item.id === productId) {
+      if (item._id === productId) {
         const newQty = Math.max(1, item.quantity + delta);
         return { ...item, quantity: newQty };
       }
@@ -44,12 +72,33 @@ export default function POS() {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const handleCheckout = () => {
-    toast({
-      title: 'Success',
-      description: `Order completed! Total: $${total.toFixed(2)}`,
-    });
-    setCart([]);
+  const handleCheckout = async () => {
+    try {
+      const saleData = {
+        items: cart.map(item => ({
+          product: item._id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: total,
+        paymentMethod: 'cash'
+      };
+
+      await salesApi.createSale(saleData);
+      
+      toast({
+        title: 'Success',
+        description: `Sale completed! Total: TZS ${total.toLocaleString()}`,
+      });
+      setCart([]);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to complete sale',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -79,26 +128,36 @@ export default function POS() {
           </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-          {mockProducts.map((product) => (
-            <Card
-              key={product.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow border-0 shadow-md"
-              onClick={() => addToCart(product)}
-            >
-              <CardContent className="p-4">
-                <div className="aspect-square bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg mb-3 flex items-center justify-center">
-                  <ShoppingCart className="w-12 h-12 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-sm truncate">{product.name}</h3>
-                <p className="text-xs text-gray-500 mt-1">{product.seller}</p>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-lg font-bold text-blue-600">${product.price.toFixed(2)}</span>
-                  <span className="text-xs text-gray-500">Stock: {product.stock}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          {loading ? (
+            <div className="col-span-full text-center py-12 text-gray-500">
+              <p>Loading products...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-gray-500">
+              <p>No products found</p>
+            </div>
+          ) : (
+            filteredProducts.map((product) => (
+              <Card
+                key={product._id}
+                className="cursor-pointer hover:shadow-lg transition-shadow border-0 shadow-md"
+                onClick={() => addToCart(product)}
+              >
+                <CardContent className="p-4">
+                  <div className="aspect-square bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg mb-3 flex items-center justify-center">
+                    <ShoppingCart className="w-12 h-12 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold text-sm truncate">{product.name}</h3>
+                  <p className="text-xs text-gray-500 mt-1">{product.category || 'No category'}</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-lg font-bold text-blue-600">TZS {product.price.toLocaleString()}</span>
+                    <span className="text-xs text-gray-500">Stock: {product.stock || 0}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
 
@@ -120,16 +179,16 @@ export default function POS() {
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div key={item._id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="flex-1">
                       <p className="font-medium text-sm">{item.name}</p>
-                      <p className="text-xs text-gray-500">${item.price.toFixed(2)} each</p>
+                      <p className="text-xs text-gray-500">TZS {item.price.toLocaleString()} each</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateQuantity(item.id, -1)}
+                        onClick={() => updateQuantity(item._id, -1)}
                         className="h-8 w-8 p-0"
                       >
                         <Minus className="w-3 h-3" />
@@ -138,17 +197,17 @@ export default function POS() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateQuantity(item.id, 1)}
+                        onClick={() => updateQuantity(item._id, 1)}
                         className="h-8 w-8 p-0"
                       >
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
-                    <span className="w-20 text-right font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="w-24 text-right font-bold">TZS {(item.price * item.quantity).toLocaleString()}</span>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item._id)}
                       className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -161,11 +220,11 @@ export default function POS() {
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal</span>
-                <span className="font-semibold">${total.toFixed(2)}</span>
+                <span className="font-semibold">TZS {total.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span className="text-blue-600">${total.toFixed(2)}</span>
+                <span className="text-blue-600">TZS {total.toLocaleString()}</span>
               </div>
             </div>
 

@@ -84,3 +84,24 @@ export const getSalesSummary = async () => {
     throw new Error('An unknown error occurred');
   }
 };
+
+// Description: Create a new sale
+// Endpoint: POST /api/sales
+// Request: { items: Array<{ product: string, name: string, quantity: number, price: number }>, total: number, paymentMethod: string }
+// Response: { success: boolean, sale: object }
+export const createSale = async (data: {
+  items: Array<{ product: string; name: string; quantity: number; price: number }>;
+  total: number;
+  paymentMethod: string;
+}) => {
+  try {
+    const response = await api.post('/api/sales', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating sale:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unknown error occurred');
+  }
+};
