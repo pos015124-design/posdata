@@ -1,9 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const { logger } = require("../config/logger");
-
-// Import services
-const userService = require("../services/userService");
 const { requireUser } = require("./middleware/auth");
 
 // Home route

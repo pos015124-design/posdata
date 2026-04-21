@@ -1,4 +1,3 @@
-const UserService = require('../../services/userService.js');
 const User = require('../../models/User');
 const jwt = require('jsonwebtoken');
 const { securityLogger } = require('../../config/logger');
