@@ -101,9 +101,33 @@ export function EditStaff({ staff, open, onOpenChange, onSave }: EditStaffProps)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Pass the complete staff data including permissions and approval status
-    onSave(formData);
+    // Validate required fields
+    if (!formData.name.trim()) {
+      alert("Staff name is required");
+      return;
+    }
+    if (!formData.role) {
+      alert("Staff role is required");
+      return;
+    }
+    if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
+      alert("A valid email is required");
+      return;
+    }
+    if (formData.phone && !/^[\+]?[1-9][\d]{0,15}$/.test(formData.phone)) {
+      alert("Please provide a valid phone number");
+      return;
+    }
+    // Only send valid fields
+    const payload: StaffMember = {
+      ...formData,
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone?.trim() || "",
+      role: formData.role,
+      user: formData.user,
+    };
+    onSave(payload);
   };
 
   return (

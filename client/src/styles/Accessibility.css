@@ -1,0 +1,387 @@
+/* Accessibility Toolbar Styles */
+.accessibility-toolbar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.accessibility-toggle-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.accessibility-toggle-btn:hover,
+.accessibility-toggle-btn:focus {
+  background: #0056b3;
+  transform: scale(1.1);
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.accessibility-options {
+  background: white;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  min-width: 200px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+}
+
+.accessibility-toolbar.visible .accessibility-options {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.accessibility-option {
+  margin-bottom: 10px;
+}
+
+.accessibility-option label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.accessibility-option select,
+.accessibility-option input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.accessibility-option button {
+  margin: 0 5px;
+  padding: 5px 10px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.accessibility-option button:hover,
+.accessibility-option button:focus {
+  background: #e9ecef;
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* High Contrast Mode */
+.high-contrast {
+  filter: contrast(1.5) brightness(1.1);
+}
+
+.high-contrast a,
+.high-contrast button,
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  border: 2px solid #000 !important;
+  background: white !important;
+  color: #000 !important;
+}
+
+.high-contrast a:hover,
+.high-contrast button:hover,
+.high-contrast input:hover,
+.high-contrast select:hover,
+.high-contrast textarea:hover {
+  background: #f0f0f0 !important;
+}
+
+.high-contrast .btn-primary {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: #000 !important;
+}
+
+/* Screen Reader Mode */
+.screen-reader-mode *:not(.sr-only):not([aria-label]):not([role="alert"]) {
+  /* This is a simplified version - in practice, you'd want more sophisticated rules */
+}
+
+/* Focus Management */
+.focus-visible {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Skip to main content link */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #000;
+  color: #fff;
+  padding: 8px;
+  text-decoration: none;
+  transition: top 0.3s ease;
+  z-index: 10001;
+}
+
+.skip-to-content:focus {
+  top: 6px;
+}
+
+/* Help System */
+.help-system {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+}
+
+.help-toggle {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.help-toggle:hover,
+.help-toggle:focus {
+  background: #1e7e34;
+  transform: scale(1.1);
+  outline: 2px solid #28a745;
+  outline-offset: 2px;
+}
+
+.help-panel {
+  position: absolute;
+  bottom: 60px;
+  right: 0;
+  width: 400px;
+  background: white;
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+}
+
+.help-system:has(.help-panel[style*="display: block"]) .help-panel,
+.help-panel[style*="display: block"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: #28a745;
+  color: white;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.help-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.help-header button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.help-navigation {
+  width: 150px;
+  background: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+  overflow-y: auto;
+}
+
+.help-navigation ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.help-navigation li {
+  margin: 0;
+}
+
+.help-navigation button {
+  width: 100%;
+  padding: 10px 15px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.help-navigation button:hover,
+.help-navigation button:focus,
+.help-navigation button.active {
+  background: #28a745;
+  color: white;
+}
+
+.help-details {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+}
+
+.help-details h3 {
+  margin-top: 0;
+  color: #28a745;
+}
+
+.help-footer {
+  padding: 10px 15px;
+  background: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  font-size: 0.9rem;
+}
+
+/* Screen Reader Only Elements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High Contrast Media Query */
+@media (prefers-contrast: high) {
+  .btn-primary {
+    border: 2px solid #000;
+    background: #000;
+    color: #fff;
+  }
+  
+  .btn-secondary {
+    border: 2px solid #6c757d;
+    background: #6c757d;
+    color: #fff;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .high-contrast {
+    filter: contrast(1.5) brightness(1.1) invert(1) hue-rotate(180deg);
+  }
+}
+
+/* Large Text Support */
+@media (min-width: 1200px) and (min-height: 800px) {
+  body {
+    font-size: 1.1rem;
+  }
+}
+
+/* Focus Styles for Different Input Methods */
+@media (hover: hover) {
+  button:focus:not(:focus-visible) {
+    outline: none;
+  }
+  
+  button:focus-visible {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .accessibility-toolbar,
+  .help-system {
+    display: none !important;
+  }
+}
+
+/* Responsive Design for Accessibility */
+@media (max-width: 768px) {
+  .accessibility-options {
+    width: 300px;
+    right: 0;
+    left: auto;
+  }
+  
+  .help-panel {
+    width: 300px;
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .accessibility-options {
+    width: 280px;
+    transform: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    right: auto;
+    bottom: auto;
+  }
+  
+  .help-panel {
+    width: calc(100% - 40px);
+    height: 80vh;
+    max-height: none;
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+  }
+}

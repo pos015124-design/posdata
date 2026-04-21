@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type PermissionRouteProps = {
   children: React.ReactNode;
-  requiredPermission: 'dashboard' | 'pos' | 'inventory' | 'customers' | 'staff' | 'reports' | 'settings';
+  requiredPermission: 'dashboard' | 'pos' | 'inventory' | 'customers' | 'staff' | 'reports' | 'settings' | 'platformManagement' | 'tenantManagement' | 'systemSettings';
 };
 
 export function PermissionRoute({ children, requiredPermission }: PermissionRouteProps) {

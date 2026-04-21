@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dukani System - Frontend Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2563eb;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #1d4ed8;
+        }
+        .input {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            margin: 5px;
+            width: 200px;
+        }
+        .response {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-left: 4px solid #10b981;
+        }
+        .error {
+            border-left: 4px solid #ef4444;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.online {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status.offline {
+            background: #fecaca;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function DukaniApp() {
+            const [authToken, setAuthToken] = useState(localStorage.getItem('authToken'));
+            const [systemStatus, setSystemStatus] = useState('checking');
+            const [loginData, setLoginData] = useState({ email: 'test@dukani.com', password: 'TestPassword123!' });
+            const [products, setProducts] = useState([]);
+            const [customers, setCustomers] = useState([]);
+            const [sales, setSales] = useState([]);
+            const [responses, setResponses] = useState({});
+            const [socket, setSocket] = useState(null);
+            const [wsStatus, setWsStatus] = useState('disconnected');
+            const [wsMessages, setWsMessages] = useState([]);
+
+            const updateResponse = (key, response) => {
+                setResponses(prev => ({ ...prev, [key]: response }));
+            };
+
+            const makeRequest = async (url, options = {}) => {
+                try {
+                    const response = await fetch(url, {
+                        ...options,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+                            ...options.headers
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    return { status: response.status, data, success: response.ok };
+                } catch (error) {
+                    return { status: 0, data: { error: error.message }, success: false };
+                }
+            };
+
+            const checkHealth = async () => {
+                const response = await makeRequest('/health');
+                setSystemStatus(response.success ? 'online' : 'offline');
+                updateResponse('health', response);
+            };
+
+            const login = async () => {
+                const response = await makeRequest('/api/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify(loginData)
+                });
+                
+                if (response.success && response.data.accessToken) {
+                    setAuthToken(response.data.accessToken);
+                    localStorage.setItem('authToken', response.data.accessToken);
+                }
+                
+                updateResponse('auth', response);
+            };
+
+            const loadProducts = async () => {
+                const response = await makeRequest('/api/products');
+                if (response.success) {
+                    setProducts(response.data.data || []);
+                }
+                updateResponse('products', response);
+            };
+
+            const loadCustomers = async () => {
+                const response = await makeRequest('/api/customers');
+                if (response.success) {
+                    setCustomers(response.data.data || []);
+                }
+                updateResponse('customers', response);
+            };
+
+            const loadSales = async () => {
+                const response = await makeRequest('/api/sales');
+                if (response.success) {
+                    setSales(response.data.sales || []);
+                }
+                updateResponse('sales', response);
+            };
+
+            const createTestProduct = async () => {
+                const product = {
+                    name: `Test Product ${Date.now()}`,
+                    code: `TEST${Date.now()}`,
+                    barcode: `${Date.now()}`,
+                    price: 29.99,
+                    purchasePrice: 19.99,
+                    stock: 100,
+                    category: 'Electronics',
+                    supplier: 'Test Supplier',
+                    reorderPoint: 10
+                };
+                
+                const response = await makeRequest('/api/products', {
+                    method: 'POST',
+                    body: JSON.stringify(product)
+                });
+                
+                if (response.success) {
+                    loadProducts();
+                }
+                updateResponse('createProduct', response);
+            };
+
+            const createTestSale = async () => {
+                if (products.length === 0 || customers.length === 0) {
+                    updateResponse('createSale', {
+                        status: 400,
+                        data: { error: 'Please create products and customers first' },
+                        success: false
+                    });
+                    return;
+                }
+
+                const product = products[0];
+                const customer = customers[0];
+                
+                const sale = {
+                    items: [{
+                        productId: product._id,
+                        name: product.name,
+                        quantity: 1,
+                        price: product.price
+                    }],
+                    customerId: customer._id,
+                    paymentMethod: 'cash',
+                    amountPaid: product.price * 1.18,
+                    taxRate: 18
+                };
+                
+                const response = await makeRequest('/api/sales/payment/process', {
+                    method: 'POST',
+                    body: JSON.stringify(sale)
+                });
+                
+                if (response.success) {
+                    loadSales();
+                }
+                updateResponse('createSale', response);
+            };
+
+            // WebSocket functions
+            const connectWebSocket = () => {
+                if (!authToken) {
+                    updateResponse('websocket', {
+                        status: 400,
+                        data: { error: 'Please login first to connect WebSocket' },
+                        success: false
+                    });
+                    return;
+                }
+
+                try {
+                    const newSocket = io('http://localhost:3000', {
+                        auth: { token: authToken }
+                    });
+
+                    newSocket.on('connect', () => {
+                        setWsStatus('connected');
+                        setWsMessages(prev => [...prev, { type: 'system', message: 'Connected to WebSocket', timestamp: new Date() }]);
+                    });
+
+                    newSocket.on('disconnect', () => {
+                        setWsStatus('disconnected');
+                        setWsMessages(prev => [...prev, { type: 'system', message: 'Disconnected from WebSocket', timestamp: new Date() }]);
+                    });
+
+                    newSocket.on('connection-established', (data) => {
+                        setWsMessages(prev => [...prev, { type: 'info', message: `Connection established: ${data.message}`, timestamp: new Date() }]);
+                    });
+
+                    newSocket.on('dashboard-data', (data) => {
+                        setWsMessages(prev => [...prev, { type: 'data', message: `Dashboard data received: ${JSON.stringify(data, null, 2)}`, timestamp: new Date() }]);
+                    });
+
+                    newSocket.on('notification', (notification) => {
+                        setWsMessages(prev => [...prev, { type: 'notification', message: `Notification: ${notification.title} - ${notification.message}`, timestamp: new Date() }]);
+                    });
+
+                    newSocket.on('error', (error) => {
+                        setWsMessages(prev => [...prev, { type: 'error', message: `Error: ${error.message}`, timestamp: new Date() }]);
+                    });
+
+                    setSocket(newSocket);
+                    updateResponse('websocket', {
+                        status: 200,
+                        data: { message: 'WebSocket connection initiated' },
+                        success: true
+                    });
+                } catch (error) {
+                    updateResponse('websocket', {
+                        status: 500,
+                        data: { error: error.message },
+                        success: false
+                    });
+                }
+            };
+
+            const disconnectWebSocket = () => {
+                if (socket) {
+                    socket.disconnect();
+                    setSocket(null);
+                    setWsStatus('disconnected');
+                    setWsMessages([]);
+                }
+            };
+
+            const joinDashboard = () => {
+                if (socket && socket.connected) {
+                    socket.emit('join-dashboard', { preferences: { theme: 'light', refreshInterval: 30 } });
+                    setWsMessages(prev => [...prev, { type: 'action', message: 'Joined dashboard room', timestamp: new Date() }]);
+                } else {
+                    setWsMessages(prev => [...prev, { type: 'error', message: 'WebSocket not connected', timestamp: new Date() }]);
+                }
+            };
+
+            const requestAnalytics = () => {
+                if (socket && socket.connected) {
+                    socket.emit('request-analytics', { dateRange: 'day' });
+                    setWsMessages(prev => [...prev, { type: 'action', message: 'Requested analytics data', timestamp: new Date() }]);
+                } else {
+                    setWsMessages(prev => [...prev, { type: 'error', message: 'WebSocket not connected', timestamp: new Date() }]);
+                }
+            };
+
+            useEffect(() => {
+                checkHealth();
+
+                // Cleanup WebSocket on unmount
+                return () => {
+                    if (socket) {
+                        socket.disconnect();
+                    }
+                };
+            }, []);
+
+            const ResponseDisplay = ({ response, title }) => {
+                if (!response) return null;
+                
+                return (
+                    <div className={`response ${response.success ? 'success' : 'error'}`}>
+                        <strong>{title}:</strong><br/>
+                        {JSON.stringify(response, null, 2)}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>🚀 Dukani System - Live Frontend Test</h1>
+                        <p>System Status: <span className={`status ${systemStatus}`}>
+                            {systemStatus === 'online' ? 'Online' : systemStatus === 'offline' ? 'Offline' : 'Checking...'}
+                        </span></p>
+                        <button className="button" onClick={checkHealth}>Refresh Status</button>
+                    </div>
+
+                    <div className="grid">
+                        <div className="section">
+                            <h3>🔐 Authentication</h3>
+                            <div>
+                                <input 
+                                    className="input"
+                                    type="email" 
+                                    placeholder="Email"
+                                    value={loginData.email}
+                                    onChange={(e) => setLoginData(prev => ({...prev, email: e.target.value}))}
+                                />
+                                <input 
+                                    className="input"
+                                    type="password" 
+                                    placeholder="Password"
+                                    value={loginData.password}
+                                    onChange={(e) => setLoginData(prev => ({...prev, password: e.target.value}))}
+                                />
+                                <button className="button" onClick={login}>Login</button>
+                            </div>
+                            <p>Status: {authToken ? '✅ Logged In' : '❌ Not Logged In'}</p>
+                            <ResponseDisplay response={responses.auth} title="Login Response" />
+                        </div>
+
+                        <div className="section">
+                            <h3>📦 Products ({products.length})</h3>
+                            <button className="button" onClick={loadProducts}>Load Products</button>
+                            <button className="button" onClick={createTestProduct}>Create Test Product</button>
+                            <ResponseDisplay response={responses.products} title="Products" />
+                            <ResponseDisplay response={responses.createProduct} title="Create Product" />
+                        </div>
+
+                        <div className="section">
+                            <h3>👥 Customers ({customers.length})</h3>
+                            <button className="button" onClick={loadCustomers}>Load Customers</button>
+                            <ResponseDisplay response={responses.customers} title="Customers" />
+                        </div>
+
+                        <div className="section">
+                            <h3>💰 Sales ({sales.length})</h3>
+                            <button className="button" onClick={loadSales}>Load Sales</button>
+                            <button className="button" onClick={createTestSale}>Create Test Sale</button>
+                            <ResponseDisplay response={responses.sales} title="Sales" />
+                            <ResponseDisplay response={responses.createSale} title="Create Sale" />
+                        </div>
+
+                        <div className="section">
+                            <h3>🔌 Real-time WebSocket</h3>
+                            <p>Status: <span className={`status ${wsStatus === 'connected' ? 'online' : 'offline'}`}>
+                                {wsStatus === 'connected' ? 'Connected' : 'Disconnected'}
+                            </span></p>
+                            <div>
+                                <button className="button" onClick={connectWebSocket} disabled={wsStatus === 'connected'}>
+                                    Connect WebSocket
+                                </button>
+                                <button className="button" onClick={disconnectWebSocket} disabled={wsStatus !== 'connected'}>
+                                    Disconnect
+                                </button>
+                                <button className="button" onClick={joinDashboard} disabled={wsStatus !== 'connected'}>
+                                    Join Dashboard
+                                </button>
+                                <button className="button" onClick={requestAnalytics} disabled={wsStatus !== 'connected'}>
+                                    Request Analytics
+                                </button>
+                            </div>
+                            <div className="response" style={{maxHeight: '200px', overflow: 'auto'}}>
+                                <strong>WebSocket Messages:</strong><br/>
+                                {wsMessages.map((msg, index) => (
+                                    <div key={index} style={{marginBottom: '5px', fontSize: '11px'}}>
+                                        <span style={{color: msg.type === 'error' ? 'red' : msg.type === 'notification' ? 'blue' : 'green'}}>
+                                            [{msg.timestamp.toLocaleTimeString()}] {msg.type.toUpperCase()}: {msg.message}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            <ResponseDisplay response={responses.websocket} title="WebSocket Connection" />
+                        </div>
+                    </div>
+
+                    <div className="section">
+                        <h3>📊 System Health</h3>
+                        <ResponseDisplay response={responses.health} title="Health Check" />
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<DukaniApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>

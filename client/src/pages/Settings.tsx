@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react"
+import PlatformSettings from './PlatformSettings';
+import AnalyticsChart from './AnalyticsChart';
+import SuperAdminDashboard from './SuperAdminDashboard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { Input } from "@/components/ui/input"
@@ -41,7 +44,10 @@ import {
 } from "@/api/settings"
 import { getCategories, addCategory, updateCategory, deleteCategory, Category } from "@/api/categories"
 
+import { useAuth } from "@/contexts/AuthContext"
+
 export function Settings() {
+  const { user } = useAuth();
   const { t } = useLanguage()
   // Business information settings
   const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
@@ -254,12 +260,27 @@ export function Settings() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold tracking-tight">{t("settings.title")}</h2>
-        <Button onClick={saveSettings}>
-          <Save className="mr-2 h-4 w-4" />
-          {t("settings.saveAll")}
-        </Button>
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">{t("settings.title")}</h2>
+          <p className="text-muted-foreground mt-1">Manage your business profile and platform settings.</p>
+        </div>
+        <div className="flex gap-2">
+          {user?.role === 'super_admin' && (
+            <Button
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary/10"
+              onClick={() => window.location.href = '/business-register'}
+            >
+              <Store className="mr-2 h-4 w-4" />
+              Register New Business
+            </Button>
+          )}
+          <Button onClick={saveSettings}>
+            <Save className="mr-2 h-4 w-4" />
+            {t("settings.saveAll")}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="business" className="space-y-6">
@@ -269,74 +290,87 @@ export function Settings() {
           <TabsTrigger value="receipt">{t("settings.receiptSettings")}</TabsTrigger>
           <TabsTrigger value="payment">{t("settings.paymentMethods")}</TabsTrigger>
           <TabsTrigger value="categories">Product Categories</TabsTrigger>
+          <TabsTrigger value="platform">Platform Settings</TabsTrigger>
+          <TabsTrigger value="analytics">Platform Analytics</TabsTrigger>
+          {user?.role === 'super_admin' && (
+            <TabsTrigger value="platform-overview">Platform Overview</TabsTrigger>
+          )}
         </TabsList>
+              {/* Platform Overview Tab for Super Admins */}
+              {user?.role === 'super_admin' && (
+                <TabsContent value="platform-overview">
+                  <SuperAdminDashboard />
+                </TabsContent>
+              )}
+        {/* Platform Settings Tab */}
+        <TabsContent value="platform">
+          <PlatformSettings />
+        </TabsContent>
 
-        {/* Business Information Tab */}
+        {/* Platform Analytics Tab */}
         <TabsContent value="business">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="shadow-lg border border-primary/10">
+            <CardHeader className="bg-primary/5 rounded-t-lg pb-4">
+              <CardTitle className="flex items-center gap-2 text-primary">
                 <Store className="h-5 w-5" />
                 {t("settings.businessInfo")}
               </CardTitle>
+              <CardDescription className="mt-1 text-muted-foreground">
+                This is your active business profile. Update your business details below.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="business-name">{t("settings.businessName")}</Label>
-                <Input
-                  id="business-name"
-                  value={businessSettings.name}
-                  onChange={(e) => setBusinessSettings({ ...businessSettings, name: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="business-address">{t("settings.address")}</Label>
-                <Textarea
-                  id="business-address"
-                  value={businessSettings.address}
-                  onChange={(e) => setBusinessSettings({ ...businessSettings, address: e.target.value })}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="business-phone">{t("settings.phoneNumber")}</Label>
-                  <Input
-                    id="business-phone"
-                    value={businessSettings.phone}
-                    onChange={(e) => setBusinessSettings({ ...businessSettings, phone: e.target.value })}
-                  />
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="business-name">{t("settings.businessName")}</Label>
+                    <Input
+                      id="business-name"
+                      value={businessSettings.name}
+                      onChange={(e) => setBusinessSettings({ ...businessSettings, name: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="business-address">{t("settings.address")}</Label>
+                    <Textarea
+                      id="business-address"
+                      value={businessSettings.address}
+                      onChange={(e) => setBusinessSettings({ ...businessSettings, address: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="business-email">{t("settings.emailAddress")}</Label>
-                  <Input
-                    id="business-email"
-                    type="email"
-                    value={businessSettings.email}
-                    onChange={(e) => setBusinessSettings({ ...businessSettings, email: e.target.value })}
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="business-phone">{t("settings.phoneNumber")}</Label>
+                    <Input
+                      id="business-phone"
+                      value={businessSettings.phone}
+                      onChange={(e) => setBusinessSettings({ ...businessSettings, phone: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="business-email">{t("settings.emailAddress")}</Label>
+                    <Input
+                      id="business-email"
+                      type="email"
+                      value={businessSettings.email}
+                      onChange={(e) => setBusinessSettings({ ...businessSettings, email: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="business-taxid">{t("settings.taxId")}</Label>
+                    <Input
+                      id="business-taxid"
+                      value={businessSettings.taxId}
+                      onChange={(e) => setBusinessSettings({ ...businessSettings, taxId: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="business-taxid">{t("settings.taxId")}</Label>
-                <Input
-                  id="business-taxid"
-                  value={businessSettings.taxId}
-                  onChange={(e) => setBusinessSettings({ ...businessSettings, taxId: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="business-logo">{t("settings.logo")}</Label>
-                <Input
-                  id="business-logo"
-                  value={businessSettings.logo || ""}
-                  onChange={(e) => setBusinessSettings({ ...businessSettings, logo: e.target.value })}
-                  placeholder="https://example.com/logo.png"
-                />
               </div>
             </CardContent>
           </Card>

@@ -1,7 +1,11 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
+<<<<<<< HEAD
+const backendURL = 'http://localhost:3001';
+=======
 // Use relative URL in production, localhost in development
 const backendURL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+>>>>>>> 77ffa9ad4df0a8406dc926a295435109c208a8f0
 const api = axios.create({
   baseURL: backendURL,
   headers: {

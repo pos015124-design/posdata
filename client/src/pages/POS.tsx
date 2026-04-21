@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react"
+import LoadingSpinner from "@/components/LoadingSpinner"
+import ErrorState from "@/components/ErrorState"
 import { getProducts, addToCart, processPayment, getProductByBarcode } from "@/api/products"
+import api from "@/api/api"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { getCustomers, addCustomer } from "@/api/customers"
 import { getRecentSales, generateReceipt } from "@/api/sales"
@@ -41,6 +44,12 @@ type Product = {
   code: string
   price: number
   stock: number
+  sellerId?: string
+}
+
+type Seller = {
+  _id: string
+  businessName: string
 }
 
 type CartItem = {
@@ -70,6 +79,9 @@ type Sale = {
 }
 
 export function POS() {
+  // Seller state
+  const [sellers, setSellers] = useState<Seller[]>([])
+  const [selectedSeller, setSelectedSeller] = useState<string>("")
   const { t } = useLanguage()
   const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -102,17 +114,46 @@ export function POS() {
     phone: "",
     creditLimit: ""
   })
+
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const { toast } = useToast()
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [productsData, customersData, salesData, settingsData] = await Promise.all([
-          getProducts(),
+        setIsLoading(true)
+        setError(null)
+
+        // Fetch sellers
+        const sellersRes = await api.get('/api/sellers')
+        setSellers(sellersRes.data)
+
+        // Fetch products for selected seller (or all)
+        let productsData
+        if (selectedSeller) {
+          const res = await api.get(`/api/products/by-seller/${selectedSeller}`)
+          productsData = { products: res.data.products }
+        } else {
+          productsData = await getProducts()
+        }
+        setProducts(productsData?.products || [])
+
+        const [customersData, salesData, settingsData] = await Promise.all([
           getCustomers(),
           getRecentSales(),
           getSettings()
         ])
+<<<<<<< HEAD
+        setCustomers(customersData?.customers || [])
+        setRecentSales(salesData?.sales || [])
+
+        // Apply settings with null checks
+        if (settingsData?.settings?.tax?.enableTax) {
+          setTaxRate(settingsData.settings.tax.defaultTaxRate || "0")
+=======
         setProducts(productsData.products || [])
         setCustomers(customersData.customers || [])
         setRecentSales(salesData.sales || [])
@@ -126,10 +167,11 @@ export function POS() {
             enableTax: settingsData.settings.tax.enableTax || false,
             defaultTaxRate: settingsData.settings.tax.defaultTaxRate || 0
           }))
+>>>>>>> 77ffa9ad4df0a8406dc926a295435109c208a8f0
         }
-        
-        // Apply payment settings
-        if (settingsData.settings.payment) {
+
+        // Apply payment settings with null checks
+        if (settingsData?.settings?.payment) {
           setPaymentSettings(settingsData.settings.payment)
           // Set default payment method if available
           if (settingsData.settings.payment.defaultPaymentMethod) {
@@ -138,11 +180,14 @@ export function POS() {
         }
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
+        setError('Failed to load POS data. Please try again.')
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to fetch initial data",
         })
+      } finally {
+        setIsLoading(false)
       }
     }
     fetchInitialData()
@@ -158,7 +203,7 @@ export function POS() {
     }, 60000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [selectedSeller])
 
   // Set amount paid to total when payment dialog opens
   useEffect(() => {
@@ -435,36 +480,71 @@ export function POS() {
   }
 
   const handleAddNewCustomer = async () => {
-    try {
-      // Validate required fields
-      if (!newCustomer.name) {
+    // Validate required fields
+    if (!newCustomer.name.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Customer name is required",
+      })
+      return
+    }
+    // Validate type
+    if (!['cash', 'credit'].includes(newCustomer.type)) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Customer type must be cash or credit",
+      })
+      return
+    }
+    // Validate email if provided
+    if (newCustomer.email && !/^\S+@\S+\.\S+$/.test(newCustomer.email)) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please provide a valid email address",
+      })
+      return
+    }
+    // Validate phone if provided (must be international format, e.g. +255...)
+    if (newCustomer.phone && !/^\+[1-9]\d{7,14}$/.test(newCustomer.phone)) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please provide a valid international phone number (e.g. +255...)",
+      })
+      return
+    }
+    // Validate creditLimit if type is credit
+    if (newCustomer.type === "credit") {
+      const creditLimitNum = Number(newCustomer.creditLimit)
+      if (isNaN(creditLimitNum) || creditLimitNum < 0 || creditLimitNum > 999999.99) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Customer name is required",
+          description: "Credit limit must be a positive number less than 999,999.99",
         })
         return
       }
-
-      // Convert creditLimit to number if provided
-      const customerData = {
-        ...newCustomer,
-        creditLimit: newCustomer.creditLimit ? Number(newCustomer.creditLimit) : undefined
-      }
-
-      const response = await addCustomer(customerData)
-
+    }
+    // Prepare payload: only send non-empty, valid fields
+    const payload: any = {
+      name: newCustomer.name.trim(),
+      type: newCustomer.type,
+    }
+    if (newCustomer.email) payload.email = newCustomer.email.trim()
+    if (newCustomer.phone) payload.phone = newCustomer.phone.trim()
+    if (newCustomer.type === "credit" && newCustomer.creditLimit) payload.creditLimit = Number(newCustomer.creditLimit)
+    try {
+      const response = await addCustomer(payload)
       if (response.success) {
         toast({
           title: "Success",
           description: "Customer added successfully",
         })
-
-        // Add the new customer to the list and select it
         setCustomers([...customers, response.customer])
         setSelectedCustomer(response.customer._id)
-        
-        // Reset form and close dialog
         setNewCustomer({
           name: "",
           type: "cash",
@@ -484,8 +564,43 @@ export function POS() {
     }
   }
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" text="Loading POS system..." />
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <ErrorState
+        title="POS System Error"
+        message={error}
+        onRetry={() => window.location.reload()}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+      {/* Seller Selector */}
+      <div className="mb-4">
+        <Label>Seller</Label>
+        <Select value={selectedSeller} onValueChange={setSelectedSeller}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Select Seller (All)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Sellers</SelectItem>
+            {sellers.map((seller) => (
+              <SelectItem key={seller._id} value={seller._id}>{seller.businessName}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="flex-1 space-y-4 lg:space-y-6 order-2 lg:order-1">
         <Card>
           <CardHeader className="py-3 lg:py-6">
@@ -513,9 +628,15 @@ export function POS() {
               </div>
             </div>
             <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+<<<<<<< HEAD
+              {(products || [])
+                .filter((product) =>
+                  product?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+=======
               {products
                 ?.filter((product) =>
                   product.name.toLowerCase().includes(searchTerm.toLowerCase())
+>>>>>>> 77ffa9ad4df0a8406dc926a295435109c208a8f0
                 )
                 .map((product) => (
                   <Card
@@ -529,6 +650,9 @@ export function POS() {
                         {product.code}
                       </div>
                       <div className="mt-1 lg:mt-2 font-bold text-sm sm:text-base">{formatCurrency(product.price)}</div>
+                      {product.sellerId && (
+                        <div className="text-xs text-muted-foreground mt-1">Seller: {sellers.find(s => s._id === product.sellerId)?.businessName || product.sellerId}</div>
+                      )}
                     </CardContent>
                   </Card>
                 )) || <p className="col-span-full text-center text-muted-foreground">No products available</p>}

@@ -5,10 +5,13 @@
   "main": "server/server.js",
   "scripts": {
     "build": "cd client && npm install && npm run build",
-    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && npm run dev",
+    "client:dev": "cd client && npm run dev",
     "start": "cd server && node server.js",
     "heroku-postbuild": "cd server && npm install && cd ../client && npm install && npm run build && echo 'Client build completed'",
-    "create-admin": "cd server && node createAdmin.js"
+    "create-admin": "cd server && node createAdmin.js",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "engines": {
     "node": ">=18.x",

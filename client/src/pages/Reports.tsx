@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react"
-import { getSalesAnalytics, getInventoryAnalytics } from "@/api/analytics"
+import LoadingSpinner from "@/components/LoadingSpinner"
+import ErrorState from "@/components/ErrorState"
+import { getSalesAnalytics } from "@/api/analytics"
+import { getProducts } from "@/api/products"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/useToast"
@@ -111,18 +114,51 @@ export function Reports() {
   })
   const [analytics, setAnalytics] = useState<SalesAnalytics | null>(null)
   const [inventoryData, setInventoryData] = useState<InventoryAnalytics | null>(null)
+  const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
   const fetchAnalytics = async () => {
     setLoading(true);
+    setError(null);
     try {
-      let salesParams, inventoryParams;
-      
+      let salesParams;
       if (dateRange === 'custom') {
         salesParams = [dateRange as "custom", customDateRange.from, customDateRange.to];
-        inventoryParams = [dateRange as "custom", customDateRange.from, customDateRange.to];
       } else {
+<<<<<<< HEAD
+        salesParams = [dateRange as "all" | "day" | "week" | "month" | "custom"];
+      }
+
+      const [salesData, productsData] = await Promise.all([
+        getSalesAnalytics(...(salesParams as [('day' | 'week' | 'month' | 'all' | 'custom'), string?, string?])),
+        getProducts()
+      ]);
+
+      // Validate and set default values for analytics data
+      const validatedSalesData = salesData ? {
+        dailySales: salesData.dailySales || [],
+        popularItems: salesData.popularItems || [],
+        revenue: salesData.revenue || { daily: 0, weekly: 0, monthly: 0 },
+        tax: salesData.tax || { daily: 0, weekly: 0, monthly: 0 },
+        netRevenue: salesData.netRevenue || { daily: 0, weekly: 0, monthly: 0 },
+        cashInHand: salesData.cashInHand || {
+          openingBalance: 0,
+          closingBalance: 0,
+          cashSales: 0,
+          cashPayments: 0,
+          cashDeposits: 0,
+          cashWithdrawals: 0,
+          salesByMethod: {
+            cash: { total: 0, count: 0 },
+            card: { total: 0, count: 0 },
+            mobile: { total: 0, count: 0 },
+            credit: { total: 0, count: 0 }
+          }
+        },
+        profitAndLoss: salesData.profitAndLoss || {
+=======
         salesParams = [dateRange as "all" | "day" | "week" | "month" | "year" | "custom"];
         inventoryParams = [dateRange as "all" | "day" | "week" | "month" | "year" | "custom"];
       }
@@ -139,6 +175,7 @@ export function Reports() {
         dailySales: salesData?.dailySales || [],
         popularItems: salesData?.popularItems || [],
         profitAndLoss: salesData?.profitAndLoss || {
+>>>>>>> 77ffa9ad4df0a8406dc926a295435109c208a8f0
           revenue: { current: 0, previous: 0 },
           expenses: { current: 0, previous: 0 },
           costOfGoods: { current: 0, previous: 0 },
@@ -148,6 +185,33 @@ export function Reports() {
             revenue: [],
             expenses: []
           }
+<<<<<<< HEAD
+        }
+      } : null;
+
+      setAnalytics(validatedSalesData);
+      setProducts(productsData?.products || []);
+
+      // Calculate inventory analytics from products
+      const inventoryValue = {
+        totalValue: productsData?.products?.reduce((sum: number, p: any) => sum + (p.stock * p.purchasePrice), 0) || 0,
+        totalItems: productsData?.products?.reduce((sum: number, p: any) => sum + (p.stock || 0), 0) || 0,
+        uniqueProducts: productsData?.products?.length || 0
+      };
+      const lowStockItems = productsData?.products?.filter((p: any) => p.stock <= p.reorderPoint) || [];
+      const stockByCategoryMap: Record<string, { category: string, count: number, totalStock: number, value: number }> = {};
+      productsData?.products?.forEach((p: any) => {
+        const cat = p.category || 'Uncategorized';
+        if (!stockByCategoryMap[cat]) {
+          stockByCategoryMap[cat] = { category: cat, count: 0, totalStock: 0, value: 0 };
+        }
+        stockByCategoryMap[cat].count += 1;
+        stockByCategoryMap[cat].totalStock += p.stock || 0;
+        stockByCategoryMap[cat].value += (p.stock * p.purchasePrice) || 0;
+      });
+      const stockByCategory = Object.values(stockByCategoryMap);
+      setInventoryData({ inventoryValue, lowStockItems, stockByCategory });
+=======
         },
         tax: salesData?.tax || { daily: 0, weekly: 0, monthly: 0 },
         netRevenue: salesData?.netRevenue || { daily: 0, weekly: 0, monthly: 0 }
@@ -164,13 +228,16 @@ export function Reports() {
       setAnalytics(normalizedSalesData);
       setInventoryData(normalizedInventoryData);
       setLoading(false);
+>>>>>>> 77ffa9ad4df0a8406dc926a295435109c208a8f0
     } catch (error) {
       console.error("Failed to fetch analytics data:", error);
+      setError("Failed to load reports data. Please try again.");
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch analytics data",
       })
+    } finally {
       setLoading(false);
     }
   }
@@ -179,12 +246,34 @@ export function Reports() {
     fetchAnalytics()
   }, [dateRange])
 
-  if (loading || !analytics || !inventoryData) {
+  // Show loading state
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-        <p className="text-muted-foreground">{t("reports.loading")}</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" text="Loading reports..." />
       </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <ErrorState
+        title="Reports Error"
+        message={error}
+        onRetry={fetchAnalytics}
+      />
+    )
+  }
+
+  // Show error if no data
+  if (!analytics || !inventoryData) {
+    return (
+      <ErrorState
+        title="No Data Available"
+        message="Unable to load reports data. Please try again."
+        onRetry={fetchAnalytics}
+      />
     )
   }
 
@@ -275,7 +364,7 @@ export function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(analytics.revenue.daily)}
+                  {formatCurrency(analytics?.revenue?.daily || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -286,7 +375,7 @@ export function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(analytics.revenue.weekly)}
+                  {formatCurrency(analytics?.revenue?.weekly || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -297,7 +386,7 @@ export function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(analytics.revenue.monthly)}
+                  {formatCurrency(analytics?.revenue?.monthly || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -309,7 +398,7 @@ export function Reports() {
             </CardHeader>
             <CardContent className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics.dailySales}>
+                <BarChart data={analytics?.dailySales || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
@@ -333,13 +422,13 @@ export function Reports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {analytics.popularItems.map((item) => (
+                  {(analytics.popularItems || []).map((item) => (
                     <TableRow key={item._id}>
                       <TableCell>{item.name}</TableCell>
                       <TableCell className="text-right">{item.sales}</TableCell>
                     </TableRow>
                   ))}
-                  {analytics.popularItems.length === 0 && (
+                  {(analytics?.popularItems?.length || 0) === 0 && (
                     <TableRow>
                       <TableCell colSpan={2} className="text-center py-4">
                         {t("reports.noSalesData")}
@@ -520,7 +609,7 @@ export function Reports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventoryData.lowStockItems.map((item) => (
+                  {(inventoryData.lowStockItems || []).map((item) => (
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.category}</TableCell>
@@ -560,7 +649,7 @@ export function Reports() {
                       outerRadius={100}
                       label={(entry) => entry.category}
                     >
-                      {inventoryData.stockByCategory.map((_, index) => (
+                      {(inventoryData.stockByCategory || []).map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -585,7 +674,7 @@ export function Reports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventoryData.stockByCategory.map((category) => (
+                  {(inventoryData.stockByCategory || []).map((category) => (
                     <TableRow key={category.category}>
                       <TableCell className="font-medium">{category.category}</TableCell>
                       <TableCell className="text-right">{category.count}</TableCell>
@@ -668,7 +757,7 @@ export function Reports() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={analytics.profitAndLoss.categories.revenue}
+                      data={analytics?.profitAndLoss?.categories?.revenue || []}
                       dataKey="amount"
                       nameKey="name"
                       cx="50%"
@@ -676,7 +765,7 @@ export function Reports() {
                       outerRadius={100}
                       label={(entry) => entry.name}
                     >
-                      {analytics.profitAndLoss.categories.revenue.map((_, index) => (
+                      {(analytics?.profitAndLoss?.categories?.revenue || []).map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -697,7 +786,7 @@ export function Reports() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={analytics.profitAndLoss.categories.expenses}
+                      data={analytics?.profitAndLoss?.categories?.expenses || []}
                       dataKey="amount"
                       nameKey="name"
                       cx="50%"
@@ -705,7 +794,7 @@ export function Reports() {
                       outerRadius={100}
                       label={(entry) => entry.name}
                     >
-                      {analytics.profitAndLoss.categories.expenses.map((_, index) => (
+                      {(analytics?.profitAndLoss?.categories?.expenses || []).map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>

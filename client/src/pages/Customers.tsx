@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react"
+import LoadingSpinner from "@/components/LoadingSpinner"
+import ErrorState from "@/components/ErrorState"
 import { getCustomers, updateCustomer, deleteCustomer, addCustomer } from "@/api/customers"
 import { getCustomerPayments, addPayment, deletePayment } from "@/api/customerPayments"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -121,6 +123,10 @@ export function Customers() {
   })
   const { toast } = useToast()
 
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
     fetchCustomers()
   }, [])
@@ -138,16 +144,27 @@ export function Customers() {
 
   const fetchCustomers = async () => {
     try {
+      setIsLoading(true)
+      setError(null)
       const response = await getCustomers()
+<<<<<<< HEAD
+      setCustomers(response?.customers || [])
+    } catch (error) {
+      console.error('Failed to fetch customers:', error)
+      setError('Failed to load customers. Please try again.')
+=======
       setCustomers(response.customers || [])
     } catch (error) {
       console.error('Failed to fetch customers:', error)
       setCustomers([])
+>>>>>>> 77ffa9ad4df0a8406dc926a295435109c208a8f0
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch customers"
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -186,11 +203,11 @@ export function Customers() {
   }
 
   const filterCustomers = () => {
-    let filtered = customers
+    let filtered = customers || []
 
     // Filter by type
     if (filterType !== "all") {
-      filtered = filtered.filter(customer => customer.type === filterType)
+      filtered = filtered.filter(customer => customer?.type === filterType)
     }
 
     // Filter by search term
@@ -198,9 +215,9 @@ export function Customers() {
       const term = searchTerm.toLowerCase()
       filtered = filtered.filter(
         customer =>
-          customer.name.toLowerCase().includes(term) ||
-          (customer.email && customer.email.toLowerCase().includes(term)) ||
-          (customer.phone && customer.phone.toLowerCase().includes(term))
+          customer?.name?.toLowerCase().includes(term) ||
+          (customer?.email && customer.email.toLowerCase().includes(term)) ||
+          (customer?.phone && customer.phone.toLowerCase().includes(term))
       )
     }
 
@@ -454,6 +471,26 @@ export function Customers() {
   const openDeletePaymentDialog = (payment: Payment) => {
     setSelectedPayment(payment)
     setShowDeletePaymentDialog(true)
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" text="Loading customers..." />
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <ErrorState
+        title="Customers Error"
+        message={error}
+        onRetry={fetchCustomers}
+      />
+    )
   }
 
   return (

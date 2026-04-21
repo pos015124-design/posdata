@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: dukani-system
+    env: node
+    buildCommand: npm install && cd server && npm install && cd ../client && npm install && npm run build
+    startCommand: cd server && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 18
+    disk:
+      name: data
+      mountPath: /opt/render/data
+      sizeGB: 1

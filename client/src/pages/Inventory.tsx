@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
+import LoadingSpinner from "@/components/LoadingSpinner"
+import ErrorState from "@/components/ErrorState"
 import { getProducts, addProduct, updateProduct } from "@/api/products"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { getCategories, Category } from "@/api/categories"
@@ -113,8 +115,8 @@ export function Inventory() {
   const [searchTerm, setSearchTerm] = useState("")
   const [sortField, setSortField] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [productCategories, setProductCategories] = useState<Category[]>([])
   
   // Enhanced state - these variables are required for TypeScript type checking
@@ -211,30 +213,30 @@ export function Inventory() {
 
   // Enhanced filtering function
   useEffect(() => {
-    let filtered = [...products];
+    let filtered = [...(products || [])];
     
     // Apply search term filter
     if (searchTerm.trim() !== '') {
       filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+        product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product?.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product?.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product?.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product?.supplier?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
     // Apply category filter
     if (categoryFilter) {
       filtered = filtered.filter(product =>
-        product.category.toLowerCase() === categoryFilter.toLowerCase()
+        product?.category?.toLowerCase() === categoryFilter.toLowerCase()
       );
     }
-    
+
     // Apply supplier filter
     if (supplierFilter) {
       filtered = filtered.filter(product =>
-        product.supplier.toLowerCase() === supplierFilter.toLowerCase()
+        product?.supplier?.toLowerCase() === supplierFilter.toLowerCase()
       );
     }
     
@@ -242,11 +244,11 @@ export function Inventory() {
     if (stockStatusFilter) {
       filtered = filtered.filter(product => {
         if (stockStatusFilter === 'low') {
-          return product.stock <= product.reorderPoint;
+          return (product?.stock || 0) <= (product?.reorderPoint || 0);
         } else if (stockStatusFilter === 'normal') {
-          return product.stock > product.reorderPoint && product.stock <= product.reorderPoint * 2;
+          return (product?.stock || 0) > (product?.reorderPoint || 0) && (product?.stock || 0) <= ((product?.reorderPoint || 0) * 2);
         } else if (stockStatusFilter === 'excess') {
-          return product.stock > product.reorderPoint * 2;
+          return (product?.stock || 0) > ((product?.reorderPoint || 0) * 2);
         }
         return true;
       });
@@ -362,6 +364,7 @@ export function Inventory() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
       try {
         const [productsData, historyData, alertsData, categoriesData] = await Promise.all([
           getProducts(),
@@ -369,21 +372,22 @@ export function Inventory() {
           getLowStockAlerts(),
           getCategories()
         ]);
-        
-        setProducts(productsData.products);
-        setFilteredProducts(productsData.products);
-        setRestockHistory(historyData.history);
-        setFilteredRestockHistory(historyData.history);
-        setLowStockAlerts(alertsData.alerts);
-        setProductCategories(categoriesData.categories);
-        setLoading(false);
+
+        setProducts(productsData?.products || []);
+        setFilteredProducts(productsData?.products || []);
+        setRestockHistory(historyData?.history || []);
+        setFilteredRestockHistory(historyData?.history || []);
+        setLowStockAlerts(alertsData?.alerts || []);
+        setProductCategories(categoriesData?.categories || []);
       } catch (err) {
         console.error("Error fetching data:", err);
+        setError("Failed to load inventory data. Please try again.");
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to fetch inventory data",
         });
+      } finally {
         setLoading(false);
       }
     };
@@ -391,16 +395,69 @@ export function Inventory() {
   }, [toast]);
 
   const handleAddProduct = async () => {
+    // Validate required fields
+    if (!newProduct.name.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Product name is required",
+      })
+      return
+    }
+    if (!newProduct.category || newProduct.category.trim() === "") {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Product category is required",
+      })
+      return
+    }
+    if (!newProduct.price || isNaN(Number(newProduct.price)) || Number(newProduct.price) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Product price must be a positive number",
+      })
+      return
+    }
+    if (!newProduct.purchasePrice || isNaN(Number(newProduct.purchasePrice)) || Number(newProduct.purchasePrice) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Purchase price must be a positive number",
+      })
+      return
+    }
+    if (!newProduct.stock || isNaN(Number(newProduct.stock)) || !Number.isInteger(Number(newProduct.stock)) || Number(newProduct.stock) < 0 || Number(newProduct.stock) > 999999) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Stock must be a non-negative integer less than 999,999",
+      })
+      return
+    }
+    if (!newProduct.reorderPoint || isNaN(Number(newProduct.reorderPoint)) || !Number.isInteger(Number(newProduct.reorderPoint)) || Number(newProduct.reorderPoint) < 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Reorder point must be a non-negative integer",
+      })
+      return
+    }
+    // Prepare payload: only send non-empty, valid fields
+    const payload: any = {
+      name: newProduct.name.trim(),
+      code: newProduct.code?.trim() || undefined,
+      barcode: newProduct.barcode?.trim() || undefined,
+      price: Number(newProduct.price),
+      purchasePrice: Number(newProduct.purchasePrice),
+      stock: Number(newProduct.stock),
+      category: newProduct.category && newProduct.category.trim() !== "" ? newProduct.category : undefined,
+      supplier: newProduct.supplier?.trim() || undefined,
+      reorderPoint: Number(newProduct.reorderPoint),
+    }
     try {
-      const productData = {
-        ...newProduct,
-        price: Number(newProduct.price),
-        purchasePrice: Number(newProduct.purchasePrice),
-        stock: Number(newProduct.stock),
-        reorderPoint: Number(newProduct.reorderPoint),
-      }
-
-      const response = await addProduct(productData)
+      const response = await addProduct(payload)
       if (response.success) {
         toast({
           title: "Success",
@@ -420,7 +477,6 @@ export function Inventory() {
           expiryDate: "",
           location: "",
         })
-
         // Refresh products list
         const data = await getProducts()
         setProducts(data.products)
@@ -728,6 +784,26 @@ export function Inventory() {
     totalValue: products.reduce((sum, product) => sum + (product.stock * product.purchasePrice), 0),
     lowStockCount: lowStockAlerts.length
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" text="Loading inventory..." />
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <ErrorState
+        title="Inventory Error"
+        message={error}
+        onRetry={() => window.location.reload()}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -1378,11 +1454,13 @@ export function Inventory() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
+              <label className="text-sm font-medium">Category <span style={{color: 'red'}}>*</span></label>
               <Select
+                value={newProduct.category}
                 onValueChange={(value) =>
                   setNewProduct({ ...newProduct, category: value })
                 }
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -1405,6 +1483,9 @@ export function Inventory() {
                   )}
                 </SelectContent>
               </Select>
+              {(!newProduct.category) && (
+                <div style={{color: 'red', fontSize: '0.9em'}}>Category is required</div>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Supplier</label>

@@ -48,10 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Invalid response from server");
       }
 
-      // Check if user is approved
-      if (response.user.role !== 'admin' && response.user.isApproved === false) {
-        throw new Error("Your account is pending approval. Please contact an administrator.");
-      }
 
       localStorage.setItem("accessToken", response.accessToken);
       if (response.refreshToken) {

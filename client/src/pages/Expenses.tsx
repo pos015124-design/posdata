@@ -97,21 +97,40 @@ export function Expenses() {
   }, [categoryFilter, expenses]);
 
   const handleAddExpense = async () => {
-    try {
-      if (!newExpense.description || !newExpense.amount || !newExpense.category) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: t("expenses.fillAllFields"),
-        })
-        return
-      }
-
-      const response = await addExpense({
-        ...newExpense,
-        amount: Number(newExpense.amount),
+    // Validate required fields
+    if (!newExpense.description.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: t("expenses.descriptionRequired"),
       })
-
+      return
+    }
+    if (!newExpense.category) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: t("expenses.categoryRequired"),
+      })
+      return
+    }
+    if (!newExpense.amount || isNaN(Number(newExpense.amount)) || Number(newExpense.amount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: t("expenses.amountPositive"),
+      })
+      return
+    }
+    // Prepare payload: only send valid fields
+    const payload: any = {
+      description: newExpense.description.trim(),
+      amount: Number(newExpense.amount),
+      category: newExpense.category,
+      date: newExpense.date || new Date().toISOString().split('T')[0],
+    }
+    try {
+      const response = await addExpense(payload)
       if (response.success) {
         toast({
           title: "Success",
@@ -124,7 +143,6 @@ export function Expenses() {
           category: "",
           date: new Date().toISOString().split('T')[0],
         })
-
         // Refresh expenses list with current date range
         await fetchExpenses()
       }

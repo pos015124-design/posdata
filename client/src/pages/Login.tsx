@@ -74,60 +74,112 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Enter your credentials to continue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {pendingApprovalMessage && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800">
-              <p className="text-sm">{pendingApprovalMessage}</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-primary/5 py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+
+      <div className="max-w-md w-full space-y-8 relative z-10">
+        {/* Header */}
+        <div className="text-center animate-slide-up">
+          <div className="mx-auto h-16 w-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+            <LogIn className="h-8 w-8 text-primary-foreground" />
+          </div>
+          <h2 className="text-responsive-lg font-bold text-gradient">
+            Welcome Back
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            Sign in to your Dukani account
+          </p>
+        </div>
+
+        {/* Login Card */}
+        <Card className="card-modern hover-lift animate-scale-in backdrop-blur-sm bg-card/80 border-0 shadow-modern-lg">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-2xl font-semibold text-center">
+              Sign In
+            </CardTitle>
+            <CardDescription className="text-center text-muted-foreground">
+              Enter your credentials to access your dashboard
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {pendingApprovalMessage && (
+              <div className="p-4 bg-warning/10 border border-warning/20 text-warning-foreground rounded-lg animate-slide-up">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 bg-warning rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">{pendingApprovalMessage}</span>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    {...register("email", { required: true })}
+                    placeholder="Enter your email"
+                    className="h-11 transition-smooth focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    {...register("password", { required: true })}
+                    placeholder="Enter your password"
+                    className="h-11 transition-smooth focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-11 btn-gradient font-medium transition-smooth hover:scale-[1.02] active:scale-[0.98]"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <LogIn className="h-4 w-4" />
+                    Sign In
+                  </div>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+
+          <CardFooter className="pt-4">
+            <div className="w-full text-center">
+              <Button
+                variant="link"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => navigate("/register")}
+              >
+                Don't have an account? Create one here
+              </Button>
             </div>
-          )}
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                {...register("email", { required: true })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                {...register("password", { required: true })}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                "Loading..."
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Sign In
-                </>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button
-            variant="link"
-            className="text-sm text-muted-foreground"
-            onClick={() => navigate("/register")}
-          >
-            Don't have an account? Sign up
-          </Button>
-        </CardFooter>
-      </Card>
+          </CardFooter>
+        </Card>
+
+        {/* Footer */}
+        <div className="text-center text-xs text-muted-foreground animate-fade-in">
+          <p>© 2024 Dukani Retail System. All rights reserved.</p>
+        </div>
+      </div>
     </div>
   )
 }

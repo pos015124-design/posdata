@@ -1,7 +1,4 @@
 import { useState, useEffect } from "react"
-import { getSalesAnalytics } from "@/api/analytics"
-import { getLowStockAlerts } from "@/api/inventory"
-import { useLanguage } from "@/contexts/LanguageContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   BarChart,
@@ -10,15 +7,13 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
+  ResponsiveContainer
 } from "recharts"
+import { getSalesAnalytics } from "@/api/analytics"
+import { getLowStockAlerts } from "@/api/inventory"
+import { useToast } from "@/hooks/useToast"
+import { AlertCircle, TrendingUp, Package, DollarSign } from "lucide-react"
 import { formatCurrency } from "@/lib/format"
-import {
-  TrendingUp,
-  DollarSign,
-  ShoppingBag,
-  AlertTriangle,
-} from "lucide-react"
 
 type Analytics = {
   dailySales: Array<{ date: string; amount: number }>
@@ -38,32 +33,31 @@ type LowStockAlert = {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const { t } = useLanguage()
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlert[]>([])
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsData, alertsData] = await Promise.all([
+        setLoading(true)
+        const [analyticsData, alertsData, customersData, salesData, productsData] = await Promise.all([
           getSalesAnalytics(),
           getLowStockAlerts(),
+          getCustomers(),
+          getAllSales(),
+          getProducts(),
         ])
-        setAnalytics(analyticsData || {
-          dailySales: [],
-          popularItems: [],
-          revenue: { daily: 0, weekly: 0, monthly: 0 }
+        setAnalytics(analyticsData)
+        setLowStockAlerts(alertsData.alerts)
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: t("dashboard.failedToFetch"),
         })
-        setLowStockAlerts(alertsData?.alerts || [])
-      } catch (err) {
-        console.error('Dashboard fetch error:', err)
-        // Set empty data instead of showing error
-        setAnalytics({
-          dailySales: [],
-          popularItems: [],
-          revenue: { daily: 0, weekly: 0, monthly: 0 }
-        })
-        setLowStockAlerts([])
       }
     }
     fetchData()
@@ -72,7 +66,7 @@ export function Dashboard() {
   if (!analytics) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        {t("dashboard.loading") || "Loading dashboard..."}
+        {t("dashboard.loading")}
       </div>
     )
   }
@@ -89,7 +83,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(analytics?.revenue?.daily || 0)}
+              {formatCurrency(analytics.revenue.daily)}
             </div>
           </CardContent>
         </Card>
@@ -100,7 +94,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(analytics?.revenue?.weekly || 0)}
+              {formatCurrency(analytics.revenue.weekly)}
             </div>
           </CardContent>
         </Card>
@@ -111,20 +105,34 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(analytics?.revenue?.monthly || 0)}
+              {formatCurrency(analytics.revenue.monthly)}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("dashboard.dailySales")}</CardTitle>
+      {/* Quick Stats */}
+      <QuickStats stats={statsData} loading={loading} />
+
+      {/* Charts and Analytics */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Sales Chart */}
+        <Card className="lg:col-span-2 card-modern hover-lift animate-slide-up">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-semibold">{t("dashboard.dailySales")}</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">Sales performance over time</p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Trending Up</span>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[350px] pt-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics?.dailySales || []}>
+              <BarChart data={analytics.dailySales}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
@@ -138,30 +146,24 @@ export function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>{t("dashboard.lowStockAlerts")}</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <AlertCircle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {lowStockAlerts.length > 0 ? (
-                lowStockAlerts.map((alert) => (
-                  <div
-                    key={alert._id}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                      <span>{alert.name}</span>
-                    </div>
-                    <div className="text-sm text-destructive">
-                      {t("dashboard.stock")}: {alert.stock}/{alert.threshold}
-                    </div>
+              {lowStockAlerts.map((alert) => (
+                <div
+                  key={alert._id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span>{alert.name}</span>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No low stock alerts
-                </p>
-              )}
+                  <div className="text-sm text-destructive">
+                    {t("dashboard.stock")}: {alert.stock}/{alert.threshold}
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
