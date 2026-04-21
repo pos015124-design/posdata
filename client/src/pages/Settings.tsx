@@ -1,740 +1,140 @@
-import { useState, useEffect } from "react"
-import PlatformSettings from './PlatformSettings';
-import AnalyticsChart from './AnalyticsChart';
-import SuperAdminDashboard from './SuperAdminDashboard';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { useLanguage } from "@/contexts/LanguageContext"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/useToast"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Save, Store, Receipt, CreditCard, Percent, Tag, Plus, Pencil, Trash2 } from "lucide-react"
-import {
-  getSettings,
-  updateSettings,
-  BusinessSettings,
-  TaxSettings,
-  ReceiptSettings,
-  PaymentSettings
-} from "@/api/settings"
-import { getCategories, addCategory, updateCategory, deleteCategory, Category } from "@/api/categories"
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Settings as SettingsIcon, Save, Store, User, Bell } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
 
-import { useAuth } from "@/contexts/AuthContext"
+export default function Settings() {
+  const [activeTab, setActiveTab] = useState('general');
+  const { toast } = useToast();
 
-export function Settings() {
-  const { user } = useAuth();
-  const { t } = useLanguage()
-  // Business information settings
-  const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
-    name: "Dukani Store",
-    address: "123 Main Street, Dar es Salaam",
-    phone: "+255 123 456 789",
-    email: "info@dukanistore.com",
-    taxId: "TIN12345678",
-  })
-
-  // Tax settings
-  const [taxSettings, setTaxSettings] = useState<TaxSettings>({
-    defaultTaxRate: "0",
-    taxIncluded: false,
-    enableTax: false,
-  })
-
-  // Receipt settings
-  const [receiptSettings, setReceiptSettings] = useState<ReceiptSettings>({
-    showLogo: true,
-    showTaxId: true,
-    footerText: "Thank you for shopping with us!",
-    receiptPrefix: "INV-",
-    printAutomatically: true,
-  })
-
-  // Payment settings
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({
-    acceptCash: true,
-    acceptCard: true,
-    acceptMobile: true,
-    acceptCredit: true,
-    defaultPaymentMethod: "cash",
-  })
-
-  // Category management
-  const [categories, setCategories] = useState<Category[]>([])
-  const [isAddingCategory, setIsAddingCategory] = useState(false)
-  const [isEditingCategory, setIsEditingCategory] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    description: "",
-    color: "#3b82f6" // Default blue color
-  })
-
-  const { toast } = useToast()
-
-  // Load settings and categories from server on component mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-
-        
-        // Fetch settings from the API
-        const response = await getSettings();
-        
-        // Update state with the fetched settings
-        setBusinessSettings(response.settings.business);
-        setTaxSettings(response.settings.tax);
-        setReceiptSettings(response.settings.receipt);
-        setPaymentSettings(response.settings.payment);
-        
-
-        
-        // Fetch categories
-        try {
-          const categoriesResponse = await getCategories();
-          setCategories(categoriesResponse.categories);
-
-        } catch (categoryError) {
-          console.error("Failed to load categories:", categoryError);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to load product categories",
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load settings:", error);
-        
-        // If API fails, we'll keep using the default values
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: t("settings.failedToLoad"),
-        });
-      }
-    };
-    
-    loadData();
-  }, [toast, t]);
-
-  // Save all settings
-  const saveSettings = async () => {
-    try {
-
-      
-      // Prepare the settings object
-      const settings = {
-        business: businessSettings,
-        tax: taxSettings,
-        receipt: receiptSettings,
-        payment: paymentSettings
-      };
-      
-      // Send settings to the API
-      const response = await updateSettings(settings);
-      
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: t("settings.settingsSaved"),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to save settings:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: t("settings.failedToSave"),
-      });
-    }
-  };
-
-  // Category management functions
-  const handleAddCategory = async () => {
-    try {
-      const response = await addCategory(newCategory);
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Category added successfully",
-        });
-        setIsAddingCategory(false);
-        setNewCategory({
-          name: "",
-          description: "",
-          color: "#3b82f6"
-        });
-        
-        // Refresh categories
-        const categoriesResponse = await getCategories();
-        setCategories(categoriesResponse.categories);
-      }
-    } catch (error) {
-      console.error("Failed to add category:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to add category",
-      });
-    }
-  };
-
-  const handleUpdateCategory = async () => {
-    if (!selectedCategory) return;
-    
-    try {
-      const response = await updateCategory(selectedCategory._id, {
-        name: selectedCategory.name,
-        description: selectedCategory.description,
-        color: selectedCategory.color
-      });
-      
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Category updated successfully",
-        });
-        setIsEditingCategory(false);
-        setSelectedCategory(null);
-        
-        // Refresh categories
-        const categoriesResponse = await getCategories();
-        setCategories(categoriesResponse.categories);
-      }
-    } catch (error) {
-      console.error("Failed to update category:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update category",
-      });
-    }
-  };
-
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      const response = await deleteCategory(id);
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Category deleted successfully",
-        });
-        
-        // Refresh categories
-        const categoriesResponse = await getCategories();
-        setCategories(categoriesResponse.categories);
-      }
-    } catch (error) {
-      console.error("Failed to delete category:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete category",
-      });
-    }
+  const handleSave = () => {
+    toast({
+      title: 'Success',
+      description: 'Settings saved successfully!',
+    });
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">{t("settings.title")}</h2>
-          <p className="text-muted-foreground mt-1">Manage your business profile and platform settings.</p>
-        </div>
-        <div className="flex gap-2">
-          {user?.role === 'super_admin' && (
-            <Button
-              variant="outline"
-              className="border-primary text-primary hover:bg-primary/10"
-              onClick={() => window.location.href = '/business-register'}
-            >
-              <Store className="mr-2 h-4 w-4" />
-              Register New Business
-            </Button>
-          )}
-          <Button onClick={saveSettings}>
-            <Save className="mr-2 h-4 w-4" />
-            {t("settings.saveAll")}
-          </Button>
-        </div>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-600 mt-1">Manage your account and preferences</p>
       </div>
 
-      <Tabs defaultValue="business" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="business">{t("settings.businessInfo")}</TabsTrigger>
-          <TabsTrigger value="tax">{t("settings.taxSettings")}</TabsTrigger>
-          <TabsTrigger value="receipt">{t("settings.receiptSettings")}</TabsTrigger>
-          <TabsTrigger value="payment">{t("settings.paymentMethods")}</TabsTrigger>
-          <TabsTrigger value="categories">Product Categories</TabsTrigger>
-          <TabsTrigger value="platform">Platform Settings</TabsTrigger>
-          <TabsTrigger value="analytics">Platform Analytics</TabsTrigger>
-          {user?.role === 'super_admin' && (
-            <TabsTrigger value="platform-overview">Platform Overview</TabsTrigger>
-          )}
-        </TabsList>
-              {/* Platform Overview Tab for Super Admins */}
-              {user?.role === 'super_admin' && (
-                <TabsContent value="platform-overview">
-                  <SuperAdminDashboard />
-                </TabsContent>
-              )}
-        {/* Platform Settings Tab */}
-        <TabsContent value="platform">
-          <PlatformSettings />
-        </TabsContent>
-
-        {/* Platform Analytics Tab */}
-        <TabsContent value="business">
-          <Card className="shadow-lg border border-primary/10">
-            <CardHeader className="bg-primary/5 rounded-t-lg pb-4">
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Store className="h-5 w-5" />
-                {t("settings.businessInfo")}
-              </CardTitle>
-              <CardDescription className="mt-1 text-muted-foreground">
-                This is your active business profile. Update your business details below.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="business-name">{t("settings.businessName")}</Label>
-                    <Input
-                      id="business-name"
-                      value={businessSettings.name}
-                      onChange={(e) => setBusinessSettings({ ...businessSettings, name: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="business-address">{t("settings.address")}</Label>
-                    <Textarea
-                      id="business-address"
-                      value={businessSettings.address}
-                      onChange={(e) => setBusinessSettings({ ...businessSettings, address: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="business-phone">{t("settings.phoneNumber")}</Label>
-                    <Input
-                      id="business-phone"
-                      value={businessSettings.phone}
-                      onChange={(e) => setBusinessSettings({ ...businessSettings, phone: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="business-email">{t("settings.emailAddress")}</Label>
-                    <Input
-                      id="business-email"
-                      type="email"
-                      value={businessSettings.email}
-                      onChange={(e) => setBusinessSettings({ ...businessSettings, email: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="business-taxid">{t("settings.taxId")}</Label>
-                    <Input
-                      id="business-taxid"
-                      value={businessSettings.taxId}
-                      onChange={(e) => setBusinessSettings({ ...businessSettings, taxId: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tax Settings Tab */}
-        <TabsContent value="tax">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Percent className="h-5 w-5" />
-                {t("settings.taxSettings")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="enable-tax">{t("settings.enableTax")}</Label>
-                <Switch
-                  id="enable-tax"
-                  checked={taxSettings.enableTax}
-                  onCheckedChange={(checked) => setTaxSettings({ ...taxSettings, enableTax: checked })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="default-tax-rate">{t("settings.defaultTaxRate")}</Label>
-                <Input
-                  id="default-tax-rate"
-                  type="number"
-                  value={taxSettings.defaultTaxRate}
-                  onChange={(e) => setTaxSettings({ ...taxSettings, defaultTaxRate: e.target.value })}
-                  disabled={!taxSettings.enableTax}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="tax-included">{t("settings.taxIncluded")}</Label>
-                <Switch
-                  id="tax-included"
-                  checked={taxSettings.taxIncluded}
-                  onCheckedChange={(checked) => setTaxSettings({ ...taxSettings, taxIncluded: checked })}
-                  disabled={!taxSettings.enableTax}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Receipt Settings Tab */}
-        <TabsContent value="receipt">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                {t("settings.receiptSettings")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="show-logo">Show Logo on Receipt</Label>
-                <Switch
-                  id="show-logo"
-                  checked={receiptSettings.showLogo}
-                  onCheckedChange={(checked) => setReceiptSettings({ ...receiptSettings, showLogo: checked })}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="show-taxid">Show Tax ID on Receipt</Label>
-                <Switch
-                  id="show-taxid"
-                  checked={receiptSettings.showTaxId}
-                  onCheckedChange={(checked) => setReceiptSettings({ ...receiptSettings, showTaxId: checked })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="receipt-prefix">Receipt Number Prefix</Label>
-                <Input
-                  id="receipt-prefix"
-                  value={receiptSettings.receiptPrefix}
-                  onChange={(e) => setReceiptSettings({ ...receiptSettings, receiptPrefix: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="footer-text">Receipt Footer Text</Label>
-                <Textarea
-                  id="footer-text"
-                  value={receiptSettings.footerText}
-                  onChange={(e) => setReceiptSettings({ ...receiptSettings, footerText: e.target.value })}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="print-automatically">Print Receipt Automatically</Label>
-                <Switch
-                  id="print-automatically"
-                  checked={receiptSettings.printAutomatically}
-                  onCheckedChange={(checked) => setReceiptSettings({ ...receiptSettings, printAutomatically: checked })}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Payment Methods Tab */}
-        <TabsContent value="payment">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                {t("settings.paymentMethods")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="accept-cash">Accept Cash Payments</Label>
-                  <Switch
-                    id="accept-cash"
-                    checked={paymentSettings.acceptCash}
-                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, acceptCash: checked })}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="accept-card">Accept Card Payments</Label>
-                  <Switch
-                    id="accept-card"
-                    checked={paymentSettings.acceptCard}
-                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, acceptCard: checked })}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="accept-mobile">Accept Mobile Money</Label>
-                  <Switch
-                    id="accept-mobile"
-                    checked={paymentSettings.acceptMobile}
-                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, acceptMobile: checked })}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="accept-credit">Accept Credit Accounts</Label>
-                  <Switch
-                    id="accept-credit"
-                    checked={paymentSettings.acceptCredit}
-                    onCheckedChange={(checked) => setPaymentSettings({ ...paymentSettings, acceptCredit: checked })}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2 pt-4">
-                <Label htmlFor="default-payment">Default Payment Method</Label>
-                <Select
-                  value={paymentSettings.defaultPaymentMethod}
-                  onValueChange={(value) => setPaymentSettings({ ...paymentSettings, defaultPaymentMethod: value })}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Sidebar */}
+        <div className="col-span-3">
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-4 space-y-2">
+              {[
+                { id: 'general', label: 'General', icon: SettingsIcon },
+                { id: 'business', label: 'Business', icon: Store },
+                { id: 'profile', label: 'Profile', icon: User },
+                { id: 'notifications', label: 'Notifications', icon: Bell },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                      : 'hover:bg-gray-100'
+                  }`}
                 >
-                  <SelectTrigger id="default-payment">
-                    <SelectValue placeholder="Select default payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash" disabled={!paymentSettings.acceptCash}>Cash</SelectItem>
-                    <SelectItem value="card" disabled={!paymentSettings.acceptCard}>Card</SelectItem>
-                    <SelectItem value="mobile" disabled={!paymentSettings.acceptMobile}>Mobile Money</SelectItem>
-                    <SelectItem value="credit" disabled={!paymentSettings.acceptCredit}>Credit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <tab.icon className="w-5 h-5" />
+                  <span className="font-medium">{tab.label}</span>
+                </button>
+              ))}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
 
-        {/* Categories Tab */}
-        <TabsContent value="categories">
-          <Card>
+        {/* Content */}
+        <div className="col-span-9">
+          <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Tag className="h-5 w-5" />
-                  Product Categories
-                </div>
-                <Button size="sm" onClick={() => setIsAddingCategory(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Category
-                </Button>
+              <CardTitle>
+                {activeTab === 'general' && 'General Settings'}
+                {activeTab === 'business' && 'Business Settings'}
+                {activeTab === 'profile' && 'Profile Settings'}
+                {activeTab === 'notifications' && 'Notification Preferences'}
               </CardTitle>
-              <CardDescription>
-                Manage product categories for your inventory
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {categories.length > 0 ? (
-                    categories.map((category) => (
-                      <TableRow key={category._id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: category.color || '#3b82f6' }}
-                            />
-                            {category.name}
-                          </div>
-                        </TableCell>
-                        <TableCell>{category.description || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-6 h-6 rounded border"
-                              style={{ backgroundColor: category.color || '#3b82f6' }}
-                            />
-                            {category.color || '#3b82f6'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedCategory(category);
-                                setIsEditingCategory(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteCategory(category._id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4">
-                        No categories found. Add your first category to get started.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            <CardContent className="space-y-6">
+              {activeTab === 'general' && (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="storeName">Store Name</Label>
+                      <Input id="storeName" defaultValue="My Store" />
+                    </div>
+                    <div>
+                      <Label htmlFor="currency">Currency</Label>
+                      <Input id="currency" defaultValue="USD" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'business' && (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="businessName">Business Name</Label>
+                      <Input id="businessName" defaultValue="My Business" />
+                    </div>
+                    <div>
+                      <Label htmlFor="taxId">Tax ID</Label>
+                      <Input id="taxId" defaultValue="" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'profile' && (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input id="name" defaultValue="John Doe" />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" defaultValue="john@example.com" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'notifications' && (
+                <>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Email Notifications</Label>
+                      <input type="checkbox" defaultChecked className="w-5 h-5" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label>Order Alerts</Label>
+                      <input type="checkbox" defaultChecked className="w-5 h-5" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <Button
+                onClick={handleSave}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Changes
+              </Button>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Add Category Dialog */}
-      <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Category</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="category-name">Category Name</Label>
-              <Input
-                id="category-name"
-                value={newCategory.name}
-                onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                placeholder="e.g., Electronics, Clothing, Food"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category-description">Description (Optional)</Label>
-              <Textarea
-                id="category-description"
-                value={newCategory.description}
-                onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                placeholder="Brief description of this category"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category-color">Color</Label>
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-8 h-8 rounded border"
-                  style={{ backgroundColor: newCategory.color }}
-                />
-                <Input
-                  id="category-color"
-                  type="color"
-                  value={newCategory.color}
-                  onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddingCategory(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddCategory}>Add Category</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Category Dialog */}
-      <Dialog open={isEditingCategory} onOpenChange={setIsEditingCategory}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
-          </DialogHeader>
-          {selectedCategory && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-category-name">Category Name</Label>
-                <Input
-                  id="edit-category-name"
-                  value={selectedCategory.name}
-                  onChange={(e) => setSelectedCategory({ ...selectedCategory, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-category-description">Description (Optional)</Label>
-                <Textarea
-                  id="edit-category-description"
-                  value={selectedCategory.description || ''}
-                  onChange={(e) => setSelectedCategory({ ...selectedCategory, description: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-category-color">Color</Label>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-8 h-8 rounded border"
-                    style={{ backgroundColor: selectedCategory.color || '#3b82f6' }}
-                  />
-                  <Input
-                    id="edit-category-color"
-                    type="color"
-                    value={selectedCategory.color || '#3b82f6'}
-                    onChange={(e) => setSelectedCategory({ ...selectedCategory, color: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingCategory(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateCategory}>Update Category</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
     </div>
-  )
+  );
 }
-
-export default Settings

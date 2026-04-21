@@ -1,185 +1,122 @@
-import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { useNavigate, useLocation } from "react-router-dom"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card"
-import { useToast } from "@/hooks/useToast"
-import { LogIn } from "lucide-react"
-import { useAuth } from "@/contexts/AuthContext"
+import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Label } from '../components/ui/label';
+import { useNavigate, Link } from 'react-router-dom';
+import { Store, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
 
-type LoginForm = {
-  email: string
-  password: string
-}
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-interface LocationState {
-  message?: string;
-  from?: Location;
-}
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-export function Login() {
-  const [loading, setLoading] = useState(false)
-  const [pendingApprovalMessage, setPendingApprovalMessage] = useState<string | null>(null)
-  const { toast } = useToast()
-  const { login } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { register, handleSubmit } = useForm<LoginForm>()
-  
-  useEffect(() => {
-    // Check if we have a message from the registration page
-    const state = location.state as LocationState;
-    if (state?.message) {
-      setPendingApprovalMessage(state.message);
-    }
-  }, [location]);
-
-  const onSubmit = async (data: LoginForm) => {
     try {
-      setLoading(true)
-      await login(data.email, data.password);
+      await login(email, password);
       toast({
-        title: "Success",
-        description: "Logged in successfully",
-      })
-      navigate("/")
-    } catch (error: unknown) {
-      // Clear the pending approval message if there was an error
-      setPendingApprovalMessage(null);
-      
-      const errorMessage = error instanceof Error ? error.message : "An error occurred during login";
-      
+        title: 'Success',
+        description: 'Logged in successfully!',
+      });
+      navigate('/dashboard');
+    } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: errorMessage,
-      })
-      
-      // If the error is about pending approval, set the message
-      if (errorMessage.includes("pending approval")) {
-        setPendingApprovalMessage("Your account is pending approval by an administrator. Please check back later.");
-      }
+        title: 'Error',
+        description: error.response?.data?.message || 'Invalid credentials',
+        variant: 'destructive',
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-primary/5 py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-
-      <div className="max-w-md w-full space-y-8 relative z-10">
-        {/* Header */}
-        <div className="text-center animate-slide-up">
-          <div className="mx-auto h-16 w-16 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-            <LogIn className="h-8 w-8 text-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-4">
+      <div className="absolute inset-0 bg-black/20" />
+      
+      <Card className="relative w-full max-w-md shadow-2xl border-0">
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <Store className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-responsive-lg font-bold text-gradient">
-            Welcome Back
-          </h2>
-          <p className="mt-2 text-muted-foreground">
-            Sign in to your Dukani account
-          </p>
-        </div>
-
-        {/* Login Card */}
-        <Card className="card-modern hover-lift animate-scale-in backdrop-blur-sm bg-card/80 border-0 shadow-modern-lg">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-semibold text-center">
-              Sign In
-            </CardTitle>
-            <CardDescription className="text-center text-muted-foreground">
-              Enter your credentials to access your dashboard
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            {pendingApprovalMessage && (
-              <div className="p-4 bg-warning/10 border border-warning/20 text-warning-foreground rounded-lg animate-slide-up">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 bg-warning rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">{pendingApprovalMessage}</span>
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">
-                    Email Address
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    {...register("email", { required: true })}
-                    placeholder="Enter your email"
-                    className="h-11 transition-smooth focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    {...register("password", { required: true })}
-                    placeholder="Enter your password"
-                    className="h-11 transition-smooth focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full h-11 btn-gradient font-medium transition-smooth hover:scale-[1.02] active:scale-[0.98]"
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
-                    Signing in...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <LogIn className="h-4 w-4" />
-                    Sign In
-                  </div>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-
-          <CardFooter className="pt-4">
-            <div className="w-full text-center">
-              <Button
-                variant="link"
-                className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                onClick={() => navigate("/register")}
-              >
-                Don't have an account? Create one here
-              </Button>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Dukani POS
+          </CardTitle>
+          <CardDescription className="text-base">
+            Sign in to your multi-vendor account
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="seller@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12"
+              />
             </div>
-          </CardFooter>
-        </Card>
 
-        {/* Footer */}
-        <div className="text-center text-xs text-muted-foreground animate-fade-in">
-          <p>© 2024 Dukani Retail System. All rights reserved.</p>
-        </div>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-12 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg font-semibold shadow-lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+
+            <div className="text-center text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
+                Sign up
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }

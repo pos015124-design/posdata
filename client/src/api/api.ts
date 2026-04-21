@@ -1,11 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-<<<<<<< HEAD
-const backendURL = 'http://localhost:3001';
-=======
 // Use relative URL in production, localhost in development
 const backendURL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
->>>>>>> 77ffa9ad4df0a8406dc926a295435109c208a8f0
+
 const api = axios.create({
   baseURL: backendURL,
   headers: {
@@ -17,6 +14,7 @@ const api = axios.create({
 });
 
 let accessToken: string | null = null;
+
 // Axios request interceptor: Attach access token to headers
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
@@ -33,50 +31,40 @@ api.interceptors.request.use(
 
 // Axios response interceptor: Handle 401 errors
 api.interceptors.response.use(
-  (response) => response, // If the response is successful, return it
+  (response) => response,
   async (error: AxiosError): Promise<unknown> => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Check if this is a staff permissions update request
-    const isStaffPermissionsUpdate = originalRequest.url?.includes('/api/staff/') &&
-                                    originalRequest.url?.includes('/permissions') &&
-                                    originalRequest.method === 'put';
-    
-    // If the error is due to an expired access token
     if (error.response?.status && [401, 403].includes(error.response.status) && !originalRequest._retry) {
-      originalRequest._retry = true; // Mark the request as retried
-try {
-  // Attempt to refresh the token
-  const refreshURL = process.env.NODE_ENV === 'production'
-    ? '/api/auth/refresh'
-    : `${backendURL}/api/auth/refresh`;
-    
-  const { data } = await axios.post<{ accessToken: string }>(refreshURL, {
-    refreshToken: localStorage.getItem('refreshToken'),
-  });
-  accessToken = data.accessToken;
-        accessToken = data.accessToken;
+      originalRequest._retry = true;
 
-        // Retry the original request with the new token
+      try {
+        const refreshURL = process.env.NODE_ENV === 'production'
+          ? '/api/auth/refresh'
+          : `${backendURL}/api/auth/refresh`;
+        
+        const { data } = await axios.post<{ accessToken: string }>(refreshURL, {
+          refreshToken: localStorage.getItem('refreshToken'),
+        });
+        
+        accessToken = data.accessToken;
+        localStorage.setItem('accessToken', accessToken);
+
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         }
+        
         return api(originalRequest);
       } catch (err) {
-        // If refresh fails, clear tokens and redirect to login
-        // But don't redirect if this is a staff permissions update
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('accessToken');
         accessToken = null;
-        
-        if (!isStaffPermissionsUpdate) {
-          window.location.href = '/login'; // Redirect to login page
-        }
+        window.location.href = '/login';
         return Promise.reject(err);
       }
     }
 
-    return Promise.reject(error); // Pass other errors through
+    return Promise.reject(error);
   }
 );
 

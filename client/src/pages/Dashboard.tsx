@@ -1,173 +1,137 @@
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from "recharts"
-import { getSalesAnalytics } from "@/api/analytics"
-import { getLowStockAlerts } from "@/api/inventory"
-import { useToast } from "@/hooks/useToast"
-import { AlertCircle, TrendingUp, Package, DollarSign } from "lucide-react"
-import { formatCurrency } from "@/lib/format"
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { useAuth } from '../contexts/AuthContext';
+import { 
+  TrendingUp, 
+  ShoppingCart, 
+  Users, 
+  Package, 
+  DollarSign,
+  Store
+} from 'lucide-react';
 
-type Analytics = {
-  dailySales: Array<{ date: string; amount: number }>
-  popularItems: Array<{ _id: string; name: string; sales: number }>
-  revenue: {
-    daily: number
-    weekly: number
-    monthly: number
-  }
-}
-
-type LowStockAlert = {
-  _id: string
-  name: string
-  stock: number
-  threshold: number
-}
-
-export function Dashboard() {
-  const navigate = useNavigate();
-  const { t } = useLanguage()
-  const [analytics, setAnalytics] = useState<Analytics | null>(null)
-  const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlert[]>([])
-  const { toast } = useToast()
+export default function Dashboard() {
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    totalSales: 0,
+    totalOrders: 0,
+    totalCustomers: 0,
+    totalProducts: 0,
+    recentOrders: []
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        const [analyticsData, alertsData, customersData, salesData, productsData] = await Promise.all([
-          getSalesAnalytics(),
-          getLowStockAlerts(),
-          getCustomers(),
-          getAllSales(),
-          getProducts(),
-        ])
-        setAnalytics(analyticsData)
-        setLowStockAlerts(alertsData.alerts)
-      } catch {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: t("dashboard.failedToFetch"),
-        })
-      }
-    }
-    fetchData()
-  }, [])
+    // Fetch dashboard stats from API
+    // For now, using mock data
+    setStats({
+      totalSales: 12500,
+      totalOrders: 156,
+      totalCustomers: 89,
+      totalProducts: 234,
+      recentOrders: []
+    });
+  }, []);
 
-  if (!analytics) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        {t("dashboard.loading")}
-      </div>
-    )
-  }
+  const statCards = [
+    {
+      title: 'Total Sales',
+      value: `$${stats.totalSales.toLocaleString()}`,
+      icon: DollarSign,
+      color: 'from-green-500 to-emerald-600',
+      bgColor: 'bg-green-50'
+    },
+    {
+      title: 'Total Orders',
+      value: stats.totalOrders.toString(),
+      icon: ShoppingCart,
+      color: 'from-blue-500 to-cyan-600',
+      bgColor: 'bg-blue-50'
+    },
+    {
+      title: 'Customers',
+      value: stats.totalCustomers.toString(),
+      icon: Users,
+      color: 'from-purple-500 to-pink-600',
+      bgColor: 'bg-purple-50'
+    },
+    {
+      title: 'Products',
+      value: stats.totalProducts.toString(),
+      icon: Package,
+      color: 'from-orange-500 to-red-600',
+      bgColor: 'bg-orange-50'
+    }
+  ];
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.title")}</h2>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("dashboard.dailyRevenue")}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(analytics.revenue.daily)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("dashboard.weeklyRevenue")}</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(analytics.revenue.weekly)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("dashboard.monthlyRevenue")}</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(analytics.revenue.monthly)}
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Welcome back, {user?.email}!</p>
+        </div>
+        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+          <Store className="w-4 h-4 mr-2" />
+          Go to POS
+        </Button>
       </div>
 
-      {/* Quick Stats */}
-      <QuickStats stats={statsData} loading={loading} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statCards.map((stat, index) => (
+          <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                  <div className="flex items-center mt-2 text-sm text-green-600">
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                    <span>+12.5% from last month</span>
+                  </div>
+                </div>
+                <div className={`p-4 rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg`}>
+                  <stat.icon className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      {/* Charts and Analytics */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Sales Chart */}
-        <Card className="lg:col-span-2 card-modern hover-lift animate-slide-up">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-semibold">{t("dashboard.dailySales")}</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">Sales performance over time</p>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-primary">Trending Up</span>
-              </div>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle>Recent Orders</CardTitle>
           </CardHeader>
-          <CardContent className="h-[350px] pt-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics.dailySales}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="amount" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <div className="text-center py-8 text-gray-500">
+              <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No recent orders</p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>{t("dashboard.lowStockAlerts")}</CardTitle>
-            <AlertCircle className="h-4 w-4 text-destructive" />
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {lowStockAlerts.map((alert) => (
-                <div
-                  key={alert._id}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-muted-foreground" />
-                    <span>{alert.name}</span>
-                  </div>
-                  <div className="text-sm text-destructive">
-                    {t("dashboard.stock")}: {alert.stock}/{alert.threshold}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="space-y-3">
+            <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              New Sale
+            </Button>
+            <Button variant="outline" className="w-full">
+              <Package className="w-4 h-4 mr-2" />
+              Add Product
+            </Button>
+            <Button variant="outline" className="w-full">
+              <Users className="w-4 h-4 mr-2" />
+              Add Customer
+            </Button>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }

@@ -1,123 +1,188 @@
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { useNavigate } from "react-router-dom"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card"
-import { useToast } from "@/hooks/useToast"
-import { UserPlus } from "lucide-react"
-import { useAuth } from "@/contexts/AuthContext"
+import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Label } from '../components/ui/label';
+import { useNavigate, Link } from 'react-router-dom';
+import { Store, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
 
-type RegisterForm = {
-  name: string
-  email: string
-  password: string
-}
+export default function Register() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    businessName: '',
+    role: 'seller'
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-interface LocationState {
-  message: string;
-  from?: Location;
-}
-
-export function Register() {
-  const [loading, setLoading] = useState(false)
-  const { toast } = useToast()
-  const { register: registerUser } = useAuth()
-  const navigate = useNavigate()
-  const { register, handleSubmit } = useForm<RegisterForm>()
-
-  const onSubmit = async (data: RegisterForm) => {
-    try {
-      setLoading(true)
-      await registerUser(data.email, data.password, data.name);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (formData.password !== formData.confirmPassword) {
       toast({
-        title: "Success",
-        description: "Account created successfully. Your account is pending approval by an administrator.",
-        duration: 6000, // Show for longer
-      })
-      const state: LocationState = {
-        message: "Your account has been created but requires admin approval before you can log in. Please contact an administrator."
-      };
-      navigate("/login", { state })
-    } catch (error: unknown) {
-
-      const errorMessage = error instanceof Error ? error.message : "An error occurred during registration";
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: errorMessage,
-      })
-    } finally {
-      setLoading(false)
+        title: 'Error',
+        description: 'Passwords do not match',
+        variant: 'destructive',
+      });
+      return;
     }
-  }
+
+    setLoading(true);
+
+    try {
+      await register(formData.email, formData.password, formData.name);
+      
+      toast({
+        title: 'Success',
+        description: 'Account created successfully! Please login.',
+      });
+      navigate('/login');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Registration failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Create an account</CardTitle>
-          <CardDescription>Enter your details to get started</CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-4">
+      <div className="absolute inset-0 bg-black/20" />
+      
+      <Card className="relative w-full max-w-lg shadow-2xl border-0">
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <Store className="w-8 h-8 text-white" />
+          </div>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Join Dukani POS
+          </CardTitle>
+          <CardDescription className="text-base">
+            Create your multi-vendor seller account
+          </CardDescription>
         </CardHeader>
+        
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your full name"
-                {...register("name", { required: true })}
-              />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  placeholder="John Doe"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  required
+                  className="h-11"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="businessName">Business Name</Label>
+                <Input
+                  id="businessName"
+                  placeholder="My Store"
+                  value={formData.businessName}
+                  onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+                  required
+                  className="h-11"
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
-                {...register("email", { required: true })}
+                placeholder="seller@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                required
+                className="h-11"
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Choose a password"
-                {...register("password", { required: true })}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  required
+                  className="h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                  required
+                  className="h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg font-semibold shadow-lg"
+              disabled={loading}
+            >
               {loading ? (
-                "Loading..."
-              ) : (
                 <>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Create Account
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Creating Account...
                 </>
+              ) : (
+                'Create Account'
               )}
             </Button>
+
+            <div className="text-center text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
+                Sign in
+              </Link>
+            </div>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button
-            variant="link"
-            className="text-sm text-muted-foreground"
-            onClick={() => navigate("/login")}
-          >
-            Already have an account? Sign in
-          </Button>
-        </CardFooter>
       </Card>
     </div>
-  )
+  );
 }
