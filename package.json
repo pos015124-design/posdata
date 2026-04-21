@@ -9,6 +9,7 @@
     "server:dev": "cd server && npm run dev",
     "client:dev": "cd client && npm run dev",
     "start": "cd server && node server.js",
+    "postinstall": "cd server && npm install",
     "heroku-postbuild": "cd server && npm install && cd ../client && npm install && npm run build && echo 'Client build completed'",
     "create-admin": "cd server && node createAdmin.js",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install"

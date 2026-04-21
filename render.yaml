@@ -7,7 +7,7 @@ services:
     env: node
     # Root Directory in Render settings should be: (leave blank)
     buildCommand: npm install && cd server && npm install && cd ../client && npm install && npm run build
-    startCommand: cd server && node server.js
+    startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV
         value: production
