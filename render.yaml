@@ -1,7 +1,11 @@
+# Render Deployment Configuration
+# IMPORTANT: In Render dashboard, leave "Root Directory" BLANK (empty)
+# The repository root IS the project root
 services:
   - type: web
     name: dukani-system
     env: node
+    # Root Directory in Render settings should be: (leave blank)
     buildCommand: npm install && cd server && npm install && cd ../client && npm install && npm run build
     startCommand: cd server && node server.js
     envVars:
@@ -9,7 +13,3 @@ services:
         value: production
       - key: NODE_VERSION
         value: 18
-    disk:
-      name: data
-      mountPath: /opt/render/data
-      sizeGB: 1
