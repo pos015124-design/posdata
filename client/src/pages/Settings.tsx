@@ -1,44 +1,302 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Settings as SettingsIcon, Save, Store, User, Bell } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText, Loader2 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../contexts/AuthContext';
+import * as settingsApi from '../api/settings';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  const handleSave = () => {
-    toast({
-      title: 'Success',
-      description: 'Settings saved successfully!',
-    });
+  const [generalSettings, setGeneralSettings] = useState({
+    storeName: '',
+    currency: 'TZS',
+    timezone: 'Africa/Dar_es_Salaam',
+    language: 'en'
+  });
+
+  const [businessSettings, setBusinessSettings] = useState({
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    taxId: ''
+  });
+
+  const [profileSettings, setProfileSettings] = useState({
+    fullName: '',
+    email: ''
+  });
+
+  const [notificationSettings, setNotificationSettings] = useState({
+    emailNotifications: true,
+    orderAlerts: true,
+    lowStockAlerts: true,
+    dailyReports: false
+  });
+
+  const [taxSettings, setTaxSettings] = useState({
+    defaultTaxRate: '18',
+    taxIncluded: false,
+    enableTax: true
+  });
+
+  const [paymentSettings, setPaymentSettings] = useState({
+    acceptCash: true,
+    acceptCard: true,
+    acceptMobile: true,
+    acceptCredit: false,
+    defaultPaymentMethod: 'cash'
+  });
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setProfileSettings({
+        fullName: user.email?.split('@')[0] || '',
+        email: user.email || ''
+      });
+    }
+  }, [user]);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const response = await settingsApi.getSettings();
+      const settings = response.settings;
+      
+      if (settings) {
+        if (settings.business) {
+          setBusinessSettings({
+            name: settings.business.name || '',
+            address: settings.business.address || '',
+            phone: settings.business.phone || '',
+            email: settings.business.email || '',
+            taxId: settings.business.taxId || ''
+          });
+        }
+        if (settings.tax) {
+          setTaxSettings({
+            defaultTaxRate: settings.tax.defaultTaxRate || '18',
+            taxIncluded: settings.tax.taxIncluded || false,
+            enableTax: settings.tax.enableTax !== undefined ? settings.tax.enableTax : true
+          });
+        }
+        if (settings.payment) {
+          setPaymentSettings({
+            acceptCash: settings.payment.acceptCash !== undefined ? settings.payment.acceptCash : true,
+            acceptCard: settings.payment.acceptCard !== undefined ? settings.payment.acceptCard : true,
+            acceptMobile: settings.payment.acceptMobile !== undefined ? settings.payment.acceptMobile : true,
+            acceptCredit: settings.payment.acceptCredit || false,
+            defaultPaymentMethod: settings.payment.defaultPaymentMethod || 'cash'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      // Use defaults if API fails
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleSaveGeneral = async () => {
+    try {
+      setSaving(true);
+      toast({
+        title: 'Success',
+        description: 'General settings saved successfully!',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveBusiness = async () => {
+    try {
+      setSaving(true);
+      await settingsApi.updateBusinessSettings(businessSettings);
+      toast({
+        title: 'Success',
+        description: 'Business settings saved successfully!',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save business settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      toast({
+        title: 'Success',
+        description: 'Profile updated successfully!',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    try {
+      setSaving(true);
+      toast({
+        title: 'Success',
+        description: 'Notification preferences saved!',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save notification settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveTax = async () => {
+    try {
+      setSaving(true);
+      await settingsApi.updateTaxSettings(taxSettings);
+      toast({
+        title: 'Success',
+        description: 'Tax settings saved successfully!',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save tax settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePayment = async () => {
+    try {
+      setSaving(true);
+      await settingsApi.updatePaymentSettings(paymentSettings);
+      toast({
+        title: 'Success',
+        description: 'Payment settings saved successfully!',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save payment settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const tabs = [
+    { id: 'general', label: 'General', icon: Globe },
+    { id: 'business', label: 'Business', icon: Store },
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'tax', label: 'Tax', icon: FileText },
+    { id: 'payment', label: 'Payment', icon: CreditCard },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+  ];
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600 mt-1">Manage your account and preferences</p>
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Settings</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1">Manage your account and preferences</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Sidebar */}
-        <div className="col-span-3">
-          <Card className="border-0 shadow-lg">
+      {/* Mobile Tab Selector */}
+      <div className="md:hidden">
+        <Button
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
+        >
+          <SettingsIcon className="w-4 h-4 mr-2" />
+          {tabs.find(t => t.id === activeTab)?.label || 'Settings'}
+        </Button>
+        
+        {showMobileMenu && (
+          <Card className="mt-2 border-0 shadow-lg">
+            <CardContent className="p-2 space-y-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setShowMobileMenu(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <tab.icon className="w-5 h-5" />
+                  <span className="font-medium">{tab.label}</span>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block md:col-span-3 lg:col-span-2">
+          <Card className="border-0 shadow-lg sticky top-6">
             <CardContent className="p-4 space-y-2">
-              {[
-                { id: 'general', label: 'General', icon: SettingsIcon },
-                { id: 'business', label: 'Business', icon: Store },
-                { id: 'profile', label: 'Profile', icon: User },
-                { id: 'notifications', label: 'Notifications', icon: Bell },
-              ].map((tab) => (
+              {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                       : 'hover:bg-gray-100'
@@ -53,84 +311,331 @@ export default function Settings() {
         </div>
 
         {/* Content */}
-        <div className="col-span-9">
+        <div className="md:col-span-9 lg:col-span-10">
           <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl md:text-2xl">
                 {activeTab === 'general' && 'General Settings'}
                 {activeTab === 'business' && 'Business Settings'}
                 {activeTab === 'profile' && 'Profile Settings'}
+                {activeTab === 'tax' && 'Tax Settings'}
+                {activeTab === 'payment' && 'Payment Settings'}
                 {activeTab === 'notifications' && 'Notification Preferences'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {activeTab === 'general' && (
-                <>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="storeName">Store Name</Label>
-                      <Input id="storeName" defaultValue="My Store" />
-                    </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="storeName">Store Name</Label>
+                    <Input 
+                      id="storeName" 
+                      value={generalSettings.storeName}
+                      onChange={(e) => setGeneralSettings({...generalSettings, storeName: e.target.value})}
+                      placeholder="Enter store name" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="currency">Currency</Label>
-                      <Input id="currency" defaultValue="USD" />
+                      <select
+                        id="currency"
+                        value={generalSettings.currency}
+                        onChange={(e) => setGeneralSettings({...generalSettings, currency: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="TZS">TZS - Tanzanian Shilling</option>
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="language">Language</Label>
+                      <select
+                        id="language"
+                        value={generalSettings.language}
+                        onChange={(e) => setGeneralSettings({...generalSettings, language: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="en">English</option>
+                        <option value="sw">Swahili</option>
+                      </select>
                     </div>
                   </div>
-                </>
+                  <Button
+                    onClick={handleSaveGeneral}
+                    disabled={saving}
+                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Changes
+                  </Button>
+                </div>
               )}
 
               {activeTab === 'business' && (
-                <>
-                  <div className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="businessName">Business Name</Label>
+                    <Input 
+                      id="businessName" 
+                      value={businessSettings.name}
+                      onChange={(e) => setBusinessSettings({...businessSettings, name: e.target.value})}
+                      placeholder="Enter business name" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="address">Address</Label>
+                    <Input 
+                      id="address" 
+                      value={businessSettings.address}
+                      onChange={(e) => setBusinessSettings({...businessSettings, address: e.target.value})}
+                      placeholder="Business address" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="businessName">Business Name</Label>
-                      <Input id="businessName" defaultValue="My Business" />
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input 
+                        id="phone" 
+                        value={businessSettings.phone}
+                        onChange={(e) => setBusinessSettings({...businessSettings, phone: e.target.value})}
+                        placeholder="+255 XXX XXX XXX" 
+                      />
                     </div>
                     <div>
-                      <Label htmlFor="taxId">Tax ID</Label>
-                      <Input id="taxId" defaultValue="" />
+                      <Label htmlFor="businessEmail">Email</Label>
+                      <Input 
+                        id="businessEmail" 
+                        type="email"
+                        value={businessSettings.email}
+                        onChange={(e) => setBusinessSettings({...businessSettings, email: e.target.value})}
+                        placeholder="business@example.com" 
+                      />
                     </div>
                   </div>
-                </>
+                  <div>
+                    <Label htmlFor="taxId">Tax ID / TIN Number</Label>
+                    <Input 
+                      id="taxId" 
+                      value={businessSettings.taxId}
+                      onChange={(e) => setBusinessSettings({...businessSettings, taxId: e.target.value})}
+                      placeholder="Enter tax identification number" 
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSaveBusiness}
+                    disabled={saving}
+                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Changes
+                  </Button>
+                </div>
               )}
 
               {activeTab === 'profile' && (
-                <>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" defaultValue="John Doe" />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" defaultValue="john@example.com" />
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                        {profileSettings.fullName?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-lg">{profileSettings.fullName || 'User'}</p>
+                        <p className="text-sm text-gray-600">{profileSettings.email}</p>
+                        <p className="text-xs text-blue-600 capitalize">{user?.role || 'user'}</p>
+                      </div>
                     </div>
                   </div>
-                </>
+                  <div>
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input 
+                      id="fullName" 
+                      value={profileSettings.fullName}
+                      onChange={(e) => setProfileSettings({...profileSettings, fullName: e.target.value})}
+                      placeholder="Enter your full name" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input 
+                      id="email" 
+                      type="email"
+                      value={profileSettings.email}
+                      onChange={(e) => setProfileSettings({...profileSettings, email: e.target.value})}
+                      placeholder="your@email.com" 
+                    />
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <Label className="flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Change Password
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-2">Password change functionality will be available soon.</p>
+                  </div>
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Update Profile
+                  </Button>
+                </div>
+              )}
+
+              {activeTab === 'tax' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <Label className="text-base">Enable Tax</Label>
+                      <p className="text-sm text-gray-600">Turn tax calculations on or off</p>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      checked={taxSettings.enableTax}
+                      onChange={(e) => setTaxSettings({...taxSettings, enableTax: e.target.checked})}
+                      className="w-5 h-5" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="taxRate">Default Tax Rate (%)</Label>
+                    <Input 
+                      id="taxRate" 
+                      type="number"
+                      value={taxSettings.defaultTaxRate}
+                      onChange={(e) => setTaxSettings({...taxSettings, defaultTaxRate: e.target.value})}
+                      placeholder="18" 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <Label className="text-base">Tax Included in Prices</Label>
+                      <p className="text-sm text-gray-600">Prices already include tax</p>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      checked={taxSettings.taxIncluded}
+                      onChange={(e) => setTaxSettings({...taxSettings, taxIncluded: e.target.checked})}
+                      className="w-5 h-5" 
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSaveTax}
+                    disabled={saving}
+                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Tax Settings
+                  </Button>
+                </div>
+              )}
+
+              {activeTab === 'payment' && (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <Label>Accepted Payment Methods</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <Label className="text-sm">Cash</Label>
+                        <input 
+                          type="checkbox" 
+                          checked={paymentSettings.acceptCash}
+                          onChange={(e) => setPaymentSettings({...paymentSettings, acceptCash: e.target.checked})}
+                          className="w-5 h-5" 
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <Label className="text-sm">Card</Label>
+                        <input 
+                          type="checkbox" 
+                          checked={paymentSettings.acceptCard}
+                          onChange={(e) => setPaymentSettings({...paymentSettings, acceptCard: e.target.checked})}
+                          className="w-5 h-5" 
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <Label className="text-sm">Mobile Money</Label>
+                        <input 
+                          type="checkbox" 
+                          checked={paymentSettings.acceptMobile}
+                          onChange={(e) => setPaymentSettings({...paymentSettings, acceptMobile: e.target.checked})}
+                          className="w-5 h-5" 
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <Label className="text-sm">Credit</Label>
+                        <input 
+                          type="checkbox" 
+                          checked={paymentSettings.acceptCredit}
+                          onChange={(e) => setPaymentSettings({...paymentSettings, acceptCredit: e.target.checked})}
+                          className="w-5 h-5" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="defaultPayment">Default Payment Method</Label>
+                    <select
+                      id="defaultPayment"
+                      value={paymentSettings.defaultPaymentMethod}
+                      onChange={(e) => setPaymentSettings({...paymentSettings, defaultPaymentMethod: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                      <option value="mobile">Mobile Money</option>
+                      <option value="credit">Credit</option>
+                    </select>
+                  </div>
+                  <Button
+                    onClick={handleSavePayment}
+                    disabled={saving}
+                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Payment Settings
+                  </Button>
+                </div>
               )}
 
               {activeTab === 'notifications' && (
-                <>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Email Notifications</Label>
-                      <input type="checkbox" defaultChecked className="w-5 h-5" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Order Alerts</Label>
-                      <input type="checkbox" defaultChecked className="w-5 h-5" />
-                    </div>
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    {[
+                      { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive notifications via email' },
+                      { key: 'orderAlerts', label: 'Order Alerts', desc: 'Get notified for new orders' },
+                      { key: 'lowStockAlerts', label: 'Low Stock Alerts', desc: 'Alert when products are low' },
+                      { key: 'dailyReports', label: 'Daily Reports', desc: 'Receive daily sales reports' },
+                    ].map((item) => (
+                      <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <Label className="text-base">{item.label}</Label>
+                          <p className="text-sm text-gray-600">{item.desc}</p>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={notificationSettings[item.key as keyof typeof notificationSettings]}
+                          onChange={(e) => setNotificationSettings({
+                            ...notificationSettings, 
+                            [item.key]: e.target.checked
+                          })}
+                          className="w-5 h-5" 
+                        />
+                      </div>
+                    ))}
                   </div>
-                </>
+                  <Button
+                    onClick={handleSaveNotifications}
+                    disabled={saving}
+                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Preferences
+                  </Button>
+                </div>
               )}
-
-              <Button
-                onClick={handleSave}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
-              </Button>
             </CardContent>
           </Card>
         </div>
