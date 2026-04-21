@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   X,
-  DollarSign
+  DollarSign,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -33,6 +34,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Users, label: 'Customers', path: '/customers' },
     { icon: FileText, label: 'Orders', path: '/orders' },
     { icon: DollarSign, label: 'Expenses', path: '/expenses' },
+    { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: Store, label: 'Sellers', path: '/sellers' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
