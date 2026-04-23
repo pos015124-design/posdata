@@ -28,7 +28,7 @@ export default function Sellers() {
     name: '',
     email: '',
     phone: '',
-    status: 'active' as const
+    status: 'active' as 'active' | 'pending' | 'suspended'
   });
 
   useEffect(() => {

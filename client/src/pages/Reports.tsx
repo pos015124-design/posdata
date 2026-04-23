@@ -26,7 +26,6 @@ export default function Reports() {
   const [inventoryData, setInventoryData] = useState<any>(null);
   const [expensesData, setExpensesData] = useState<any>(null);
   const [allSales, setAllSales] = useState<any[]>([]);
-  const [allProducts, setAllProducts] = useState<any[]>([]);
 
   useEffect(() => {
     fetchReportsData();
@@ -37,7 +36,7 @@ export default function Reports() {
       setLoading(true);
       
       // Fetch all data with error handling for each API call
-      const [salesAnalytics, inventoryAnalytics, expensesRes, allSalesRes, allProductsRes] = await Promise.allSettled([
+      const [salesAnalytics, inventoryAnalytics, expensesRes, allSalesRes] = await Promise.allSettled([
         analyticsApi.getSalesAnalytics(selectedPeriod).catch(err => {
           console.error('Failed to fetch sales analytics:', err);
           return null;
@@ -65,7 +64,6 @@ export default function Reports() {
       setInventoryData(inventoryAnalytics.status === 'fulfilled' ? inventoryAnalytics.value : null);
       setExpensesData(expensesRes.status === 'fulfilled' ? (expensesRes.value?.expenses || []) : []);
       setAllSales(allSalesRes.status === 'fulfilled' ? (allSalesRes.value?.sales || []) : []);
-      setAllProducts(allProductsRes.status === 'fulfilled' ? (allProductsRes.value?.products || []) : []);
     } catch (error) {
       console.error('Failed to fetch reports data:', error);
       // Set empty data to prevent blank screen
@@ -73,7 +71,6 @@ export default function Reports() {
       setInventoryData(null);
       setExpensesData([]);
       setAllSales([]);
-      setAllProducts([]);
     } finally {
       setLoading(false);
     }

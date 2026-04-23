@@ -14,7 +14,6 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [barcodeInput, setBarcodeInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
 
@@ -81,7 +80,7 @@ export default function Inventory() {
         setUploadingImage(true);
         try {
           const uploadResponse = await uploadsApi.uploadProductImage(imageFile);
-          imageData = {
+          const imageDataWithImages = {
             ...formData,
             images: [{
               url: uploadResponse.imageUrl,
@@ -89,29 +88,59 @@ export default function Inventory() {
               alt: formData.name
             }]
           };
+          
+          if (editingProduct) {
+            await productsApi.updateProduct(editingProduct._id, imageDataWithImages);
+            toast({
+              title: 'Success',
+              description: 'Product updated successfully',
+            });
+          } else {
+            await productsApi.addProduct(imageDataWithImages);
+            toast({
+              title: 'Success',
+              description: 'Product added successfully',
+            });
+          }
         } catch (error) {
           toast({
             title: 'Warning',
             description: 'Failed to upload image, but product will be saved without it',
             variant: 'destructive',
           });
+          
+          // Save without image
+          if (editingProduct) {
+            await productsApi.updateProduct(editingProduct._id, formData);
+            toast({
+              title: 'Success',
+              description: 'Product updated successfully',
+            });
+          } else {
+            await productsApi.addProduct(formData);
+            toast({
+              title: 'Success',
+              description: 'Product added successfully',
+            });
+          }
         } finally {
           setUploadingImage(false);
         }
-      }
-
-      if (editingProduct) {
-        await productsApi.updateProduct(editingProduct._id, imageData);
-        toast({
-          title: 'Success',
-          description: 'Product updated successfully',
-        });
       } else {
-        await productsApi.addProduct(imageData);
-        toast({
-          title: 'Success',
-          description: 'Product added successfully',
-        });
+        // No image to upload
+        if (editingProduct) {
+          await productsApi.updateProduct(editingProduct._id, formData);
+          toast({
+            title: 'Success',
+            description: 'Product updated successfully',
+          });
+        } else {
+          await productsApi.addProduct(formData);
+          toast({
+            title: 'Success',
+            description: 'Product added successfully',
+          });
+        }
       }
       setShowAddModal(false);
       setEditingProduct(null);

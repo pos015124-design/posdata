@@ -25,7 +25,6 @@ export default function Dashboard() {
     totalProducts: 0,
     recentOrders: []
   });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -33,7 +32,6 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
-      setLoading(true);
       const [salesRes, customersRes, productsRes] = await Promise.all([
         salesApi.getAllSales(),
         customersApi.getCustomers(),
@@ -49,8 +47,6 @@ export default function Dashboard() {
       });
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
