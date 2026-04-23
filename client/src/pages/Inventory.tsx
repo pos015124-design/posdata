@@ -73,8 +73,6 @@ export default function Inventory() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      let imageData = formData;
-      
       // Upload image if a new one was selected
       if (imageFile) {
         setUploadingImage(true);

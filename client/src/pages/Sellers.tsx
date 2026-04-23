@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Store, Search, Plus, TrendingUp, DollarSign, Package, Edit, Eye, Trash2, UserPlus, X } from 'lucide-react';
+import { Store, Search, TrendingUp, DollarSign, Package, Edit, Eye, Trash2, UserPlus, X } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 
 interface Seller {
