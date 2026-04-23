@@ -2,7 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const Seller = require('../models/Seller');
-const { requireUser } = require('../middleware/validation');
+
+// Simple auth check - get from auth middleware
+const { requireUser } = require('./middleware/auth');
 
 // Get all sellers
 router.get('/', requireUser, async (req, res) => {

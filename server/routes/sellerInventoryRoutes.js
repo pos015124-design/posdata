@@ -3,7 +3,7 @@ const router = express.Router();
 const SellerInventory = require('../models/SellerInventory');
 const Product = require('../models/Product');
 const Seller = require('../models/Seller');
-const { requireUser } = require('../middleware/validation');
+const { requireUser } = require('./middleware/auth');
 
 // Get seller's own inventory
 router.get('/', requireUser, async (req, res) => {

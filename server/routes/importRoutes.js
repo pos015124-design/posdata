@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireUser } = require('../middleware/validation');
+const { requireUser } = require('./middleware/auth');
 const ImportService = require('../services/importService');
 
 // Configure temp upload for imports
