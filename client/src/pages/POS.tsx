@@ -4,31 +4,32 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Store, ShoppingCart, Search, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
-import * as productsApi from '../api/products';
+import * as sellerInventoryApi from '../api/sellerInventory';
 import * as salesApi from '../api/sales';
 
 export default function POS() {
-  const [selectedSeller, setSelectedSeller] = useState('');
   const [cart, setCart] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [products, setProducts] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sellerInfo, setSellerInfo] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchProducts();
+    fetchSellerInventory();
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchSellerInventory = async () => {
     try {
       setLoading(true);
-      const response = await productsApi.getProducts();
-      setProducts(response.products || []);
+      const response = await sellerInventoryApi.getSellerInventory();
+      setInventoryItems(response.inventory || []);
+      setSellerInfo(response.seller || null);
     } catch (error) {
-      console.error('Failed to fetch products:', error);
+      console.error('Failed to fetch seller inventory:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load products',
+        description: 'Failed to load inventory',
         variant: 'destructive',
       });
     } finally {
@@ -36,9 +37,23 @@ export default function POS() {
     }
   };
 
+  // Transform inventory items to products with seller-specific pricing
+  const products = inventoryItems.map((item: any) => ({
+    _id: item.product?._id || item._id,
+    inventoryId: item._id,
+    name: item.product?.name || 'Unknown Product',
+    code: item.product?.code || '',
+    barcode: item.barcode || item.product?.barcode || '',
+    price: item.price,
+    stock: item.stock,
+    category: item.product?.category || '',
+    images: item.product?.images || []
+  }));
+
   const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (selectedSeller === '' || product.seller === selectedSeller)
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.barcode.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const addToCart = (product: any) => {
@@ -73,10 +88,20 @@ export default function POS() {
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleCheckout = async () => {
+    if (cart.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Cart is empty',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const saleData = {
         items: cart.map(item => ({
           product: item._id,
+          inventory: item.inventoryId,
           name: item.name,
           quantity: item.quantity,
           price: item.price
@@ -92,6 +117,7 @@ export default function POS() {
         description: `Sale completed! Total: TZS ${total.toLocaleString()}`,
       });
       setCart([]);
+      fetchSellerInventory(); // Refresh inventory to update stock
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -105,27 +131,21 @@ export default function POS() {
     <div className="h-[calc(100vh-2rem)] p-6 grid grid-cols-12 gap-6">
       {/* Products Section */}
       <div className="col-span-7 space-y-4">
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-12"
-              />
-            </div>
+        <div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              placeholder="Search products by name, code, or barcode..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-12"
+            />
           </div>
-          <select
-            value={selectedSeller}
-            onChange={(e) => setSelectedSeller(e.target.value)}
-            className="h-12 px-4 border rounded-lg bg-white"
-          >
-            <option value="">All Sellers</option>
-            <option value="seller-a">Seller A</option>
-            <option value="seller-b">Seller B</option>
-          </select>
+          {sellerInfo && (
+            <p className="text-sm text-gray-600 mt-2">
+              Seller: <span className="font-semibold">{sellerInfo.name}</span>
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
