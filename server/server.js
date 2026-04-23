@@ -50,9 +50,9 @@ const { router: customerAuthRoutes } = require("./routes/customerAuthRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const catalogRoutes = require("./routes/catalogRoutes");
-// const uploadRoutes = require("./routes/uploadRoutes");  // Temporarily disabled - causing deployment crash
+// const uploadRoutes = require("./routes/uploadRoutes");  // Temporarily disabled - multer issue
 const sellerRoutes = require("./routes/sellerRoutes");
-const importRoutes = require("./routes/importRoutes");
+// const importRoutes = require("./routes/importRoutes");  // Temporarily disabled - multer issue
 const sellerInventoryRoutes = require("./routes/sellerInventoryRoutes");
 
 // Rate limiting
@@ -126,7 +126,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/catalog', catalogRoutes);
 // app.use('/api/uploads', uploadRoutes);  // Temporarily disabled
 app.use('/api/sellers', sellerRoutes);
-app.use('/api/products/import', importRoutes);
+// app.use('/api/products/import', importRoutes);  // Temporarily disabled
 app.use('/api/seller-inventory', sellerInventoryRoutes);
 
 // Health check endpoint
