@@ -1,33 +1,22 @@
 const express = require('express');
 const router = express.Router();
 
-let upload;
-try {
-  upload = require('../config/upload');
-} catch (error) {
-  console.error('Failed to load upload configuration:', error.message);
-  upload = null;
-}
-
 const { requireUser } = require('../middleware/validation');
 
-// Check if upload middleware is available
-const checkUploadAvailable = (req, res, next) => {
-  if (!upload) {
-    return res.status(503).json({ 
-      error: 'File upload service unavailable',
-      message: 'Please ensure multer is installed and configured correctly'
-    });
-  }
-  next();
-};
-
 // Upload single product image
-router.post('/product-image', requireUser, checkUploadAvailable, (req, res, next) => {
-  if (!upload) return next();
-  upload.single('image')(req, res, next);
-}, (req, res) => {
+router.post('/product-image', requireUser, async (req, res) => {
   try {
+    // Dynamically import multer to avoid startup crashes
+    const upload = require('../config/upload');
+    
+    // Use multer middleware
+    await new Promise((resolve, reject) => {
+      upload.single('image')(req, res, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
@@ -41,16 +30,25 @@ router.post('/product-image', requireUser, checkUploadAvailable, (req, res, next
       originalName: req.file.originalname
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'Upload failed',
+      message: error.message 
+    });
   }
 });
 
 // Upload multiple product images
-router.post('/product-images', requireUser, checkUploadAvailable, (req, res, next) => {
-  if (!upload) return next();
-  upload.array('images', 5)(req, res, next);
-}, (req, res) => {
+router.post('/product-images', requireUser, async (req, res) => {
   try {
+    const upload = require('../config/upload');
+    
+    await new Promise((resolve, reject) => {
+      upload.array('images', 5)(req, res, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No image files provided' });
     }
@@ -66,7 +64,10 @@ router.post('/product-images', requireUser, checkUploadAvailable, (req, res, nex
       images: imageUrls
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'Upload failed',
+      message: error.message 
+    });
   }
 });
 
