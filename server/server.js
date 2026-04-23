@@ -50,6 +50,8 @@ const { router: customerAuthRoutes } = require("./routes/customerAuthRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const catalogRoutes = require("./routes/catalogRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
+const sellerRoutes = require("./routes/sellerRoutes");
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -96,6 +98,9 @@ app.use(hpp());
 app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 
+// Serve static files (uploaded images)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // API Routes
 app.use(basicRoutes);
 app.use('/api/auth', authRoutes);
@@ -117,6 +122,8 @@ app.use('/api/customer-auth', customerAuthRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/sellers', sellerRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

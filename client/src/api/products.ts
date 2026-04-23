@@ -19,8 +19,8 @@ export const getProducts = async () => {
 
 // Description: Add new product
 // Endpoint: POST /api/products
-// Request: { name: string, code: string, barcode: string, price: number, purchasePrice: number, stock: number, category: string, supplier: string, reorderPoint: number }
-// Response: { success: boolean, product: { _id: string, name: string, code: string, barcode: string, price: number, purchasePrice: number, stock: number, category: string, supplier: string, reorderPoint: number } }
+// Request: { name: string, code: string, barcode: string, price: number, purchasePrice: number, stock: number, category: string, reorderPoint: number, images?: Array<{url: string, isPrimary: boolean, alt: string}> }
+// Response: { success: boolean, product: { _id: string, name: string, code: string, barcode: string, price: number, purchasePrice: number, stock: number, category: string, reorderPoint: number } }
 export const addProduct = async (data: {
   name: string;
   code: string;
@@ -29,8 +29,8 @@ export const addProduct = async (data: {
   purchasePrice: number;
   stock: number;
   category: string;
-  supplier: string;
   reorderPoint: number;
+  images?: Array<{url: string; isPrimary: boolean; alt: string}>;
 }) => {
   try {
     const response = await api.post('/api/products', data);
@@ -147,8 +147,8 @@ export const addDiscount = async (data: { type: string, amount: number, code?: s
 
 // Description: Update product
 // Endpoint: PUT /api/products/:id
-// Request: { name?: string, code?: string, barcode?: string, price?: number, purchasePrice?: number, stock?: number, category?: string, supplier?: string, reorderPoint?: number }
-// Response: { success: boolean, product: { _id: string, name: string, code: string, barcode: string, price: number, purchasePrice: number, stock: number, category: string, supplier: string, reorderPoint: number } }
+// Request: { name?: string, code?: string, barcode?: string, price?: number, purchasePrice?: number, stock?: number, category?: string, reorderPoint?: number, images?: Array<{url: string, isPrimary: boolean, alt: string}> }
+// Response: { success: boolean, product: { _id: string, name: string, code: string, barcode: string, price: number, purchasePrice: number, stock: number, category: string, reorderPoint: number } }
 export const updateProduct = async (
   id: string,
   data: {
@@ -159,8 +159,8 @@ export const updateProduct = async (
     purchasePrice?: number;
     stock?: number;
     category?: string;
-    supplier?: string;
     reorderPoint?: number;
+    images?: Array<{url: string; isPrimary: boolean; alt: string}>;
   }
 ) => {
   try {

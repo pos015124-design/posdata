@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Package, Search, Plus, Edit, Trash2, Scan, X } from 'lucide-react';
+import { Package, Search, Plus, Edit, Trash2, Scan, X, Upload, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import * as productsApi from '../api/products';
+import * as uploadsApi from '../api/uploads';
 
 export default function Inventory() {
   const [products, setProducts] = useState<any[]>([]);
@@ -27,6 +28,11 @@ export default function Inventory() {
     category: '',
     reorderPoint: 0
   });
+
+  const [productImage, setProductImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -68,14 +74,40 @@ export default function Inventory() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let imageData = formData;
+      
+      // Upload image if a new one was selected
+      if (imageFile) {
+        setUploadingImage(true);
+        try {
+          const uploadResponse = await uploadsApi.uploadProductImage(imageFile);
+          imageData = {
+            ...formData,
+            images: [{
+              url: uploadResponse.imageUrl,
+              isPrimary: true,
+              alt: formData.name
+            }]
+          };
+        } catch (error) {
+          toast({
+            title: 'Warning',
+            description: 'Failed to upload image, but product will be saved without it',
+            variant: 'destructive',
+          });
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
       if (editingProduct) {
-        await productsApi.updateProduct(editingProduct._id, formData);
+        await productsApi.updateProduct(editingProduct._id, imageData);
         toast({
           title: 'Success',
           description: 'Product updated successfully',
         });
       } else {
-        await productsApi.addProduct(formData);
+        await productsApi.addProduct(imageData);
         toast({
           title: 'Success',
           description: 'Product added successfully',
@@ -94,6 +126,19 @@ export default function Inventory() {
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProductImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleEdit = (product: any) => {
     setEditingProduct(product);
     setFormData({
@@ -106,6 +151,13 @@ export default function Inventory() {
       category: product.category,
       reorderPoint: product.reorderPoint
     });
+    // Load existing image if any
+    if (product.images && product.images.length > 0) {
+      const primaryImage = product.images.find((img: any) => img.isPrimary) || product.images[0];
+      setProductImage(primaryImage.url);
+    } else {
+      setProductImage(null);
+    }
     setShowAddModal(true);
   };
 
@@ -138,6 +190,8 @@ export default function Inventory() {
       category: '',
       reorderPoint: 0
     });
+    setProductImage(null);
+    setImageFile(null);
   };
 
   const handleBarcodeScan = () => {
@@ -300,6 +354,54 @@ export default function Inventory() {
                   </div>
                 </div>
 
+                <div>
+                  <Label>Product Image</Label>
+                  <div className="flex items-center gap-4">
+                    {productImage ? (
+                      <div className="relative">
+                        <img
+                          src={productImage.startsWith('data:') || productImage.startsWith('/uploads') ? productImage : `${import.meta.env.VITE_API_URL || ''}${productImage}`}
+                          alt="Product preview"
+                          className="w-24 h-24 object-cover rounded-lg border-2 border-gray-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProductImage(null);
+                            setImageFile(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                        <ImageIcon className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                        id="product-image-upload"
+                      />
+                      <Label
+                        htmlFor="product-image-upload"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg cursor-pointer hover:from-blue-700 hover:to-purple-700 inline-flex"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {uploadingImage ? 'Uploading...' : productImage ? 'Change Image' : 'Upload Image'}
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-2">Max 5MB. JPEG, PNG, GIF, WebP</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Price (TZS)</Label>
@@ -328,8 +430,12 @@ export default function Inventory() {
                 </div>
 
                 <div className="flex gap-2 pt-4">
-                  <Button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600">
-                    {editingProduct ? 'Update Product' : 'Add Product'}
+                  <Button 
+                    type="submit" 
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? 'Uploading Image...' : (editingProduct ? 'Update Product' : 'Add Product')}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
                     Cancel
