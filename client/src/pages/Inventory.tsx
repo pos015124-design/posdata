@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Package, Search, Plus, Edit, Trash2, Scan, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Package, Search, Plus, Edit, Trash2, Scan, X, Upload, Image as ImageIcon, Download } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import * as productsApi from '../api/products';
 import * as uploadsApi from '../api/uploads';
@@ -32,6 +32,11 @@ export default function Inventory() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResults, setImportResults] = useState<any>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -235,6 +240,60 @@ export default function Inventory() {
     }, 1000);
   };
 
+  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+      setImportResults(null);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      toast({
+        title: 'Error',
+        description: 'Please select a file to import',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setImporting(true);
+      const response = await productsApi.importProducts(importFile);
+      
+      setImportResults(response.results);
+      
+      if (response.results.success > 0) {
+        toast({
+          title: 'Import Successful',
+          description: `Successfully imported ${response.results.success} products`,
+        });
+        fetchProducts();
+      }
+      
+      if (response.results.failed > 0) {
+        toast({
+          title: 'Import Completed with Errors',
+          description: `${response.results.failed} products failed to import`,
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Import Failed',
+        description: error.response?.data?.error || 'Failed to import products',
+        variant: 'destructive',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    productsApi.downloadImportTemplate();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -252,6 +311,14 @@ export default function Inventory() {
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Product
+        </Button>
+        <Button
+          onClick={() => setShowImportModal(true)}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Import Products
         </Button>
       </div>
 
@@ -482,6 +549,114 @@ export default function Inventory() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Import Products Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Import Products</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportFile(null);
+                    setImportResults(null);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800 font-medium mb-2">Instructions:</p>
+                <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                  <li>Download the CSV template first</li>
+                  <li>Fill in your product data</li>
+                  <li>Required fields: name, code, barcode, price, purchasePrice, stock, category</li>
+                  <li>Upload the completed file</li>
+                </ul>
+              </div>
+
+              <Button
+                onClick={handleDownloadTemplate}
+                variant="outline"
+                className="w-full"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download CSV Template
+              </Button>
+
+              <div>
+                <Label>Upload File (CSV or Excel)</Label>
+                <Input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleImportFileChange}
+                  className="mt-2"
+                />
+                {importFile && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Selected: {importFile.name}
+                  </p>
+                )}
+              </div>
+
+              {importResults && (
+                <div className="space-y-2">
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-green-700">{importResults.success}</p>
+                      <p className="text-xs text-green-600">Successful</p>
+                    </div>
+                    <div className="flex-1 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-red-700">{importResults.failed}</p>
+                      <p className="text-xs text-red-600">Failed</p>
+                    </div>
+                  </div>
+                  
+                  {importResults.errors && importResults.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-40 overflow-y-auto">
+                      <p className="text-xs font-medium text-red-800 mb-2">Errors:</p>
+                      <ul className="text-xs text-red-700 space-y-1">
+                        {importResults.errors.slice(0, 10).map((error: string, index: number) => (
+                          <li key={index}>• {error}</li>
+                        ))}
+                        {importResults.errors.length > 10 && (
+                          <li className="text-gray-600">... and {importResults.errors.length - 10} more errors</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={handleImport}
+                  disabled={!importFile || importing}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                >
+                  {importing ? 'Importing...' : 'Import Products'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportFile(null);
+                    setImportResults(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -191,3 +191,27 @@ export const deleteProduct = async (id: string) => {
     throw new Error('An unknown error occurred');
   }
 };
+
+// Description: Import products from CSV/Excel
+// Endpoint: POST /api/products/import
+// Request: FormData with file
+// Response: { success: boolean, message: string, results: { success: number, failed: number, errors: string[] } }
+export const importProducts = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post('/api/products/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  return response.data;
+};
+
+// Description: Download CSV import template
+// Endpoint: GET /api/products/import/template
+// Response: CSV file
+export const downloadImportTemplate = () => {
+  window.open('/api/products/import/template', '_blank');
+};
