@@ -53,6 +53,7 @@ const catalogRoutes = require("./routes/catalogRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const sellerRoutes = require("./routes/sellerRoutes");
 const importRoutes = require("./routes/importRoutes");
+const sellerInventoryRoutes = require("./routes/sellerInventoryRoutes");
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -126,6 +127,7 @@ app.use('/api/catalog', catalogRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/sellers', sellerRoutes);
 app.use('/api/products/import', importRoutes);
+app.use('/api/seller-inventory', sellerInventoryRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
