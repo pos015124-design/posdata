@@ -287,13 +287,25 @@ export default function Inventory() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product) => (
+                  {filteredProducts.map((product) => {
+                    const primaryImage = product.images?.find((img: any) => img.isPrimary) || product.images?.[0];
+                    const imageUrl = primaryImage?.url;
+                    
+                    return (
                     <tr key={product._id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
-                            <Package className="w-5 h-5 text-blue-600" />
-                          </div>
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || ''}${imageUrl}` : imageUrl}
+                              alt={product.name}
+                              className="w-10 h-10 object-cover rounded-lg border border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
+                              <Package className="w-5 h-5 text-blue-600" />
+                            </div>
+                          )}
                           <span className="font-medium">{product.name}</span>
                         </div>
                       </td>
@@ -326,7 +338,8 @@ export default function Inventory() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>

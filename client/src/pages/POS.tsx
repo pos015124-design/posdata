@@ -138,16 +138,28 @@ export default function POS() {
               <p>No products found</p>
             </div>
           ) : (
-            filteredProducts.map((product) => (
+            filteredProducts.map((product) => {
+              const primaryImage = product.images?.find((img: any) => img.isPrimary) || product.images?.[0];
+              const imageUrl = primaryImage?.url;
+              
+              return (
               <Card
                 key={product._id}
                 className="cursor-pointer hover:shadow-lg transition-shadow border-0 shadow-md"
                 onClick={() => addToCart(product)}
               >
                 <CardContent className="p-4">
-                  <div className="aspect-square bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg mb-3 flex items-center justify-center">
-                    <ShoppingCart className="w-12 h-12 text-blue-600" />
-                  </div>
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || ''}${imageUrl}` : imageUrl}
+                      alt={product.name}
+                      className="w-full aspect-square object-cover rounded-lg mb-3"
+                    />
+                  ) : (
+                    <div className="aspect-square bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg mb-3 flex items-center justify-center">
+                      <ShoppingCart className="w-12 h-12 text-blue-600" />
+                    </div>
+                  )}
                   <h3 className="font-semibold text-sm truncate">{product.name}</h3>
                   <p className="text-xs text-gray-500 mt-1">{product.category || 'No category'}</p>
                   <div className="flex justify-between items-center mt-2">
@@ -156,7 +168,8 @@ export default function POS() {
                   </div>
                 </CardContent>
               </Card>
-            ))
+              );
+            })
           )}
         </div>
       </div>
