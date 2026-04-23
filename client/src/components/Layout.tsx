@@ -111,8 +111,10 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-0 lg:ml-64">
-        {children}
+      <main className="flex-1 ml-0 lg:ml-72">
+        <div className="px-4 py-6 md:px-6 lg:px-8">
+          {children}
+        </div>
       </main>
     </div>
   );

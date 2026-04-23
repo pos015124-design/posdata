@@ -123,11 +123,11 @@ export default function Expenses() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-gray-600 mt-1">Track your business expenses</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="w-full md:w-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Expenses</h1>
+          <p className="text-gray-600 mt-1 text-center md:text-left">Track your business expenses</p>
         </div>
         <Button
           onClick={() => {

@@ -166,13 +166,13 @@ export default function Reports() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-600 mt-1">Comprehensive insights into your business performance</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="w-full md:w-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Reports & Analytics</h1>
+          <p className="text-gray-600 mt-1 text-center md:text-left">Comprehensive insights into your business performance</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full md:w-auto">
           <Button 
             variant="outline" 
             className="flex items-center gap-2"

@@ -64,10 +64,12 @@ export default function Orders() {
   const completedOrders = orders.filter(o => (o.status || 'completed') === 'completed').length;
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-        <p className="text-gray-600 mt-1">View and manage all orders</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="w-full md:w-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Orders</h1>
+          <p className="text-gray-600 mt-1 text-center md:text-left">View and manage all orders</p>
+        </div>
       </div>
 
       {/* Summary Cards */}

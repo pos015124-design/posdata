@@ -143,10 +143,9 @@ const productSchema = new mongoose.Schema({
     trim: true
   }],
 
-  // Supplier Information
+  // Supplier Information (Optional)
   supplier: {
     type: String,
-    required: true,
     trim: true
   },
   supplierCode: {
@@ -286,6 +285,11 @@ productSchema.pre('save', function(next) {
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .trim('-');
+  }
+
+  // Normalize category - trim whitespace
+  if (this.category) {
+    this.category = this.category.trim();
   }
 
   // Update timestamp

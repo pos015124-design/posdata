@@ -86,15 +86,15 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back, {user?.email}!</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="w-full md:w-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Dashboard</h1>
+          <p className="text-gray-600 mt-1 text-center md:text-left">Welcome back, {user?.email}!</p>
         </div>
         <Button 
           onClick={() => navigate('/pos')}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 w-full md:w-auto"
         >
           <Store className="w-4 h-4 mr-2" />
           Go to POS

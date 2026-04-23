@@ -38,7 +38,6 @@ export default function Sellers() {
   const fetchSellers = async () => {
     try {
       setLoading(true);
-      // Try to fetch from API, fallback to mock data if endpoint doesn't exist
       const response = await fetch('/api/sellers', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -47,23 +46,33 @@ export default function Sellers() {
       
       if (response.ok) {
         const data = await response.json();
-        setSellers(data.sellers || data || []);
+        const sellersList = data.sellers || [];
+        // Map backend data to frontend format
+        const mappedSellers = sellersList.map((s: any) => ({
+          _id: s._id,
+          name: s.businessName || s.name,
+          email: s.contactEmail || s.email,
+          phone: s.contactPhone || s.phone,
+          status: s.status,
+          totalSales: s.metrics?.totalSales || 0,
+          products: s.metrics?.totalProducts || 0,
+          createdAt: s.createdAt
+        }));
+        setSellers(mappedSellers);
       } else {
-        // Fallback to mock data
-        setSellers([
-          { _id: '1', name: 'Seller A', email: 'sellerA@example.com', status: 'active', totalSales: 5250, products: 45 },
-          { _id: '2', name: 'Seller B', email: 'sellerB@example.com', status: 'active', totalSales: 3890, products: 32 },
-          { _id: '3', name: 'Seller C', email: 'sellerC@example.com', status: 'pending', totalSales: 1200, products: 18 },
-        ]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load sellers',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Failed to fetch sellers:', error);
-      // Fallback to mock data
-      setSellers([
-        { _id: '1', name: 'Seller A', email: 'sellerA@example.com', status: 'active', totalSales: 5250, products: 45 },
-        { _id: '2', name: 'Seller B', email: 'sellerB@example.com', status: 'active', totalSales: 3890, products: 32 },
-        { _id: '3', name: 'Seller C', email: 'sellerC@example.com', status: 'pending', totalSales: 1200, products: 18 },
-      ]);
+      toast({
+        title: 'Error',
+        description: 'Failed to load sellers',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -79,44 +88,66 @@ export default function Sellers() {
     }
 
     try {
-      const response = await fetch('/api/sellers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(newSeller)
-      });
+      // If editing, update existing seller
+      if (selectedSeller) {
+        const response = await fetch(`/api/sellers/${selectedSeller._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(newSeller)
+        });
 
-      if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Seller added successfully',
-        });
-        setShowAddModal(false);
-        setNewSeller({ name: '', email: '', phone: '', status: 'active' });
-        fetchSellers();
+        if (response.ok) {
+          toast({
+            title: 'Success',
+            description: 'Seller updated successfully',
+          });
+          setShowAddModal(false);
+          setSelectedSeller(null);
+          setNewSeller({ name: '', email: '', phone: '', status: 'active' });
+          fetchSellers();
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to update seller',
+            variant: 'destructive',
+          });
+        }
       } else {
-        // For demo purposes, add to local state
-        const seller: Seller = {
-          _id: Date.now().toString(),
-          ...newSeller,
-          totalSales: 0,
-          products: 0
-        };
-        setSellers([...sellers, seller]);
-        toast({
-          title: 'Success',
-          description: 'Seller added successfully',
+        // Create new seller
+        const response = await fetch('/api/sellers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(newSeller)
         });
-        setShowAddModal(false);
-        setNewSeller({ name: '', email: '', phone: '', status: 'active' });
+
+        if (response.ok) {
+          toast({
+            title: 'Success',
+            description: 'Seller added successfully',
+          });
+          setShowAddModal(false);
+          setNewSeller({ name: '', email: '', phone: '', status: 'active' });
+          fetchSellers();
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to add seller',
+            variant: 'destructive',
+          });
+        }
       }
     } catch (error) {
-      console.error('Failed to add seller:', error);
+      console.error('Failed to save seller:', error);
       toast({
         title: 'Error',
-        description: 'Failed to add seller',
+        description: 'Failed to save seller',
+        variant: 'destructive',
       });
     }
   };
@@ -199,15 +230,15 @@ export default function Sellers() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Sellers</h1>
-          <p className="text-gray-600 mt-1">Manage your marketplace sellers</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="w-full md:w-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Sellers</h1>
+          <p className="text-gray-600 mt-1 text-center md:text-left">Manage your marketplace sellers</p>
         </div>
         <Button 
           onClick={() => setShowAddModal(true)}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 w-full md:w-auto"
         >
           <UserPlus className="w-4 h-4 mr-2" />
           Add Seller

@@ -25,7 +25,6 @@ export default function Inventory() {
     purchasePrice: 0,
     stock: 0,
     category: '',
-    supplier: '',
     reorderPoint: 0
   });
 
@@ -52,14 +51,15 @@ export default function Inventory() {
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
+    product.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'name' || name === 'code' || name === 'barcode' || name === 'category' || name === 'supplier'
+      [name]: name === 'name' || name === 'code' || name === 'barcode' || name === 'category'
         ? value
         : parseFloat(value) || 0
     }));
@@ -104,7 +104,6 @@ export default function Inventory() {
       purchasePrice: product.purchasePrice,
       stock: product.stock,
       category: product.category,
-      supplier: product.supplier,
       reorderPoint: product.reorderPoint
     });
     setShowAddModal(true);
@@ -137,7 +136,6 @@ export default function Inventory() {
       purchasePrice: 0,
       stock: 0,
       category: '',
-      supplier: '',
       reorderPoint: 0
     });
   };
@@ -157,11 +155,11 @@ export default function Inventory() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-gray-600 mt-1">Manage your products and stock</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="w-full md:w-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Inventory</h1>
+          <p className="text-gray-600 mt-1 text-center md:text-left">Manage your products and stock</p>
         </div>
         <Button
           onClick={() => {
@@ -324,15 +322,9 @@ export default function Inventory() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Category</Label>
-                    <Input name="category" value={formData.category} onChange={handleInputChange} />
-                  </div>
-                  <div>
-                    <Label>Supplier</Label>
-                    <Input name="supplier" value={formData.supplier} onChange={handleInputChange} />
-                  </div>
+                <div>
+                  <Label>Category</Label>
+                  <Input name="category" value={formData.category} onChange={handleInputChange} />
                 </div>
 
                 <div className="flex gap-2 pt-4">
