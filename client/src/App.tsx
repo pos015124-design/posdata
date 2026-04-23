@@ -13,6 +13,9 @@ import Settings from './pages/Settings';
 import Sellers from './pages/Sellers';
 import Orders from './pages/Orders';
 import Expenses from './pages/Expenses';
+import Store from './pages/Store';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
 import { Toaster } from './components/ui/toaster';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -31,8 +34,16 @@ function App() {
       <LanguageProvider>
         <AuthProvider>
           <Routes>
+            {/* Public Routes */}
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+            
+            {/* E-commerce Storefront (Public) */}
+            <Route path="/store" element={<Store />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            
+            {/* Private Routes (Requires Auth) */}
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/pos" element={<PrivateRoute><POS /></PrivateRoute>} />
             <Route path="/inventory" element={<PrivateRoute><Inventory /></PrivateRoute>} />
@@ -42,7 +53,7 @@ function App() {
             <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
             <Route path="/sellers" element={<PrivateRoute><Sellers /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-            <Route path="/" element={<Navigate to="/login" />} />
+            <Route path="/" element={<Navigate to="/store" />} />
           </Routes>
           <Toaster />
         </AuthProvider>
