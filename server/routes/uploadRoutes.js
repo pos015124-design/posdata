@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { requireUser } = require('../middleware/validation');
+const { requireUser } = require('./middleware/auth');
 
 // Upload single product image
 router.post('/product-image', requireUser, async (req, res) => {
