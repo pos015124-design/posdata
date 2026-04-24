@@ -41,11 +41,10 @@ export default function Store() {
       const cats = [...new Set(productList.map((p: any) => p.category).filter(Boolean))] as string[];
       setCategories(cats);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load products',
-        variant: 'destructive',
-      });
+      console.error('Failed to load products:', error);
+      // Don't show error toast on public store - just show empty state
+      setProducts([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

@@ -61,7 +61,8 @@ api.interceptors.response.use(
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('accessToken');
         accessToken = null;
-        window.location.href = '/login';
+        // Don't auto-redirect to login - let the component handle it
+        // window.location.href = '/login';
         return Promise.reject(err);
       }
     }
