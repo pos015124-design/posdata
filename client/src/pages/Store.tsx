@@ -83,11 +83,6 @@ export default function Store() {
             <h1 className="text-2xl font-bold text-gray-900">Dukani Store</h1>
           </Link>
           <div className="flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost" className="flex items-center gap-2">
-                <span>Login</span>
-              </Button>
-            </Link>
             <div className="relative">
               <Link to="/cart">
                 <Button variant="outline" className="flex items-center gap-2">
