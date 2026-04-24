@@ -82,18 +82,25 @@ export default function Store() {
             <StoreIcon className="w-8 h-8 text-primary" />
             <h1 className="text-2xl font-bold text-gray-900">Dukani Store</h1>
           </Link>
-          <div className="relative">
-            <Link to="/cart">
-              <Button variant="outline" className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5" />
-                <span>Cart</span>
-                {cart.length > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                  </span>
-                )}
+          <div className="flex items-center gap-3">
+            <Link to="/login">
+              <Button variant="ghost" className="flex items-center gap-2">
+                <span>Login</span>
               </Button>
             </Link>
+            <div className="relative">
+              <Link to="/cart">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5" />
+                  <span>Cart</span>
+                  {cart.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
