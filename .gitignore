@@ -18,7 +18,6 @@ build/
 
 # Vercel
 .vercel
-vercel.json
 
 # Heroku
 .npmrc
