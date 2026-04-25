@@ -132,4 +132,46 @@ router.get('/summary', requireUser, async (req, res) => {
   }
 });
 
+// Create a new sale (simple endpoint for checkout/POS)
+router.post('/', requireUser, async (req, res) => {
+  try {
+    const { items, total, paymentMethod, customer, notes } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Items are required' });
+    }
+    
+    if (!paymentMethod) {
+      return res.status(400).json({ message: 'Payment method is required' });
+    }
+    
+    // Create sale object
+    const saleData = {
+      items: items.map(item => ({
+        product: item.product || item._id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      total: parseFloat(total || 0),
+      paymentMethod,
+      customer,
+      notes,
+      taxRate: 0,
+      amountPaid: parseFloat(total || 0)
+    };
+    
+    // Process the sale
+    const result = await SaleService.processSale(saleData, req.user.userId);
+    
+    res.status(201).json({
+      success: true,
+      sale: result.sale || result
+    });
+  } catch (error) {
+    console.error('Error creating sale:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
 module.exports = router;
