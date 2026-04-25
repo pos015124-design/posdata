@@ -3,10 +3,7 @@
   "builds": [
     {
       "src": "server/server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["server/**"]
-      }
+      "use": "@vercel/node"
     },
     {
       "src": "client/package.json",
@@ -19,44 +16,15 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/server.js"
+      "dest": "server/server.js"
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/client/dist/assets/$1"
-    },
-    {
-      "src": "/login",
-      "dest": "/client/dist/index.html"
-    },
-    {
-      "src": "/register",
-      "dest": "/client/dist/index.html"
-    },
-    {
-      "src": "/dashboard(.*)",
-      "dest": "/client/dist/index.html"
-    },
-    {
-      "src": "/pos(.*)",
-      "dest": "/client/dist/index.html"
-    },
-    {
-      "src": "/inventory(.*)",
-      "dest": "/client/dist/index.html"
+      "dest": "client/dist/assets/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/client/dist/index.html"
+      "dest": "client/dist/index.html"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "server/server.js": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  }
+  ]
 }
