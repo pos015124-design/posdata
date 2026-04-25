@@ -28,13 +28,32 @@ export default function Store() {
 
   useEffect(() => {
     fetchProducts();
+    
+    // Listen for product updates from other tabs/components
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'product-updated') {
+        fetchProducts(); // Refresh products when inventory changes
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Auto-refresh every 30 seconds for real-time updates
+    const refreshInterval = setInterval(fetchProducts, 30000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await productsApi.getProducts();
-      const productList = response.products || [];
+      // Use public endpoint that doesn't require authentication
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/public/products`);
+      const data = await response.json();
+      const productList = data.products || [];
       setProducts(productList);
       
       // Extract unique categories

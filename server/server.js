@@ -125,6 +125,36 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/uploads', uploadRoutes);
+
+// Public products endpoint for Store (no authentication required)
+app.get('/api/public/products', async (req, res) => {
+  try {
+    const Product = require('./models/Product');
+    const products = await Product.find({ active: { $ne: false } })
+      .select('name code price images category description stock')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      products: products.map(p => ({
+        _id: p._id,
+        name: p.name,
+        code: p.code,
+        price: p.price,
+        images: p.images || [],
+        category: p.category,
+        description: p.description,
+        stock: p.stock
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching public products:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch products',
+      message: error.message 
+    });
+  }
+});
 app.use('/api/sellers', sellerRoutes);
 app.use('/api/products/import', importRoutes);
 app.use('/api/seller-inventory', sellerInventoryRoutes);

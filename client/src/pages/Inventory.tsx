@@ -149,6 +149,9 @@ export default function Inventory() {
       setEditingProduct(null);
       resetForm();
       fetchProducts();
+      
+      // Notify other tabs/components (like Store) about the update
+      localStorage.setItem('product-updated', Date.now().toString());
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -202,6 +205,9 @@ export default function Inventory() {
         description: 'Product deleted successfully',
       });
       fetchProducts();
+      
+      // Notify other tabs/components about the update
+      localStorage.setItem('product-updated', Date.now().toString());
     } catch (error) {
       toast({
         title: 'Error',
