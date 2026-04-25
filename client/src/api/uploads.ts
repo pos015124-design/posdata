@@ -4,7 +4,7 @@ export const uploadProductImage = async (file: File) => {
   const formData = new FormData();
   formData.append('image', file);
   
-  const response = await api.post('/uploads/product-image', formData, {
+  const response = await api.post('/api/uploads/product-image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -19,7 +19,7 @@ export const uploadProductImages = async (files: File[]) => {
     formData.append('images', file);
   });
   
-  const response = await api.post('/uploads/product-images', formData, {
+  const response = await api.post('/api/uploads/product-images', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -29,6 +29,6 @@ export const uploadProductImages = async (files: File[]) => {
 };
 
 export const deleteProductImage = async (filename: string) => {
-  const response = await api.delete(`/uploads/product-image/${filename}`);
+  const response = await api.delete(`/api/uploads/product-image/${filename}`);
   return response.data;
 };
