@@ -130,7 +130,7 @@ router.post('/register',
   validateRegistration,
   handleValidationErrors,
   async (req, res) => {
-    const { email, password, name } = req.body;
+    const { email, password, name, businessName } = req.body;
     const clientIP = req.ip;
     const userAgent = req.get('User-Agent');
 
@@ -148,29 +148,21 @@ router.post('/register',
         });
       }
 
-      // Create user with isApproved set to false
+      // Create user with business_admin role (seller/business owner)
       const user = new User({
         email,
         password,
-        isApproved: false // New users need approval
+        firstName: name?.split(' ')[0] || '',
+        lastName: name?.split(' ').slice(1).join(' ') || '',
+        role: 'business_admin', // Business owner/seller role
+        isApproved: true // Auto-approve business registrations
       });
       await user.save();
 
-      // Create a corresponding staff record
-      const staffName = name || email.split('@')[0]; // Use name if provided, otherwise use email username
-      const staff = new Staff({
-        userId: user._id,  // Changed from 'user' to 'userId'
-        name: staffName,
-        role: 'staff',     // Changed from 'Sales Clerk' to valid enum value 'staff'
-        email: email,
-        isActive: true
-      });
-      await staff.save();
-
-      // Log successful registration
       securityLogger.info('New user registration', {
         email: user.email,
         userId: user._id,
+        role: user.role,
         ip: clientIP,
         userAgent
       });
@@ -179,20 +171,21 @@ router.post('/register',
         action: 'REGISTER',
         userId: user._id,
         email: user.email,
+        role: user.role,
         ip: clientIP,
         timestamp: new Date().toISOString()
       });
 
       res.status(201).json({
         success: true,
-        message: 'Registration successful. Your account is pending approval by an administrator.',
+        message: 'Registration successful! You can now login.',
         user: {
           email: user.email,
-          role: user.role
+          role: user.role,
+          name: user.fullName
         }
       });
     } catch (error) {
-      // Log full error stack and request body for debugging
       console.error('User registration failed:', error);
       securityLogger.error('Registration error', {
         error: error.message,
@@ -204,8 +197,7 @@ router.post('/register',
       });
       res.status(500).json({
         error: 'Registration failed',
-        message: error.message,
-        details: error.stack
+        message: error.message || 'An error occurred during registration'
       });
     }
   }

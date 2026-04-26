@@ -43,7 +43,7 @@ export default function Register() {
       
       toast({
         title: 'Success',
-        description: 'Account created successfully! Please login.',
+        description: 'Account created successfully! You can now login.',
       });
       navigate('/login');
     } catch (error: any) {
@@ -102,13 +102,12 @@ export default function Register() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="businessName">Business Name</Label>
+                <Label htmlFor="businessName">Business Name (Optional)</Label>
                 <Input
                   id="businessName"
                   placeholder="My Store"
                   value={formData.businessName}
                   onChange={(e) => setFormData({...formData, businessName: e.target.value})}
-                  required
                   className="h-11"
                 />
               </div>
