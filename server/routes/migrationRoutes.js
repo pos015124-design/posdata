@@ -62,7 +62,6 @@ router.post('/indexes', async (req, res) => {
         { userId: 1, barcode: 1 },
         { 
           unique: true, 
-          sparse: true,
           partialFilterExpression: { barcode: { $type: 'string' } },
           name: 'userId_1_barcode_1'
         }

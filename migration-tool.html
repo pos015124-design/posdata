@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Migration Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .api-url {
+            background: #f7f7f7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result h3 {
+            margin-bottom: 10px;
+        }
+        
+        pre {
+            background: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Database Migration Tool</h1>
+        <p class="subtitle">Fix product barcode/code unique indexes</p>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This migration should only be run ONCE. It will update the database indexes to allow different users to have the same barcode/code.
+        </div>
+        
+        <div class="api-url">
+            API Endpoint: <span id="apiUrl">https://posdata-73sd.onrender.com/api/migrate/indexes</span>
+        </div>
+        
+        <div>
+            <button class="btn" id="migrateBtn" onclick="runMigration()">
+                Run Migration
+            </button>
+            <button class="btn btn-secondary" onclick="checkStatus()">
+                Check Index Status
+            </button>
+        </div>
+        
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <pre id="resultContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://posdata-73sd.onrender.com';
+        
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            const result = document.getElementById('result');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Running Migration...';
+            result.className = 'result';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/migrate/indexes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    result.className = 'result show success';
+                    resultTitle.textContent = '✅ Migration Successful!';
+                    resultContent.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    result.className = 'result show error';
+                    resultTitle.textContent = '❌ Migration Failed';
+                    resultContent.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                result.className = 'result show error';
+                resultTitle.textContent = '❌ Network Error';
+                resultContent.textContent = error.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Migration';
+            }
+        }
+        
+        async function checkStatus() {
+            const result = document.getElementById('result');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            
+            result.className = 'result';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/migrate/status`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    result.className = 'result show';
+                    resultTitle.textContent = '📋 Current Database Indexes';
+                    resultContent.textContent = JSON.stringify(data.indexes, null, 2);
+                } else {
+                    result.className = 'result show error';
+                    resultTitle.textContent = '❌ Failed to fetch status';
+                    resultContent.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                result.className = 'result show error';
+                resultTitle.textContent = '❌ Network Error';
+                resultContent.textContent = error.message;
+            }
+        }
+    </script>
+</body>
+</html>
