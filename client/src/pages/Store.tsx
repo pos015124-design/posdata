@@ -5,14 +5,13 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { useToast } from '../hooks/useToast';
-import * as productsApi from '../api/products';
 
 interface Product {
   _id: string;
   name: string;
   code: string;
   price: number;
-  images: string[];
+  images: Array<{url: string; alt?: string; isPrimary?: boolean; order?: number}>;
   category: string;
   description?: string;
 }
