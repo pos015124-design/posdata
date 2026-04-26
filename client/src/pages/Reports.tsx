@@ -185,6 +185,13 @@ export default function Reports() {
   }, 0);
   const uniqueProducts = productsArray.length;
   
+  // Calculate low stock items in real-time
+  const lowStockItems = productsArray.filter((p: any) => {
+    const stock = p.stock || 0;
+    const reorderPoint = p.reorderPoint || 10; // Default reorder point is 10
+    return stock <= reorderPoint;
+  }).sort((a: any, b: any) => (a.stock || 0) - (b.stock || 0)); // Sort by lowest stock first
+  
   const metricCards = [
     {
       title: 'Total Revenue',
@@ -505,21 +512,21 @@ export default function Reports() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-orange-500" />
-              Low Stock Alerts
+              Low Stock Alerts (Real-Time)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {inventoryData?.lowStockItems && inventoryData.lowStockItems.length > 0 ? (
+            {lowStockItems.length > 0 ? (
               <div className="space-y-3">
-                {inventoryData.lowStockItems.slice(0, 8).map((item: any) => (
+                {lowStockItems.slice(0, 8).map((item: any) => (
                   <div key={item._id} className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
                     <div>
                       <p className="font-medium text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-600">{item.category}</p>
+                      <p className="text-sm text-gray-600">{item.category || 'No category'}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-orange-600">
-                        {item.stock} / {item.reorderPoint}
+                        {item.stock || 0} / {item.reorderPoint || 10}
                       </p>
                       <p className="text-xs text-gray-600">in stock</p>
                     </div>
@@ -531,6 +538,7 @@ export default function Reports() {
                 <div className="text-center">
                   <Package className="w-12 h-12 mx-auto mb-2 text-green-600" />
                   <p className="text-green-600 font-medium">All items well stocked!</p>
+                  <p className="text-sm text-green-500 mt-1">{productsArray.length} products tracked</p>
                 </div>
               </div>
             )}
