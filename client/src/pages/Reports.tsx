@@ -24,11 +24,29 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [salesData, setSalesData] = useState<any>(null);
   const [inventoryData, setInventoryData] = useState<any>(null);
-  const [expensesData, setExpensesData] = useState<any>(null);
+  const [expensesData, setExpensesData] = useState<any[]>([]);
   const [allSales, setAllSales] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
     fetchReportsData();
+    
+    // Listen for updates from other pages
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'product-updated' || e.key === 'sale-created') {
+        fetchReportsData(); // Refresh reports when data changes
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Auto-refresh every 15 seconds for real-time updates
+    const refreshInterval = setInterval(fetchReportsData, 15000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(refreshInterval);
+    };
   }, [selectedPeriod]);
 
   const fetchReportsData = async () => {
@@ -36,7 +54,7 @@ export default function Reports() {
       setLoading(true);
       
       // Fetch all data with error handling for each API call
-      const [salesAnalytics, inventoryAnalytics, expensesRes, allSalesRes] = await Promise.allSettled([
+      const [salesAnalytics, inventoryAnalytics, expensesRes, allSalesRes, productsRes] = await Promise.allSettled([
         analyticsApi.getSalesAnalytics(selectedPeriod).catch(err => {
           console.error('Failed to fetch sales analytics:', err);
           return null;
@@ -86,6 +104,22 @@ export default function Reports() {
                 : [])
         : [];
       setAllSales(salesList);
+      
+      // Handle products response - ensure it's an array
+      const productsList = productsRes?.status === 'fulfilled' 
+        ? (Array.isArray(productsRes.value?.products) 
+            ? productsRes.value.products 
+            : Array.isArray(productsRes.value?.data) 
+              ? productsRes.value.data 
+              : Array.isArray(productsRes.value) 
+                ? productsRes.value 
+                : [])
+        : [];
+      setProducts(productsList);
+      
+      console.log('Reports - Products fetched:', productsList.length);
+      console.log('Reports - Sales fetched:', salesList.length);
+      console.log('Reports - Expenses fetched:', expensesList.length);
     } catch (error) {
       console.error('Failed to fetch reports data:', error);
       // Set empty data to prevent blank screen
@@ -141,38 +175,48 @@ export default function Reports() {
     { label: 'All Time', value: 'all' as const },
   ];
 
+  // Calculate real inventory metrics from actual products
+  const productsArray = Array.isArray(products) ? products : [];
+  const totalInventoryValue = productsArray.reduce((sum: number, p: any) => {
+    return sum + ((p.price || 0) * (p.stock || 0));
+  }, 0);
+  const totalInventoryItems = productsArray.reduce((sum: number, p: any) => {
+    return sum + (p.stock || 0);
+  }, 0);
+  const uniqueProducts = productsArray.length;
+  
   const metricCards = [
     {
       title: 'Total Revenue',
       value: formatTZS(totalRevenue),
-      change: '+12.5%',
+      change: totalRevenue > 0 ? 'Active' : 'No sales yet',
       icon: DollarSign,
       color: 'from-green-500 to-emerald-600',
-      trend: 'up'
+      trend: totalRevenue > 0 ? 'up' as const : 'down' as const
     },
     {
       title: 'Total Expenses',
       value: formatTZS(totalExpenses),
-      change: '-5.2%',
+      change: totalExpenses > 0 ? 'Tracked' : 'No expenses',
       icon: TrendingDown,
       color: 'from-red-500 to-pink-600',
-      trend: 'down'
+      trend: totalExpenses > 0 ? 'up' as const : 'down' as const
     },
     {
       title: 'Net Profit',
       value: formatTZS(grossProfit),
-      change: `${profitMargin}%`,
+      change: `${profitMargin}% margin`,
       icon: Activity,
       color: 'from-blue-500 to-cyan-600',
-      trend: grossProfit >= 0 ? 'up' : 'down'
+      trend: grossProfit >= 0 ? 'up' as const : 'down' as const
     },
     {
       title: 'Total Orders',
-      value: allSales.length.toString(),
-      change: '+8.3%',
+      value: salesArray.length.toString(),
+      change: salesArray.length > 0 ? 'Completed' : 'No orders yet',
       icon: ShoppingCart,
       color: 'from-purple-500 to-indigo-600',
-      trend: 'up'
+      trend: salesArray.length > 0 ? 'up' as const : 'down' as const
     },
   ];
 
@@ -373,36 +417,36 @@ export default function Reports() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="w-5 h-5" />
-              Inventory Value
+              Inventory Value (Real-Time)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {inventoryData ? (
+            {productsArray.length > 0 ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg">
                     <p className="text-sm text-gray-600">Total Value</p>
                     <p className="text-2xl font-bold text-gray-900 mt-1">
-                      {formatTZS(inventoryData.inventoryValue?.totalValue || 0)}
+                      {formatTZS(totalInventoryValue)}
                     </p>
                   </div>
                   <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
                     <p className="text-sm text-gray-600">Total Items</p>
                     <p className="text-2xl font-bold text-gray-900 mt-1">
-                      {inventoryData.inventoryValue?.totalItems || 0}
+                      {totalInventoryItems}
                     </p>
                   </div>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-2">Unique Products</p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {inventoryData.inventoryValue?.uniqueProducts || 0}
+                    {uniqueProducts}
                   </p>
                 </div>
               </div>
             ) : (
               <div className="h-48 flex items-center justify-center bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No inventory data</p>
+                <p className="text-gray-500">No products in inventory</p>
               </div>
             )}
           </CardContent>
