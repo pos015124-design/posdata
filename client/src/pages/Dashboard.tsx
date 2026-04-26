@@ -33,7 +33,13 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [businessSlug, setBusinessSlug] = useState<string | null>(null);
-  const storeUrl = businessSlug ? `${window.location.origin}/store/${businessSlug}` : null;
+  
+  // Always calculate storeUrl - use fallback if no business slug
+  const storeUrl = businessSlug 
+    ? `${window.location.origin}/store/${businessSlug}` 
+    : user?.email 
+      ? `${window.location.origin}/store/${user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-')}` 
+      : null;
 
   useEffect(() => {
     fetchDashboardStats();
@@ -79,15 +85,17 @@ export default function Dashboard() {
       try {
         const businessRes = await businessApi.getMyBusiness();
         if (businessRes?.data?.slug) {
+          console.log('✅ Found business profile:', businessRes.data);
           setBusinessSlug(businessRes.data.slug);
           // Also save to localStorage for other components
           localStorage.setItem('business', JSON.stringify(businessRes.data));
         }
       } catch (error) {
-        console.log('No business profile found, using fallback slug');
+        console.log('⚠️ No business profile found, using email-based slug');
         // Fallback: generate from user email
         if (user?.email) {
           const slug = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+          console.log('📧 Generated slug from email:', slug);
           setBusinessSlug(slug);
         }
       }
@@ -187,6 +195,11 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 mb-2">
                   <Store className="w-5 h-5 text-blue-600" />
                   <h3 className="text-lg font-bold text-gray-900">Your Online Store</h3>
+                  {stats.totalProducts > 0 && (
+                    <span className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
+                      {stats.totalProducts} {stats.totalProducts === 1 ? 'Product' : 'Products'}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
                   Share this link with your customers to let them browse and buy your products
@@ -200,6 +213,13 @@ export default function Dashboard() {
                     Copy
                   </Button>
                 </div>
+                {stats.totalProducts === 0 && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      <strong>📦 Tip:</strong> Add products to your inventory and toggle "Publish to Store" ON to make them appear in your store!
+                    </p>
+                  </div>
+                )}
               </div>
               <Button 
                 onClick={() => window.open(storeUrl, '_blank')}
