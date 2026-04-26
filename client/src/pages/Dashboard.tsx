@@ -87,6 +87,10 @@ export default function Dashboard() {
           ? productsRes.data 
           : [];
       
+      console.log('Products Response:', productsRes);
+      console.log('Products Array:', productsArray);
+      console.log('Product Count:', productsArray.length);
+      
       // Handle different response structures for customers
       const customersArray = Array.isArray(customersRes?.customers) 
         ? customersRes.customers 

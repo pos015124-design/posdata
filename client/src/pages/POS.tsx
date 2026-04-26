@@ -14,6 +14,8 @@ export default function POS() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  console.log('POS v2.0 - Using products API (not seller inventory)');
+
   useEffect(() => {
     fetchProducts();
     
