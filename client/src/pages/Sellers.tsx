@@ -40,7 +40,7 @@ export default function Sellers() {
       setLoading(true);
       const response = await fetch('/api/sellers', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
       });
       
@@ -94,7 +94,7 @@ export default function Sellers() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
           },
           body: JSON.stringify(newSeller)
         });
@@ -121,7 +121,7 @@ export default function Sellers() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
           },
           body: JSON.stringify(newSeller)
         });
@@ -135,9 +135,10 @@ export default function Sellers() {
           setNewSeller({ name: '', email: '', phone: '', status: 'active' });
           fetchSellers();
         } else {
+          const errorData = await response.json();
           toast({
             title: 'Error',
-            description: 'Failed to add seller',
+            description: errorData.error || 'Failed to add seller',
             variant: 'destructive',
           });
         }
@@ -177,7 +178,7 @@ export default function Sellers() {
       const response = await fetch(`/api/sellers/${sellerId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
       });
 
