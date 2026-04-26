@@ -88,10 +88,20 @@ const port = process.env.PORT || 3001;
 // Essential middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cors());
+
+// CORS configuration - allow all origins for images and API
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin images
+  crossOriginEmbedderPolicy: false, // Don't block embedded resources
+}));
 app.use(compression());
 app.use(mongoSanitize());
 app.use(hpp());
@@ -100,8 +110,13 @@ app.use(hpp());
 app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 
-// Serve static files (uploaded images)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files (uploaded images) with CORS headers
+app.use('/uploads', (req, res, next) => {
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
 app.use(basicRoutes);
