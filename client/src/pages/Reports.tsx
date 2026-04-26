@@ -62,8 +62,30 @@ export default function Reports() {
       // Extract data from settled promises
       setSalesData(salesAnalytics.status === 'fulfilled' ? salesAnalytics.value : null);
       setInventoryData(inventoryAnalytics.status === 'fulfilled' ? inventoryAnalytics.value : null);
-      setExpensesData(expensesRes.status === 'fulfilled' ? (expensesRes.value?.expenses || []) : []);
-      setAllSales(allSalesRes.status === 'fulfilled' ? (allSalesRes.value?.sales || []) : []);
+      
+      // Handle expenses response - ensure it's an array
+      const expensesList = expensesRes.status === 'fulfilled' 
+        ? (Array.isArray(expensesRes.value?.expenses) 
+            ? expensesRes.value.expenses 
+            : Array.isArray(expensesRes.value?.data) 
+              ? expensesRes.value.data 
+              : Array.isArray(expensesRes.value) 
+                ? expensesRes.value 
+                : [])
+        : [];
+      setExpensesData(expensesList);
+      
+      // Handle all sales response - ensure it's an array
+      const salesList = allSalesRes.status === 'fulfilled' 
+        ? (Array.isArray(allSalesRes.value?.sales) 
+            ? allSalesRes.value.sales 
+            : Array.isArray(allSalesRes.value?.data) 
+              ? allSalesRes.value.data 
+              : Array.isArray(allSalesRes.value) 
+                ? allSalesRes.value 
+                : [])
+        : [];
+      setAllSales(salesList);
     } catch (error) {
       console.error('Failed to fetch reports data:', error);
       // Set empty data to prevent blank screen
@@ -88,21 +110,24 @@ export default function Reports() {
     });
   };
 
-  // Calculate profit metrics
+  // Calculate profit metrics - ensure arrays before reduce
+  const expensesArray = Array.isArray(expensesData) ? expensesData : [];
+  const salesArray = Array.isArray(allSales) ? allSales : [];
+  
   const totalRevenue = salesData?.revenue?.monthly || 0;
-  const totalExpenses = (expensesData || []).reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
+  const totalExpenses = expensesArray.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
   const grossProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
 
-  // Calculate payment method breakdown
-  const paymentMethodBreakdown = (allSales || []).reduce((acc: any, sale: any) => {
+  // Calculate payment method breakdown - ensure array before reduce
+  const paymentMethodBreakdown = salesArray.reduce((acc: any, sale: any) => {
     const method = sale.paymentMethod || 'Cash';
     acc[method] = (acc[method] || 0) + (sale.total || 0);
     return acc;
   }, {});
 
-  // Expense breakdown by category
-  const expenseByCategory = (expensesData || []).reduce((acc: any, exp: any) => {
+  // Expense breakdown by category - ensure array before reduce
+  const expenseByCategory = expensesArray.reduce((acc: any, exp: any) => {
     const category = exp.category || 'Other';
     acc[category] = (acc[category] || 0) + (exp.amount || 0);
     return acc;
