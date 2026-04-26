@@ -12,19 +12,19 @@ const { cacheMiddleware } = require('../config/cache');
 const { logger } = require('../config/logger');
 
 /**
- * Get dashboard overview data
+ * Get dashboard overview data - SCOPED TO CURRENT USER
  */
 router.get('/overview',
   requireUser,
   checkPermission('dashboard'),
-  cacheMiddleware(60), // Cache for 1 minute
   async (req, res) => {
     try {
       const { dateRange = 'day' } = req.query;
 
+      // CRITICAL: Pass userId to filter analytics by current user
       const [salesAnalytics, inventoryAnalytics] = await Promise.all([
-        AnalyticsService.getSalesAnalytics({ dateRange }),
-        AnalyticsService.getInventoryAnalytics()
+        AnalyticsService.getSalesAnalytics({ dateRange }, req.user.userId),
+        AnalyticsService.getInventoryAnalytics({}, req.user.userId)
       ]);
 
       const dashboardData = {

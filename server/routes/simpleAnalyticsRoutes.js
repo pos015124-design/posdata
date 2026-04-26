@@ -4,14 +4,18 @@ const Sale = require('../models/Sale');
 const Product = require('../models/Product');
 const { requireUser } = require('./middleware/auth');
 
-// Get sales analytics for dashboard
+// Get sales analytics for dashboard - SCOPED TO CURRENT USER
 router.get('/sales', requireUser, async (req, res) => {
   try {
+    // CRITICAL: Filter by userId for data isolation
+    const userId = req.user.userId;
+    
     // Get sales data for the last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const sales = await Sale.find({
+      userId: userId,  // CRITICAL: Only current user's sales
       createdAt: { $gte: thirtyDaysAgo }
     }).sort({ createdAt: 1 });
 
@@ -103,11 +107,14 @@ router.get('/sales', requireUser, async (req, res) => {
   }
 });
 
-// Get inventory analytics for reports
+// Get inventory analytics for reports - SCOPED TO CURRENT USER
 router.get('/inventory', requireUser, async (req, res) => {
   try {
-    // Get inventory data
-    const products = await Product.find().select('name stock reorderPoint price purchasePrice category');
+    // CRITICAL: Filter by userId for data isolation
+    const userId = req.user.userId;
+    
+    // Get inventory data - ONLY current user's products
+    const products = await Product.find({ userId: userId }).select('name stock reorderPoint price purchasePrice category');
 
     // Calculate inventory metrics
     const totalProducts = products.length;

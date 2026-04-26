@@ -17,18 +17,19 @@ class AnalyticsService {
   /**
    * Get optimized sales analytics with caching
    * @param {Object} filters - Date range and other filters
+   * @param {string} userId - User ID for data isolation
    * @returns {Promise<Object>} Sales analytics data
    */
-  static async getSalesAnalytics(filters = {}) {
-    const cacheKey = `sales_analytics:${JSON.stringify(filters)}`;
+  static async getSalesAnalytics(filters = {}, userId = null) {
+    const cacheKey = `sales_analytics:${userId}:${JSON.stringify(filters)}`;
     
     try {
-      // Try to get from cache first
-      const cached = await cacheService.get(cacheKey);
-      if (cached) {
-        logger.debug('Sales analytics served from cache');
-        return cached;
-      }
+      // REMOVED: Cache was serving shared data across users
+      // const cached = await cacheService.get(cacheKey);
+      // if (cached) {
+      //   logger.debug('Sales analytics served from cache');
+      //   return cached;
+      // }
       
       const { startDate, endDate, staff, paymentMethod, dateRange } = filters;
       
@@ -74,13 +75,18 @@ class AnalyticsService {
         }
       }
       
-      // Build match stage
+      // Build match stage - CRITICAL: Filter by userId for data isolation
       const matchStage = {
         createdAt: {
           $gte: queryStartDate,
           $lte: queryEndDate
         }
       };
+      
+      // CRITICAL: Filter by userId
+      if (userId) {
+        matchStage.userId = new mongoose.Types.ObjectId(userId);
+      }
       
       if (staff) matchStage.staff = new mongoose.Types.ObjectId(staff);
       if (paymentMethod) matchStage.paymentMethod = paymentMethod;
@@ -335,19 +341,18 @@ class AnalyticsService {
    * @param {Object} filters - Filters for inventory analysis
    * @returns {Promise<Object>} Inventory analytics data
    */
-  static async getInventoryAnalytics(filters = {}) {
-    const cacheKey = `inventory_analytics:${JSON.stringify(filters)}`;
+  static async getInventoryAnalytics(filters = {}, userId = null) {
+    // REMOVED: Cache was serving shared data across users
+    // const cacheKey = `inventory_analytics:${userId}:${JSON.stringify(filters)}`;
 
     try {
-      const cached = await cacheService.get(cacheKey);
-      if (cached) {
-        return cached;
-      }
-
       const { category, lowStockOnly } = filters;
 
-      // Build match stage for products
+      // Build match stage for products - CRITICAL: Filter by userId
       const productMatch = {};
+      if (userId) {
+        productMatch.userId = new mongoose.Types.ObjectId(userId);
+      }
       if (category) productMatch.category = category;
 
       const pipeline = [
