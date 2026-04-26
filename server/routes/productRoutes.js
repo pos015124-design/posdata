@@ -11,7 +11,7 @@ const {
 const { paginationMiddleware } = require('../utils/pagination');
 const { auditLogger } = require('../config/logger');
 
-// Get all products with pagination and search
+// Get all products with pagination and search (USER'S PRODUCTS ONLY)
 router.get('/',
   requireUser,
   checkPermission('inventory'),
@@ -20,7 +20,8 @@ router.get('/',
   paginationMiddleware,
   async (req, res) => {
     try {
-      const result = await ProductService.getAllProducts(req.pagination, req.query);
+      // Filter by logged-in user's products
+      const result = await ProductService.getAllProducts(req.pagination, req.query, req.user.userId);
 
       // Log access for audit
       auditLogger.info('Products accessed', {
@@ -38,6 +39,26 @@ router.get('/',
     } catch (error) {
       res.status(500).json({
         error: 'Failed to fetch products',
+        message: error.message
+      });
+    }
+  }
+);
+
+// Get global catalog (shared product definitions)
+router.get('/catalog',
+  requireUser,
+  async (req, res) => {
+    try {
+      const products = await ProductService.getGlobalCatalog(req.query);
+      
+      res.json({
+        success: true,
+        products
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Failed to fetch global catalog',
         message: error.message
       });
     }
@@ -97,7 +118,7 @@ router.get('/barcode/:barcode', requireUser, async (req, res) => {
 // Create a new product
 router.post('/', requireUser, productValidation, handleValidationErrors, async (req, res) => {
   try {
-    const product = await ProductService.createProduct(req.body);
+    const product = await ProductService.createProduct(req.body, req.user.userId);
     res.status(201).json({ 
       success: true,
       product 

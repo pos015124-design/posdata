@@ -6,9 +6,10 @@ class ProductService {
    * Get all products with pagination and search
    * @param {Object} pagination - Pagination parameters
    * @param {Object} query - Query parameters for filtering
+   * @param {string} userId - User ID to filter products (optional)
    * @returns {Promise<Object>} Paginated products with metadata
    */
-  static async getAllProducts(pagination = {}, query = {}) {
+  static async getAllProducts(pagination = {}, query = {}, userId = null) {
     try {
       // Create a mock request object for pagination utility
       const mockReq = { pagination, query };
@@ -16,22 +17,27 @@ class ProductService {
       // Additional filters based on query parameters
       const additionalFilter = {};
 
+      // Filter by user's products if userId provided
+      if (userId) {
+        additionalFilter.userId = userId;
+      }
+
       if (query.category) {
         additionalFilter.category = query.category;
       }
 
       if (query.lowStock === 'true') {
         additionalFilter.$expr = {
-          $lte: ['$quantity', '$reorderPoint']
+          $lte: ['$stock', '$reorderPoint']
         };
       }
 
       if (query.inStock === 'true') {
-        additionalFilter.quantity = { $gt: 0 };
+        additionalFilter.stock = { $gt: 0 };
       }
 
       if (query.outOfStock === 'true') {
-        additionalFilter.quantity = { $eq: 0 };
+        additionalFilter.stock = { $eq: 0 };
       }
 
       // Use pagination utility with search fields
@@ -46,6 +52,36 @@ class ProductService {
       );
     } catch (error) {
       throw new Error(`Error fetching products: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get global catalog products (shared product definitions)
+   * @param {Object} query - Search parameters
+   * @returns {Promise<Array>} Global products
+   */
+  static async getGlobalCatalog(query = {}) {
+    try {
+      const { search, category, limit = 20 } = query;
+      
+      const filter = { isGlobal: true, status: 'active' };
+      
+      if (search) {
+        filter.$text = { $search: search };
+      }
+      
+      if (category) {
+        filter.category = category;
+      }
+      
+      const products = await Product.find(filter)
+        .select('name code barcode description price images category')
+        .sort({ 'analytics.views': -1 })
+        .limit(parseInt(limit));
+      
+      return products;
+    } catch (error) {
+      throw new Error(`Error fetching global catalog: ${error.message}`);
     }
   }
 
@@ -86,12 +122,14 @@ class ProductService {
   /**
    * Create a new product
    * @param {Object} productData - Product data
+   * @param {string} userId - User ID creating the product
    * @returns {Promise<Object>} Created product
    */
-  static async createProduct(productData) {
+  static async createProduct(productData, userId = null) {
     try {
-      // Check if product with same code or barcode already exists
+      // Check if product with same code or barcode already exists for this user
       const existingProduct = await Product.findOne({
+        userId: userId,
         $or: [
           { code: productData.code },
           { barcode: productData.barcode }
@@ -105,6 +143,11 @@ class ProductService {
         if (existingProduct.barcode === productData.barcode) {
           throw new Error('Product with this barcode already exists');
         }
+      }
+
+      // Set ownership
+      if (userId) {
+        productData.userId = userId;
       }
 
       const product = new Product(productData);

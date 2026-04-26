@@ -234,6 +234,24 @@ const productSchema = new mongoose.Schema({
     lastSold: Date
   },
 
+  // Ownership & Multi-tenant
+  businessId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Business',
+    index: true
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  isGlobal: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+
   // Status
   status: {
     type: String,
@@ -267,6 +285,9 @@ productSchema.index({ stock: 1, trackInventory: 1 });
 productSchema.index({ tags: 1 });
 productSchema.index({ 'analytics.sales': -1 });
 productSchema.index({ createdAt: -1 });
+productSchema.index({ userId: 1, status: 1 }); // User's products
+productSchema.index({ businessId: 1, status: 1 }); // Business products
+productSchema.index({ isGlobal: 1, status: 1 }); // Global catalog
 
 // Text search index for product search
 productSchema.index({
