@@ -57,7 +57,12 @@ function App() {
             <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
             <Route path="/sellers" element={<PrivateRoute><Sellers /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-            <Route path="/" element={<Navigate to="/store" />} />
+            
+            {/* Default route - redirect to login page */}
+            <Route path="/" element={<Navigate to="/login" />} />
+            
+            {/* Catch all - redirect to login */}
+            <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
           <Toaster />
         </AuthProvider>
