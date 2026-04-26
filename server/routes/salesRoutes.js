@@ -8,10 +8,10 @@ const {
   handleValidationErrors
 } = require('../middleware/validation');
 
-// Get all sales
+// Get all sales - SCOPED TO CURRENT USER
 router.get('/', requireUser, async (req, res) => {
   try {
-    const sales = await SaleService.getAllSales();
+    const sales = await SaleService.getAllSales({}, {}, req.user.userId);
     res.json({ sales });
   } catch (error) {
     console.error('Error fetching sales:', error);
@@ -19,11 +19,11 @@ router.get('/', requireUser, async (req, res) => {
   }
 });
 
-// Get recent sales
+// Get recent sales - SCOPED TO CURRENT USER
 router.get('/recent', requireUser, async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-    const sales = await SaleService.getRecentSales(limit);
+    const sales = await SaleService.getRecentSales(limit, req.user.userId);
     
     // Format the response to match frontend expectations
     const formattedSales = sales.map(sale => ({
@@ -52,10 +52,10 @@ router.get('/recent', requireUser, async (req, res) => {
   }
 });
 
-// Get sale by ID
+// Get sale by ID - WITH OWNERSHIP CHECK
 router.get('/:id', requireUser, mongoIdValidation('id'), handleValidationErrors, async (req, res) => {
   try {
-    const sale = await SaleService.getSaleById(req.params.id);
+    const sale = await SaleService.getSaleById(req.params.id, req.user.userId);
     res.json({ sale });
   } catch (error) {
     console.error('Error fetching sale:', error);
@@ -121,10 +121,10 @@ router.post('/receipt', requireUser, mongoIdValidation('saleId'), handleValidati
   }
 });
 
-// Get sales summary
+// Get sales summary - SCOPED TO CURRENT USER
 router.get('/summary', requireUser, async (req, res) => {
   try {
-    const summary = await SaleService.getSalesSummary();
+    const summary = await SaleService.getSalesSummary(req.user.userId);
     res.json(summary);
   } catch (error) {
     console.error('Error fetching sales summary:', error);

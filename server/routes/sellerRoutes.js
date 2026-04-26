@@ -6,10 +6,11 @@ const Seller = require('../models/Seller');
 // Simple auth check - get from auth middleware
 const { requireUser } = require('./middleware/auth');
 
-// Get all sellers
+// Get all sellers - SCOPED TO CURRENT USER
 router.get('/', requireUser, async (req, res) => {
   try {
-    const sellers = await Seller.find().sort({ createdAt: -1 });
+    // Only return sellers created by the current user
+    const sellers = await Seller.find({ userId: req.user.userId }).sort({ createdAt: -1 });
     res.json({ sellers });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -27,22 +28,23 @@ router.get('/:id', requireUser, async (req, res) => {
   }
 });
 
-// Create new seller
+// Create new seller - SCOPED TO CURRENT USER
 router.post('/', requireUser, async (req, res) => {
   try {
     const { name, email, phone, status } = req.body;
     
-    // Check if seller with email already exists
-    const existingSeller = await Seller.findOne({ contactEmail: email });
+    // Check if seller with email already exists FOR THIS USER
+    const existingSeller = await Seller.findOne({ userId: req.user.userId, contactEmail: email });
     if (existingSeller) {
       return res.status(400).json({ error: 'Seller with this email already exists' });
     }
     
     const seller = new Seller({
+      userId: req.user.userId,  // CRITICAL: Link seller to current user
       businessName: name,
       contactEmail: email,
       contactPhone: phone,
-      status: status || 'pending'
+      status: status || 'active'
     });
     await seller.save();
     res.status(201).json({ success: true, seller });
@@ -51,12 +53,12 @@ router.post('/', requireUser, async (req, res) => {
   }
 });
 
-// Update seller
+// Update seller - WITH OWNERSHIP CHECK
 router.put('/:id', requireUser, async (req, res) => {
   try {
     const { name, email, phone, status } = req.body;
     
-    const seller = await Seller.findById(req.params.id);
+    const seller = await Seller.findOne({ _id: req.params.id, userId: req.user.userId });
     if (!seller) {
       return res.status(404).json({ error: 'Seller not found' });
     }
@@ -74,10 +76,10 @@ router.put('/:id', requireUser, async (req, res) => {
   }
 });
 
-// Delete seller
+// Delete seller - WITH OWNERSHIP CHECK
 router.delete('/:id', requireUser, async (req, res) => {
   try {
-    const seller = await Seller.findByIdAndDelete(req.params.id);
+    const seller = await Seller.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
     if (!seller) return res.status(404).json({ error: 'Seller not found' });
     res.json({ success: true, message: 'Seller deleted' });
   } catch (err) {
