@@ -68,6 +68,22 @@ const authLimiter = rateLimit({
   message: 'Too many login attempts from this IP, please try again later'
 });
 
+// Upload rate limiter - more generous for file uploads
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // limit each IP to 30 upload requests per 15 minutes
+  message: 'Too many upload requests from this IP, please try again later',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many upload requests',
+      message: 'You have exceeded the upload rate limit. Please wait a few minutes before trying again.',
+      retryAfter: 900 // 15 minutes in seconds
+    });
+  }
+});
+
 // Environment validation - skip exit for Vercel serverless
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
@@ -108,6 +124,7 @@ app.use(hpp());
 
 // Rate limiting
 app.use('/api/auth', authLimiter);
+app.use('/api/uploads', uploadLimiter);
 app.use('/api', apiLimiter);
 
 // Serve static files (uploaded images) with CORS headers

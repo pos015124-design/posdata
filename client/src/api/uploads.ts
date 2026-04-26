@@ -4,13 +4,21 @@ export const uploadProductImage = async (file: File) => {
   const formData = new FormData();
   formData.append('image', file);
   
-  const response = await api.post('/api/uploads/product-image', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  
-  return response.data;
+  try {
+    const response = await api.post('/api/uploads/product-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    // Re-throw with better error message for rate limiting
+    if (error.response?.status === 429) {
+      throw new Error('Upload rate limit exceeded. Please wait a few minutes before trying again.');
+    }
+    throw error;
+  }
 };
 
 export const uploadProductImages = async (files: File[]) => {
@@ -19,13 +27,21 @@ export const uploadProductImages = async (files: File[]) => {
     formData.append('images', file);
   });
   
-  const response = await api.post('/api/uploads/product-images', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  
-  return response.data;
+  try {
+    const response = await api.post('/api/uploads/product-images', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    // Re-throw with better error message for rate limiting
+    if (error.response?.status === 429) {
+      throw new Error('Upload rate limit exceeded. Please wait a few minutes before trying again.');
+    }
+    throw error;
+  }
 };
 
 export const deleteProductImage = async (filename: string) => {

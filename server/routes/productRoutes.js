@@ -125,6 +125,29 @@ router.post('/', requireUser, productValidation, handleValidationErrors, async (
     });
   } catch (error) {
     console.error('Error creating product:', error);
+    
+    // Handle duplicate key errors (E11000)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+      let message = 'Product already exists';
+      
+      if (field === 'code') {
+        message = 'A product with this code already exists';
+      } else if (field === 'barcode') {
+        message = 'A product with this barcode already exists';
+      } else if (field === 'userId_1_code_1') {
+        message = 'A product with this code already exists';
+      } else if (field === 'userId_1_barcode_1') {
+        message = 'A product with this barcode already exists';
+      }
+      
+      return res.status(400).json({ 
+        message,
+        field,
+        code: 'DUPLICATE_PRODUCT'
+      });
+    }
+    
     res.status(400).json({ message: error.message });
   }
 });

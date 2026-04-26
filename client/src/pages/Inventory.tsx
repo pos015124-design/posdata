@@ -67,12 +67,15 @@ export default function Inventory() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'name' || name === 'code' || name === 'barcode' || name === 'category'
-        ? value
-        : parseFloat(value) || 0
-    }));
+    // Use requestAnimationFrame for better performance on rapid input
+    requestAnimationFrame(() => {
+      setFormData(prev => ({
+        ...prev,
+        [name]: name === 'name' || name === 'code' || name === 'barcode' || name === 'category'
+          ? value
+          : parseFloat(value) || 0
+      }));
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,10 +108,11 @@ export default function Inventory() {
               description: 'Product added successfully',
             });
           }
-        } catch (error) {
+        } catch (error: any) {
+          const errorMessage = error.message || error.response?.data?.message || 'Failed to upload image, but product will be saved without it';
           toast({
             title: 'Warning',
-            description: 'Failed to upload image, but product will be saved without it',
+            description: errorMessage,
             variant: 'destructive',
           });
           
@@ -153,9 +157,20 @@ export default function Inventory() {
       // Notify other tabs/components (like Store) about the update
       localStorage.setItem('product-updated', Date.now().toString());
     } catch (error: any) {
+      let errorMessage = 'Failed to save product';
+      
+      // Handle duplicate product errors
+      if (error.response?.data?.code === 'DUPLICATE_PRODUCT') {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to save product',
+        description: errorMessage,
         variant: 'destructive',
       });
     }

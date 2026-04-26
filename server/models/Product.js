@@ -70,14 +70,11 @@ const productSchema = new mongoose.Schema({
   code: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
     index: true
   },
   barcode: {
     type: String,
-    required: true,
-    unique: true,
     trim: true,
     index: true
   },
@@ -288,6 +285,10 @@ productSchema.index({ createdAt: -1 });
 productSchema.index({ userId: 1, status: 1 }); // User's products
 productSchema.index({ businessId: 1, status: 1 }); // Business products
 productSchema.index({ isGlobal: 1, status: 1 }); // Global catalog
+
+// Compound unique indexes - ensure code/barcode uniqueness per user
+productSchema.index({ userId: 1, code: 1 }, { unique: true, partialFilterExpression: { code: { $type: 'string' } } });
+productSchema.index({ userId: 1, barcode: 1 }, { unique: true, sparse: true, partialFilterExpression: { barcode: { $type: 'string' } } });
 
 // Text search index for product search
 productSchema.index({
