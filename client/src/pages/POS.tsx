@@ -118,6 +118,9 @@ export default function POS() {
       });
       setCart([]);
       fetchSellerInventory(); // Refresh inventory to update stock
+      
+      // Notify dashboard and other pages about the new sale
+      localStorage.setItem('sale-created', Date.now().toString());
     } catch (error: any) {
       toast({
         title: 'Error',

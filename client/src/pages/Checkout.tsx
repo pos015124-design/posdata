@@ -92,6 +92,9 @@ export default function Checkout() {
       // Clear cart
       localStorage.removeItem('cart');
       
+      // Notify dashboard and other pages about the new sale
+      localStorage.setItem('sale-created', Date.now().toString());
+      
       toast({
         title: 'Order Placed!',
         description: `Order #${orderId} has been placed successfully`,

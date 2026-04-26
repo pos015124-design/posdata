@@ -177,9 +177,9 @@ export default function Store() {
                 <CardContent className="p-0">
                   {/* Product Image */}
                   <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    {product.images?.[0] ? (
+                    {product.images?.[0]?.url ? (
                       <img
-                        src={`${import.meta.env.VITE_API_URL || ''}${product.images[0]}`}
+                        src={`${import.meta.env.VITE_API_URL || ''}${product.images[0].url}`}
                         alt={product.name}
                         className="w-full h-full object-cover"
                       />

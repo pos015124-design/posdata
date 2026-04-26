@@ -28,6 +28,23 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardStats();
+    
+    // Listen for updates from other pages
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'product-updated' || e.key === 'sale-created' || e.key === 'customer-updated') {
+        fetchDashboardStats(); // Refresh dashboard stats
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Auto-refresh every 15 seconds for real-time updates
+    const refreshInterval = setInterval(fetchDashboardStats, 15000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const fetchDashboardStats = async () => {

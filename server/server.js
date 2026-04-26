@@ -130,7 +130,7 @@ app.use('/api/uploads', uploadRoutes);
 app.get('/api/public/products', async (req, res) => {
   try {
     const Product = require('./models/Product');
-    const products = await Product.find({ active: { $ne: false } })
+    const products = await Product.find({ status: 'active' })
       .select('name code price images category description stock')
       .sort({ createdAt: -1 });
     
@@ -141,7 +141,7 @@ app.get('/api/public/products', async (req, res) => {
         name: p.name,
         code: p.code,
         price: p.price,
-        images: p.images || [],
+        images: p.images || [], // Returns array of {url, alt, isPrimary, order}
         category: p.category,
         description: p.description,
         stock: p.stock
