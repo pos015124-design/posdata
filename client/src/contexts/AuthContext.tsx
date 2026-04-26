@@ -22,7 +22,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
+  register: (email: string, password: string, name?: string, businessName?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   hasPermission: (permission: keyof Permissions) => boolean;
@@ -65,9 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, name?: string) => {
+  const register = async (email: string, password: string, name?: string, businessName?: string) => {
     try {
-      const response = await apiRegister(email, password, name);
+      const response = await apiRegister(email, password, name, businessName);
 
       
       // For registration, we don't expect an access token because new users need approval

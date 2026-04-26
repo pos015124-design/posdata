@@ -159,6 +159,37 @@ router.post('/register',
       });
       await user.save();
 
+      // Automatically create a Business profile for the user
+      if (businessName || name) {
+        try {
+          const Business = require('../models/Business');
+          const business = new Business({
+            name: businessName || `${name}'s Store`,
+            slug: (businessName || name)
+              .toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .trim(),
+            email: email,
+            userId: user._id,
+            status: 'active',
+            isPublic: true,
+            category: 'retail'
+          });
+          await business.save();
+          
+          // Link user to business
+          user.businessId = business._id;
+          await user.save();
+          
+          console.log('✅ Business profile created:', { name: business.name, slug: business.slug });
+        } catch (error) {
+          console.error('Failed to create business profile:', error.message);
+          // Don't fail registration if business creation fails
+        }
+      }
+
       securityLogger.info('New user registration', {
         email: user.email,
         userId: user._id,

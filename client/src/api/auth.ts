@@ -28,11 +28,11 @@ export const login = async (email: string, password: string) => {
 
 // Description: Register user
 // Endpoint: POST /api/auth/register
-// Request: { email: string, password: string, name?: string }
+// Request: { email: string, password: string, name?: string, businessName?: string }
 // Response: { success: boolean, message: string, user: { role: string, email: string } }
-export const register = async (email: string, password: string, name?: string) => {
+export const register = async (email: string, password: string, name?: string, businessName?: string) => {
     try {
-        const response = await api.post('/api/auth/register', { email, password, name });
+        const response = await api.post('/api/auth/register', { email, password, name, businessName });
         return response.data;
     } catch (error: unknown) {
         const apiError = error as ApiError;

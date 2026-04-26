@@ -39,7 +39,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await register(formData.email, formData.password, formData.name);
+      await register(formData.email, formData.password, formData.name, formData.businessName);
       
       toast({
         title: 'Success',
@@ -102,14 +102,16 @@ export default function Register() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="businessName">Business Name (Optional)</Label>
+                <Label htmlFor="businessName">Business Name</Label>
                 <Input
                   id="businessName"
                   placeholder="My Store"
                   value={formData.businessName}
                   onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+                  required
                   className="h-11"
                 />
+                <p className="text-xs text-gray-500">This will be used to generate your store URL</p>
               </div>
             </div>
 
