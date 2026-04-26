@@ -25,6 +25,7 @@ export default function Dashboard() {
     totalProducts: 0,
     recentOrders: []
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -49,14 +50,17 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
+      setLoading(true);
       const [salesRes, customersRes, productsRes] = await Promise.all([
         salesApi.getAllSales(),
         customersApi.getCustomers(),
         productsApi.getProducts()
       ]);
 
+      console.log('Dashboard Data:', { salesRes, customersRes, productsRes });
+
       setStats({
-        totalSales: salesRes?.sales?.reduce((sum: number, sale: any) => sum + sale.total, 0) || 0,
+        totalSales: salesRes?.sales?.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0) || 0,
         totalOrders: salesRes?.sales?.length || 0,
         totalCustomers: customersRes?.customers?.length || 0,
         totalProducts: productsRes?.products?.length || 0,
@@ -64,6 +68,8 @@ export default function Dashboard() {
       });
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,10 +127,12 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {loading ? '...' : stat.value}
+                  </p>
                   <div className="flex items-center mt-2 text-sm text-green-600">
                     <TrendingUp className="w-4 h-4 mr-1" />
-                    <span>Loading...</span>
+                    <span>{loading ? 'Updating...' : 'Updated'}</span>
                   </div>
                 </div>
                 <div className={`p-4 rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg`}>
