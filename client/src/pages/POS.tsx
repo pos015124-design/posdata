@@ -17,6 +17,23 @@ export default function POS() {
 
   useEffect(() => {
     fetchSellerInventory();
+    
+    // Listen for product updates from inventory
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'product-updated') {
+        fetchSellerInventory(); // Refresh POS products when inventory changes
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Auto-refresh every 20 seconds for real-time updates
+    const refreshInterval = setInterval(fetchSellerInventory, 20000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   const fetchSellerInventory = async () => {

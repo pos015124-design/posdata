@@ -73,12 +73,33 @@ export default function Dashboard() {
 
       console.log('Dashboard Data:', { salesRes, customersRes, productsRes });
 
+      // Handle different response structures for sales
+      const salesArray = Array.isArray(salesRes?.sales) 
+        ? salesRes.sales 
+        : Array.isArray(salesRes?.data) 
+          ? salesRes.data 
+          : [];
+      
+      // Handle different response structures for products
+      const productsArray = Array.isArray(productsRes?.products) 
+        ? productsRes.products 
+        : Array.isArray(productsRes?.data) 
+          ? productsRes.data 
+          : [];
+      
+      // Handle different response structures for customers
+      const customersArray = Array.isArray(customersRes?.customers) 
+        ? customersRes.customers 
+        : Array.isArray(customersRes?.data) 
+          ? customersRes.data 
+          : [];
+
       setStats({
-        totalSales: salesRes?.sales?.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0) || 0,
-        totalOrders: salesRes?.sales?.length || 0,
-        totalCustomers: customersRes?.customers?.length || 0,
-        totalProducts: productsRes?.products?.length || 0,
-        recentOrders: salesRes?.sales?.slice(0, 5) || []
+        totalSales: salesArray.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0),
+        totalOrders: salesArray.length,
+        totalCustomers: customersArray.length,
+        totalProducts: productsArray.length,
+        recentOrders: salesArray.slice(0, 5)
       });
 
       // Fetch user's business to get the real slug
