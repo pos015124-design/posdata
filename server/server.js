@@ -157,6 +157,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/migrate', require('./routes/migrationRoutes'));
 
 // Public products endpoint for Store (no authentication required)
 app.get('/api/public/products', async (req, res) => {
