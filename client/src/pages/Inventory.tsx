@@ -25,7 +25,8 @@ export default function Inventory() {
     purchasePrice: 0,
     stock: 0,
     category: '',
-    reorderPoint: 0
+    reorderPoint: 0,
+    isPublished: false
   });
 
   const [productImage, setProductImage] = useState<string | null>(null);
@@ -199,7 +200,8 @@ export default function Inventory() {
       purchasePrice: product.purchasePrice,
       stock: product.stock,
       category: product.category,
-      reorderPoint: product.reorderPoint
+      reorderPoint: product.reorderPoint,
+      isPublished: product.isPublished || false
     });
     // Load existing image if any
     if (product.images && product.images.length > 0) {
@@ -241,7 +243,8 @@ export default function Inventory() {
       purchasePrice: 0,
       stock: 0,
       category: '',
-      reorderPoint: 0
+      reorderPoint: 0,
+      isPublished: false
     });
     setProductImage(null);
     setImageFile(null);
@@ -371,6 +374,7 @@ export default function Inventory() {
                     <th className="text-left py-3 px-4 font-semibold">Category</th>
                     <th className="text-left py-3 px-4 font-semibold">Stock</th>
                     <th className="text-left py-3 px-4 font-semibold">Price</th>
+                    <th className="text-center py-3 px-4 font-semibold">Store</th>
                     <th className="text-left py-3 px-4 font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -410,6 +414,17 @@ export default function Inventory() {
                         </span>
                       </td>
                       <td className="py-3 px-4 font-semibold">TZS {product.price?.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-center">
+                        {product.isPublished ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                            ✓ Published
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                            Draft
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => handleEdit(product)}>
@@ -555,6 +570,37 @@ export default function Inventory() {
                 <div>
                   <Label>Category</Label>
                   <Input name="category" value={formData.category} onChange={handleInputChange} />
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-semibold">Publish to Store</Label>
+                      <p className="text-sm text-gray-500 mt-1">
+                        When enabled, this product will appear in your public store
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, isPublished: !prev.isPublished }))}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        formData.isPublished ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          formData.isPublished ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {formData.isPublished && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        ✅ This product will be visible in your public store
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-4">

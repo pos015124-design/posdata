@@ -9,15 +9,20 @@ import {
   Users, 
   Package, 
   DollarSign,
-  Store
+  Store,
+  ExternalLink,
+  Copy,
+  Share2
 } from 'lucide-react';
 import * as salesApi from '../api/sales';
 import * as customersApi from '../api/customers';
 import * as productsApi from '../api/products';
+import { useToast } from '../hooks/useToast';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [stats, setStats] = useState({
     totalSales: 0,
     totalOrders: 0,
@@ -26,6 +31,8 @@ export default function Dashboard() {
     recentOrders: []
   });
   const [loading, setLoading] = useState(true);
+  const [businessSlug, setBusinessSlug] = useState<string | null>(null);
+  const storeUrl = businessSlug ? `${window.location.origin}/store/${businessSlug}` : null;
 
   useEffect(() => {
     fetchDashboardStats();
@@ -66,10 +73,48 @@ export default function Dashboard() {
         totalProducts: productsRes?.products?.length || 0,
         recentOrders: salesRes?.sales?.slice(0, 5) || []
       });
+
+      // Get business slug from localStorage or use default
+      const storedBusiness = localStorage.getItem('business');
+      if (storedBusiness) {
+        try {
+          const business = JSON.parse(storedBusiness);
+          setBusinessSlug(business.slug || null);
+        } catch (e) {
+          console.error('Failed to parse business data');
+        }
+      }
+      
+      // Fallback: generate from user email
+      if (!businessSlug && user?.email) {
+        const slug = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+        setBusinessSlug(slug);
+      }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyStoreLink = () => {
+    if (storeUrl) {
+      navigator.clipboard.writeText(storeUrl);
+      toast({
+        title: 'Link copied!',
+        description: 'Your store link has been copied to clipboard',
+      });
+    }
+  };
+
+  const shareStore = () => {
+    if (storeUrl && navigator.share) {
+      navigator.share({
+        title: 'My Store',
+        url: storeUrl
+      });
+    } else {
+      copyStoreLink();
     }
   };
 
@@ -111,14 +156,61 @@ export default function Dashboard() {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Dashboard</h1>
           <p className="text-gray-600 mt-1 text-center md:text-left">Welcome back, {user?.email}!</p>
         </div>
-        <Button 
-          onClick={() => navigate('/pos')}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 w-full md:w-auto"
-        >
-          <Store className="w-4 h-4 mr-2" />
-          Go to POS
-        </Button>
+        <div className="flex gap-2 w-full md:w-auto">
+          {storeUrl && (
+            <Button 
+              variant="outline"
+              onClick={shareStore}
+              className="flex items-center gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              Share Store
+            </Button>
+          )}
+          <Button 
+            onClick={() => navigate('/pos')}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 flex items-center gap-2"
+          >
+            <Store className="w-4 h-4" />
+            Go to POS
+          </Button>
+        </div>
       </div>
+
+      {/* Store Link Card */}
+      {storeUrl && (
+        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Store className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-bold text-gray-900">Your Online Store</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Share this link with your customers to let them browse and buy your products
+                </p>
+                <div className="flex items-center gap-2 p-3 bg-white rounded-lg border">
+                  <code className="flex-1 text-sm text-blue-600 break-all">
+                    {storeUrl}
+                  </code>
+                  <Button size="sm" onClick={copyStoreLink} className="flex items-center gap-2">
+                    <Copy className="w-4 h-4" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <Button 
+                onClick={() => window.open(storeUrl, '_blank')}
+                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+              >
+                View Store
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, index) => (
