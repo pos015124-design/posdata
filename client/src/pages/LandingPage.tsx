@@ -77,7 +77,7 @@ const LandingPage: React.FC = () => {
     {
       name: "Sarah Johnson",
       business: "Bloom Boutique",
-      content: "Dukani transformed our business! We went from a small local store to selling online nationwide. The platform is incredibly easy to use.",
+      content: "E-Shop transformed our business! We went from a small local store to selling online nationwide. The platform is incredibly easy to use.",
       rating: 5
     },
     {
@@ -120,7 +120,7 @@ const LandingPage: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <ShoppingBag className="w-8 h-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Dukani</span>
+              <span className="ml-2 text-xl font-bold text-gray-900">E-Shop</span>
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
@@ -220,10 +220,10 @@ const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Why Choose Dukani?
+                Why Choose E-Shop?
               </h2>
               <p className="text-lg text-gray-600 mb-8">
-                Join thousands of successful businesses that trust Dukani to power their online presence.
+                Join thousands of successful businesses that trust E-Shop to power their online presence.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {benefits.map((benefit, index) => (
@@ -262,7 +262,7 @@ const LandingPage: React.FC = () => {
               Loved by Business Owners
             </h2>
             <p className="text-xl text-gray-600">
-              See what our customers have to say about their experience with Dukani.
+              See what our customers have to say about their experience with E-Shop.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -293,7 +293,7 @@ const LandingPage: React.FC = () => {
             Ready to Transform Your Business?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto">
-            Join thousands of successful businesses using Dukani. Start your free trial today 
+            Join thousands of successful businesses using E-Shop. Start your free trial today
             and see the difference our platform can make.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -321,7 +321,7 @@ const LandingPage: React.FC = () => {
             <div>
               <div className="flex items-center mb-4">
                 <ShoppingBag className="w-8 h-8 text-blue-400" />
-                <span className="ml-2 text-xl font-bold">Dukani</span>
+                <span className="ml-2 text-xl font-bold">E-Shop</span>
               </div>
               <p className="text-gray-400">
                 The complete e-commerce platform for modern businesses.
@@ -356,7 +356,7 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 Dukani. All rights reserved.</p>
+            <p>&copy; 2024 E-Shop. All rights reserved.</p>
           </div>
         </div>
       </footer>

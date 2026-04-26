@@ -158,7 +158,7 @@ export default function IndividualStore() {
                 />
               ) : (
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Store className="w-6 h-6 text-white" />
+                  <span className="text-white font-bold text-sm">E-Shop</span>
                 </div>
               )}
               <div>
@@ -339,7 +339,7 @@ export default function IndividualStore() {
       <footer className="bg-white border-t mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
           <p className="mb-2">
-            <strong>{business.name}</strong> - Powered by Dukani
+            <strong>{business.name}</strong> - Powered by E-Shop
           </p>
           <p className="text-sm">
             Share this store: <button onClick={shareStore} className="text-blue-600 hover:underline inline-flex items-center gap-1">

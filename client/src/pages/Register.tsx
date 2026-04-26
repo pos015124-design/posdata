@@ -79,7 +79,7 @@ export default function Register() {
             <Store className="w-8 h-8 text-white" />
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Join Dukani POS
+            Join E-Shop
           </CardTitle>
           <CardDescription className="text-base">
             Create your multi-vendor seller account

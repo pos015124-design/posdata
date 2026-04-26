@@ -164,7 +164,7 @@ app.use('/api/public', require('./routes/storeRoutes'));
 app.get('/api/public/products', async (req, res) => {
   try {
     const Product = require('./models/Product');
-    const products = await Product.find({ status: 'active' })
+    const products = await Product.find({ status: 'active', isPublished: true })
       .select('name code price images category description stock')
       .sort({ createdAt: -1 });
     

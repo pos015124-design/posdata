@@ -49,7 +49,7 @@ export default function Login() {
             <Store className="w-8 h-8 text-white" />
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Dukani POS
+            E-Shop
           </CardTitle>
           <CardDescription className="text-base">
             Sign in to your multi-vendor account

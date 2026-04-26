@@ -73,7 +73,7 @@ export default function Layout({ children }: LayoutProps) {
       }`}>
         <div className="p-4 md:p-6">
           <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Dukani POS
+            E-Shop
           </h1>
           <p className="text-xs md:text-sm text-gray-300 mt-1 truncate">{user?.email}</p>
         </div>
