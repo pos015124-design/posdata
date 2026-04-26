@@ -12,17 +12,17 @@ const { paginationMiddleware } = require('../utils/pagination');
 const { auditLogger } = require('../config/logger');
 const { cacheMiddleware } = require('../config/cache');
 
-// Get all customers with pagination and search
+// Get all customers with pagination and search - SCOPED TO CURRENT USER
 router.get('/',
   requireUser,
   checkPermission('customers'),
   paginationValidation,
   handleValidationErrors,
   paginationMiddleware,
-  cacheMiddleware(300), // Cache for 5 minutes
   async (req, res) => {
     try {
-      const result = await CustomerService.getAllCustomers(req.pagination, req.query);
+      // CRITICAL: Pass userId to filter customers by owner
+      const result = await CustomerService.getAllCustomers(req.pagination, req.query, req.user.userId);
 
       auditLogger.info('Customers accessed', {
         action: 'VIEW_CUSTOMERS',
@@ -59,7 +59,7 @@ router.get('/:id', requireUser, mongoIdValidation('id'), handleValidationErrors,
   }
 });
 
-// Create a new customer
+// Create a new customer - SCOPED TO CURRENT USER
 router.post('/',
   requireUser,
   checkPermission('customers'),
@@ -67,7 +67,8 @@ router.post('/',
   handleValidationErrors,
   async (req, res) => {
     try {
-      const customer = await CustomerService.createCustomer(req.body);
+      // CRITICAL: Pass userId to link customer to current user
+      const customer = await CustomerService.createCustomer(req.body, req.user.userId);
 
       auditLogger.info('Customer created', {
         action: 'CREATE_CUSTOMER',
@@ -94,10 +95,11 @@ router.post('/',
   }
 );
 
-// Update a customer
+// Update a customer - WITH OWNERSHIP CHECK
 router.put('/:id', requireUser, mongoIdValidation('id'), customerValidation, handleValidationErrors, async (req, res) => {
   try {
-    const customer = await CustomerService.updateCustomer(req.params.id, req.body);
+    // CRITICAL: Pass userId to ensure user can only update their own customers
+    const customer = await CustomerService.updateCustomer(req.params.id, req.body, req.user.userId);
     res.json({ 
       success: true,
       customer 
@@ -111,10 +113,11 @@ router.put('/:id', requireUser, mongoIdValidation('id'), customerValidation, han
   }
 });
 
-// Delete a customer
+// Delete a customer - WITH OWNERSHIP CHECK
 router.delete('/:id', requireUser, mongoIdValidation('id'), handleValidationErrors, async (req, res) => {
   try {
-    await CustomerService.deleteCustomer(req.params.id);
+    // CRITICAL: Pass userId to ensure user can only delete their own customers
+    await CustomerService.deleteCustomer(req.params.id, req.user.userId);
     res.json({ 
       success: true,
       message: 'Customer deleted successfully' 

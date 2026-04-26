@@ -28,6 +28,12 @@ const customerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
   tenantId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tenant',

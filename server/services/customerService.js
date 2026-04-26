@@ -1,11 +1,16 @@
 const Customer = require('../models/Customer');
 
 class CustomerService {
-  async getAllCustomers(pagination, filters = {}) {
+  async getAllCustomers(pagination, filters = {}, userId = null) {
     const { page, limit, skip } = pagination;
     const { search } = filters;
 
     let query = { isActive: true };
+
+    // CRITICAL: Filter by userId for data isolation
+    if (userId) {
+      query.userId = userId;
+    }
 
     if (search) {
       query.$or = [
@@ -40,15 +45,25 @@ class CustomerService {
     return customer;
   }
 
-  async createCustomer(data) {
+  async createCustomer(data, userId = null) {
+    // CRITICAL: Link customer to user for data isolation
+    if (userId) {
+      data.userId = userId;
+    }
     const customer = new Customer(data);
     await customer.save();
     return customer;
   }
 
-  async updateCustomer(id, data) {
-    const customer = await Customer.findByIdAndUpdate(
-      id,
+  async updateCustomer(id, data, userId = null) {
+    // CRITICAL: Ensure user can only update their own customers
+    const query = { _id: id };
+    if (userId) {
+      query.userId = userId;
+    }
+    
+    const customer = await Customer.findOneAndUpdate(
+      query,
       data,
       { new: true, runValidators: true }
     );
@@ -58,9 +73,15 @@ class CustomerService {
     return customer;
   }
 
-  async deleteCustomer(id) {
-    const customer = await Customer.findByIdAndUpdate(
-      id,
+  async deleteCustomer(id, userId = null) {
+    // CRITICAL: Ensure user can only delete their own customers
+    const query = { _id: id };
+    if (userId) {
+      query.userId = userId;
+    }
+    
+    const customer = await Customer.findOneAndUpdate(
+      query,
       { isActive: false },
       { new: true }
     );
