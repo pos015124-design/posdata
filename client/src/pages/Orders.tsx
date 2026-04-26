@@ -23,8 +23,18 @@ export default function Orders() {
     try {
       setLoading(true);
       const response = await salesApi.getAllSales();
-      setOrders(response.sales || []);
+      // Handle different response structures
+      const ordersList = Array.isArray(response?.sales) 
+        ? response.sales 
+        : Array.isArray(response?.data) 
+          ? response.data 
+          : Array.isArray(response) 
+            ? response 
+            : [];
+      setOrders(ordersList);
     } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      setOrders([]); // Ensure it's always an array
       toast({
         title: 'Error',
         description: 'Failed to load orders',
@@ -49,7 +59,10 @@ export default function Orders() {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
+  // Ensure orders is always an array before filtering
+  const ordersArray = Array.isArray(orders) ? orders : [];
+  
+  const filteredOrders = ordersArray.filter(order => {
     const matchesSearch = 
       order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.paymentMethod?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -60,8 +73,8 @@ export default function Orders() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-  const completedOrders = orders.filter(o => (o.status || 'completed') === 'completed').length;
+  const totalRevenue = ordersArray.reduce((sum, order) => sum + (order.total || 0), 0);
+  const completedOrders = ordersArray.filter(o => (o.status || 'completed') === 'completed').length;
 
   return (
     <div className="space-y-6">

@@ -100,6 +100,7 @@ export default function Sellers() {
         });
 
         if (response.ok) {
+          const data = await response.json();
           toast({
             title: 'Success',
             description: 'Seller updated successfully',
@@ -109,9 +110,17 @@ export default function Sellers() {
           setNewSeller({ name: '', email: '', phone: '', status: 'active' });
           fetchSellers();
         } else {
+          // Safely parse error response
+          let errorMessage = 'Failed to update seller';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = response.statusText || errorMessage;
+          }
           toast({
             title: 'Error',
-            description: 'Failed to update seller',
+            description: errorMessage,
             variant: 'destructive',
           });
         }
@@ -127,18 +136,28 @@ export default function Sellers() {
         });
 
         if (response.ok) {
+          const data = await response.json();
           toast({
             title: 'Success',
             description: 'Seller added successfully',
           });
           setShowAddModal(false);
+          setSelectedSeller(null);
           setNewSeller({ name: '', email: '', phone: '', status: 'active' });
           fetchSellers();
         } else {
-          const errorData = await response.json();
+          // Safely parse error response
+          let errorMessage = 'Failed to add seller';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            // If JSON parsing fails, use status text
+            errorMessage = response.statusText || errorMessage;
+          }
           toast({
             title: 'Error',
-            description: errorData.error || 'Failed to add seller',
+            description: errorMessage,
             variant: 'destructive',
           });
         }
