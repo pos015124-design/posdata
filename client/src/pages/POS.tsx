@@ -4,31 +4,30 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Store, ShoppingCart, Search, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
-import * as sellerInventoryApi from '../api/sellerInventory';
+import * as productsApi from '../api/products';
 import * as salesApi from '../api/sales';
 
 export default function POS() {
   const [cart, setCart] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sellerInfo, setSellerInfo] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchSellerInventory();
+    fetchProducts();
     
     // Listen for product updates from inventory
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'product-updated') {
-        fetchSellerInventory(); // Refresh POS products when inventory changes
+        fetchProducts(); // Refresh POS products when inventory changes
       }
     };
     
     window.addEventListener('storage', handleStorageChange);
     
     // Auto-refresh every 20 seconds for real-time updates
-    const refreshInterval = setInterval(fetchSellerInventory, 20000);
+    const refreshInterval = setInterval(fetchProducts, 20000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -36,36 +35,29 @@ export default function POS() {
     };
   }, []);
 
-  const fetchSellerInventory = async () => {
+  const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await sellerInventoryApi.getSellerInventory();
-      setInventoryItems(response.inventory || []);
-      setSellerInfo(response.seller || null);
+      const response = await productsApi.getProducts();
+      // Handle different response structures
+      const productsList = Array.isArray(response?.products) 
+        ? response.products 
+        : Array.isArray(response?.data) 
+          ? response.data 
+          : [];
+      setProducts(productsList);
     } catch (error) {
-      console.error('Failed to fetch seller inventory:', error);
+      console.error('Failed to fetch products:', error);
+      setProducts([]);
       toast({
         title: 'Error',
-        description: 'Failed to load inventory',
+        description: 'Failed to load products',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
   };
-
-  // Transform inventory items to products with seller-specific pricing
-  const products = inventoryItems.map((item: any) => ({
-    _id: item.product?._id || item._id,
-    inventoryId: item._id,
-    name: item.product?.name || 'Unknown Product',
-    code: item.product?.code || '',
-    barcode: item.barcode || item.product?.barcode || '',
-    price: item.price,
-    stock: item.stock,
-    category: item.product?.category || '',
-    images: item.product?.images || []
-  }));
 
   const filteredProducts = products.filter(product => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,7 +110,6 @@ export default function POS() {
       const saleData = {
         items: cart.map(item => ({
           product: item._id,
-          inventory: item.inventoryId,
           name: item.name,
           quantity: item.quantity,
           price: item.price
@@ -134,7 +125,7 @@ export default function POS() {
         description: `Sale completed! Total: TZS ${total.toLocaleString()}`,
       });
       setCart([]);
-      fetchSellerInventory(); // Refresh inventory to update stock
+      fetchProducts(); // Refresh products to update stock
       
       // Notify dashboard and other pages about the new sale
       localStorage.setItem('sale-created', Date.now().toString());
@@ -161,11 +152,6 @@ export default function POS() {
               className="pl-10 h-12"
             />
           </div>
-          {sellerInfo && (
-            <p className="text-sm text-gray-600 mt-2">
-              Seller: <span className="font-semibold">{sellerInfo.name}</span>
-            </p>
-          )}
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
