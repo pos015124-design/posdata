@@ -47,9 +47,21 @@ export default function Register() {
       });
       navigate('/login');
     } catch (error: any) {
+      console.error('Registration error:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Registration failed';
+      
+      // Show detailed error if available
+      const details = error.response?.data?.details;
+      const description = details 
+        ? details.map((d: any) => d.msg).join(', ')
+        : errorMessage;
+      
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Registration failed',
+        description,
         variant: 'destructive',
       });
     } finally {
@@ -121,7 +133,7 @@ export default function Register() {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  placeholder="Min 6 characters"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   required
@@ -135,6 +147,7 @@ export default function Register() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              <p className="text-xs text-gray-500">At least 6 characters</p>
             </div>
 
             <div className="space-y-2">
