@@ -14,6 +14,8 @@ import Sellers from './pages/Sellers';
 import Orders from './pages/Orders';
 import Expenses from './pages/Expenses';
 import Store from './pages/Store';
+import IndividualStore from './pages/IndividualStore';
+import StoreDirectory from './pages/StoreDirectory';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import { Toaster } from './components/ui/toaster';
@@ -40,6 +42,8 @@ function App() {
             
             {/* E-commerce Storefront (Public) */}
             <Route path="/store" element={<Store />} />
+            <Route path="/stores" element={<StoreDirectory />} />
+            <Route path="/store/:slug" element={<IndividualStore />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             
