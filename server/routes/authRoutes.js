@@ -159,10 +159,11 @@ router.post('/register',
       // Create a corresponding staff record
       const staffName = name || email.split('@')[0]; // Use name if provided, otherwise use email username
       const staff = new Staff({
+        userId: user._id,  // Changed from 'user' to 'userId'
         name: staffName,
-        role: 'Sales Clerk', // Default role
+        role: 'staff',     // Changed from 'Sales Clerk' to valid enum value 'staff'
         email: email,
-        user: user._id
+        isActive: true
       });
       await staff.save();
 
