@@ -92,6 +92,44 @@ router.post('/register', validateBusinessRegistration, handleValidationErrors, a
 });
 
 /**
+ * GET /api/business/my-business
+ * Get current user's business profile
+ */
+router.get('/my-business', requireUser, async (req, res) => {
+  try {
+    const Business = require('../models/Business');
+    
+    // Find business owned by this user
+    const business = await Business.findOne({ 
+      userId: req.user.userId 
+    }).select('name slug description logo email phone address isPublic status');
+    
+    if (!business) {
+      return res.status(404).json({
+        error: 'Business not found',
+        message: 'You have not created a business profile yet'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: business
+    });
+    
+  } catch (error) {
+    logger.error('Failed to get user business', {
+      error: error.message,
+      userId: req.user.userId
+    });
+    
+    res.status(500).json({
+      error: 'Failed to fetch business',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/business/pending
  * Get pending business registrations (Admin only)
  */

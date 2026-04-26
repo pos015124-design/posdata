@@ -17,6 +17,7 @@ import {
 import * as salesApi from '../api/sales';
 import * as customersApi from '../api/customers';
 import * as productsApi from '../api/products';
+import * as businessApi from '../api/business';
 import { useToast } from '../hooks/useToast';
 
 export default function Dashboard() {
@@ -74,21 +75,21 @@ export default function Dashboard() {
         recentOrders: salesRes?.sales?.slice(0, 5) || []
       });
 
-      // Get business slug from localStorage or use default
-      const storedBusiness = localStorage.getItem('business');
-      if (storedBusiness) {
-        try {
-          const business = JSON.parse(storedBusiness);
-          setBusinessSlug(business.slug || null);
-        } catch (e) {
-          console.error('Failed to parse business data');
+      // Fetch user's business to get the real slug
+      try {
+        const businessRes = await businessApi.getMyBusiness();
+        if (businessRes?.data?.slug) {
+          setBusinessSlug(businessRes.data.slug);
+          // Also save to localStorage for other components
+          localStorage.setItem('business', JSON.stringify(businessRes.data));
         }
-      }
-      
-      // Fallback: generate from user email
-      if (!businessSlug && user?.email) {
-        const slug = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
-        setBusinessSlug(slug);
+      } catch (error) {
+        console.log('No business profile found, using fallback slug');
+        // Fallback: generate from user email
+        if (user?.email) {
+          const slug = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+          setBusinessSlug(slug);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
