@@ -76,39 +76,29 @@ export default function Settings() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const response = await settingsApi.getSettings();
-      const settings = response.settings;
       
-      if (settings) {
-        if (settings.business) {
-          setBusinessSettings({
-            name: settings.business.name || '',
-            slug: settings.business.slug || '',
-            address: settings.business.address || '',
-            phone: settings.business.phone || '',
-            email: settings.business.email || '',
-            taxId: settings.business.taxId || '',
-            isPublic: settings.business.isPublic || false,
-            status: settings.business.status || 'pending'
-          });
-        }
-        if (settings.tax) {
-          setTaxSettings({
-            defaultTaxRate: settings.tax.defaultTaxRate || '18',
-            taxIncluded: settings.tax.taxIncluded || false,
-            enableTax: settings.tax.enableTax !== undefined ? settings.tax.enableTax : true
-          });
-        }
-        if (settings.payment) {
-          setPaymentSettings({
-            acceptCash: settings.payment.acceptCash !== undefined ? settings.payment.acceptCash : true,
-            acceptCard: settings.payment.acceptCard !== undefined ? settings.payment.acceptCard : true,
-            acceptMobile: settings.payment.acceptMobile !== undefined ? settings.payment.acceptMobile : true,
-            acceptCredit: settings.payment.acceptCredit || false,
-            defaultPaymentMethod: settings.payment.defaultPaymentMethod || 'cash'
-          });
-        }
+      // Load business settings from business API
+      const token = localStorage.getItem('token');
+      const businessResponse = await fetch('/api/business/my-business', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (businessResponse.ok) {
+        const businessData = await businessResponse.json();
+        const business = businessData.data;
+        
+        setBusinessSettings({
+          name: business.name || '',
+          slug: business.slug || '',
+          address: business.address || '',
+          phone: business.phone || '',
+          email: business.email || '',
+          taxId: business.taxId || '',
+          isPublic: business.isPublic || false,
+          status: business.status || 'pending'
+        });
       }
+      
     } catch (error) {
       console.error('Failed to load settings:', error);
       // Use defaults if API fails
@@ -138,15 +128,72 @@ export default function Settings() {
   const handleSaveBusiness = async () => {
     try {
       setSaving(true);
-      await settingsApi.updateBusinessSettings(businessSettings);
-      toast({
-        title: 'Success',
-        description: 'Business settings saved successfully!',
+      
+      // Get current user's business
+      const token = localStorage.getItem('token');
+      
+      // First, try to get existing business
+      const getResponse = await fetch('/api/business/my-business', {
+        headers: { Authorization: `Bearer ${token}` }
       });
-    } catch (error) {
+      
+      let businessId: string | null = null;
+      
+      if (getResponse.ok) {
+        const getData = await getResponse.json();
+        businessId = getData.data._id;
+      }
+      
+      // Prepare business data
+      const businessData = {
+        name: businessSettings.name,
+        slug: businessSettings.slug,
+        address: businessSettings.address,
+        phone: businessSettings.phone,
+        email: businessSettings.email,
+        isPublic: businessSettings.isPublic,
+        // Don't send status - only admin can change it
+      };
+      
+      let response;
+      
+      if (businessId) {
+        // Update existing business
+        response = await fetch(`/api/business/${businessId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(businessData)
+        });
+      } else {
+        // Create new business - use business registration endpoint
+        response = await fetch('/api/business/my-business', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(businessData)
+        });
+      }
+      
+      if (response.ok) {
+        toast({
+          title: 'Success',
+          description: 'Business settings saved successfully!',
+        });
+        // Reload to get updated data
+        loadSettings();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save');
+      }
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to save business settings',
+        description: error.message || 'Failed to save business settings',
         variant: 'destructive',
       });
     } finally {

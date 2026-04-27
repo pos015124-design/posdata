@@ -102,7 +102,7 @@ router.get('/my-business', requireUser, async (req, res) => {
     // Find business owned by this user
     const business = await Business.findOne({ 
       userId: req.user.userId 
-    }).select('name slug description logo email phone address isPublic status');
+    }).select('name slug description logo email phone address isPublic status category');
     
     if (!business) {
       return res.status(404).json({
@@ -124,6 +124,101 @@ router.get('/my-business', requireUser, async (req, res) => {
     
     res.status(500).json({
       error: 'Failed to fetch business',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/business/my-business
+ * Create business profile for current user
+ */
+router.post('/my-business', requireUser, async (req, res) => {
+  try {
+    const Business = require('../models/Business');
+    const { name, slug, email, phone, address, category, description, isPublic } = req.body;
+    
+    // Check if user already has a business
+    const existingBusiness = await Business.findOne({ userId: req.user.userId });
+    
+    if (existingBusiness) {
+      return res.status(400).json({
+        error: 'Business already exists',
+        message: 'You already have a business profile. Use PUT to update it.',
+        businessId: existingBusiness._id
+      });
+    }
+    
+    // Generate slug if not provided
+    let businessSlug = slug;
+    if (!businessSlug && name) {
+      businessSlug = name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+    }
+    
+    if (!businessSlug) {
+      return res.status(400).json({
+        error: 'Slug required',
+        message: 'Please provide a store slug or business name'
+      });
+    }
+    
+    // Check if slug is unique
+    const slugExists = await Business.findOne({ slug: businessSlug });
+    if (slugExists) {
+      return res.status(400).json({
+        error: 'Slug already taken',
+        message: 'This store URL is already in use. Please choose a different one.'
+      });
+    }
+    
+    // Create business
+    const business = new Business({
+      name: name || `${req.user.email}'s Store`,
+      slug: businessSlug,
+      email: email || req.user.email,
+      phone: phone || '',
+      address: address || {},
+      category: category || 'retail',
+      description: description || '',
+      userId: req.user.userId,
+      status: 'active', // Auto-activate for now
+      isPublic: isPublic !== undefined ? isPublic : true
+    });
+    
+    await business.save();
+    
+    // Link user to business
+    const User = require('../models/User');
+    await User.findByIdAndUpdate(req.user.userId, {
+      businessId: business._id
+    });
+    
+    logger.info('Business created', {
+      businessId: business._id,
+      userId: req.user.userId,
+      slug: business.slug,
+      name: business.name
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Business created successfully',
+      data: business
+    });
+    
+  } catch (error) {
+    logger.error('Failed to create business', {
+      error: error.message,
+      userId: req.user.userId
+    });
+    
+    res.status(400).json({
+      error: 'Failed to create business',
       message: error.message
     });
   }
