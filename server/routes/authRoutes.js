@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Staff = require('../models/Staff');
-const TenantService = require('../services/tenantService');
 const { requireUser, requireAdmin } = require('./middleware/auth.js');
 const {
   validateLogin,
@@ -57,9 +56,8 @@ router.post('/login',
 
 
 
-      // Auto-approve only platform admins on login.
-      // business_admin accounts must remain pending until super-admin approval.
-      if (user.role === 'super_admin' || user.role === 'admin') {
+      // Auto-approve admin users on login
+      if (user.role === 'super_admin' || user.role === 'business_admin') {
         let updated = false;
         if (!user.isApproved) {
           user.isApproved = true;
@@ -184,7 +182,7 @@ router.post('/register',
         firstName: name?.split(' ')[0] || '',
         lastName: name?.split(' ').slice(1).join(' ') || '',
         role: 'business_admin', // Business owner/seller role
-        isApproved: false // Require super-admin approval
+        isApproved: true // Auto-approve business registrations
       });
       await user.save();
 
@@ -192,22 +190,7 @@ router.post('/register',
       if (businessName || name) {
         try {
           const Business = require('../models/Business');
-          // Ensure tenant exists for business/user linkage
-          const tenant = await TenantService.createTenant({
-            name: businessName || `${name}'s Store`,
-            domain: (businessName || name)
-              .toLowerCase()
-              .replace(/[^a-z0-9\s-]/g, '')
-              .replace(/\s+/g, '-')
-              .replace(/-+/g, '-')
-              .trim(),
-            adminEmail: email,
-            plan: 'basic'
-          });
-
-          user.tenantId = tenant.tenantId;
           const business = new Business({
-            tenantId: tenant.tenantId,
             name: businessName || `${name}'s Store`,
             slug: (businessName || name)
               .toLowerCase()
@@ -217,8 +200,8 @@ router.post('/register',
               .trim(),
             email: email,
             userId: user._id,
-            status: 'pending',
-            isPublic: false,
+            status: 'active',
+            isPublic: true,
             category: 'retail'
           });
           await business.save();
@@ -405,19 +388,6 @@ router.get('/pending-users', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/users', requireAdmin, async (req, res) => {
-  try {
-    const users = await User.find({})
-      .select('-password')
-      .sort({ createdAt: -1 });
-
-    return res.json({ users });
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
-});
-
 router.put('/approve/:userId', requireAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -427,15 +397,6 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
     
     user.isApproved = true;
     await user.save();
-
-    // If user has a linked business, activate and publish it when approved.
-    if (user.businessId) {
-      const Business = require('../models/Business');
-      await Business.findByIdAndUpdate(user.businessId, {
-        status: 'active',
-        isPublic: true
-      });
-    }
     
     return res.json({ 
       success: true, 
@@ -448,38 +409,6 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error approving user:', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
-});
-
-router.put('/approve-all-pending', requireAdmin, async (req, res) => {
-  try {
-    const pendingUsers = await User.find({ isApproved: false }).select('_id businessId');
-    const userIds = pendingUsers.map((u) => u._id);
-    const businessIds = pendingUsers
-      .map((u) => u.businessId)
-      .filter(Boolean);
-
-    const result = await User.updateMany(
-      { _id: { $in: userIds } },
-      { $set: { isApproved: true } }
-    );
-
-    if (businessIds.length > 0) {
-      const Business = require('../models/Business');
-      await Business.updateMany(
-        { _id: { $in: businessIds } },
-        { $set: { status: 'active', isPublic: true } }
-      );
-    }
-
-    return res.json({
-      success: true,
-      message: `Approved ${result.modifiedCount || 0} pending user account(s)`,
-      approvedCount: result.modifiedCount || 0
-    });
-  } catch (error) {
-    console.error('Error approving all pending users:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });
