@@ -131,6 +131,9 @@ export default function POS() {
       
       // Notify dashboard and other pages about the new sale
       localStorage.setItem('sale-created', Date.now().toString());
+      
+      // Dispatch custom event for same-tab listeners
+      window.dispatchEvent(new Event('sale-created'));
     } catch (error: any) {
       toast({
         title: 'Error',

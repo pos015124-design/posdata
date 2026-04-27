@@ -44,20 +44,39 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardStats();
     
-    // Listen for updates from other pages
+    // Listen for updates from other pages/tabs
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'product-updated' || e.key === 'sale-created' || e.key === 'customer-updated') {
+        console.log('🔄 Dashboard refreshing due to:', e.key);
         fetchDashboardStats(); // Refresh dashboard stats
       }
     };
     
-    window.addEventListener('storage', handleStorageChange);
+    // Listen for custom events from same tab (POS, Checkout)
+    const handleSaleCreated = () => {
+      console.log('🔄 Dashboard refreshing due to sale-created event');
+      fetchDashboardStats();
+    };
     
-    // Auto-refresh every 15 seconds for real-time updates
-    const refreshInterval = setInterval(fetchDashboardStats, 15000);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('sale-created', handleSaleCreated);
+    
+    // Refresh when user returns to tab
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Dashboard refreshing on tab focus');
+        fetchDashboardStats();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Auto-refresh every 10 seconds for real-time updates
+    const refreshInterval = setInterval(fetchDashboardStats, 10000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('sale-created', handleSaleCreated);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(refreshInterval);
     };
   }, []);

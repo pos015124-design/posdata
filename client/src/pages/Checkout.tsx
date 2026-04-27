@@ -95,6 +95,9 @@ export default function Checkout() {
       // Notify dashboard and other pages about the new sale
       localStorage.setItem('sale-created', Date.now().toString());
       
+      // Dispatch custom event for same-tab listeners
+      window.dispatchEvent(new Event('sale-created'));
+      
       toast({
         title: 'Order Placed!',
         description: `Order #${orderId} has been placed successfully`,
