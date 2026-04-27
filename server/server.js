@@ -275,16 +275,22 @@ const startServer = async () => {
     console.log('⚠️ Server will start without database connection');
   }
 
-  // Start server
-  const server = http.createServer(app);
-  server.listen(port, () => {
-    console.log(`🚀 Server running at http://localhost:${port}`);
-    console.log(`✅ Registration endpoint available at http://localhost:${port}/api/auth/register`);
-    console.log(`✅ Login endpoint available at http://localhost:${port}/api/auth/login`);
-    console.log('✅ Server started successfully!');
-  });
+  // CRITICAL: Only start listening if NOT on Vercel (serverless)
+  // Vercel handles routing automatically, we just export the app
+  if (process.env.VERCEL !== '1') {
+    // Start server for local development or traditional hosting
+    const server = http.createServer(app);
+    server.listen(port, () => {
+      console.log(`🚀 Server running at http://localhost:${port}`);
+      console.log(`✅ Registration endpoint available at http://localhost:${port}/api/auth/register`);
+      console.log(`✅ Login endpoint available at http://localhost:${port}/api/auth/login`);
+      console.log('✅ Server started successfully!');
+    });
 
-  return server;
+    return server;
+  } else {
+    console.log('🔵 Running on Vercel - serverless mode (no app.listen)');
+  }
 };
 
 // Start the server
