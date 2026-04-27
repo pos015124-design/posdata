@@ -9,6 +9,9 @@ const requireUser = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
+    // DEBUG: Log decoded token
+    console.log(`[AUTH] Token decoded - userId: ${decoded.userId}, email: ${decoded.email}, role: ${decoded.role}`);
+    
     // Check if user exists and is approved
     const user = await User.findById(decoded.userId);
     if (!user) {
@@ -19,6 +22,8 @@ const requireUser = async (req, res, next) => {
       });
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    console.log(`[AUTH] User found in DB - ${user.email}, isActive: ${user.isActive}`);
     
     if (!user.isApproved && !['admin', 'super_admin'].includes(user.role)) {
       securityLogger.warn('Authentication failed - account not approved', {
@@ -40,6 +45,8 @@ const requireUser = async (req, res, next) => {
     req.user = decoded;
     req.userDetails = user;
     req.userPermissions = user.permissions;
+    
+    console.log(`[AUTH] Authentication successful for ${user.email}`);
     next();
   } catch (err) {
     securityLogger.warn('Authentication failed - invalid token', {

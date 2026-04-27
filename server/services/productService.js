@@ -46,7 +46,7 @@ class ProductService {
       }
 
       // Use pagination utility with search fields
-      return await createPaginatedResponse(
+      const result = await createPaginatedResponse(
         Product,
         mockReq,
         additionalFilter,
@@ -55,6 +55,10 @@ class ProductService {
           populate: 'category'
         }
       );
+      
+      console.log(`[PRODUCT FETCH] Found ${result.pagination?.total || 0} total products for userId: ${userId}`);
+      
+      return result;
     } catch (error) {
       throw new Error(`Error fetching products: ${error.message}`);
     }
@@ -132,6 +136,9 @@ class ProductService {
    */
   static async createProduct(productData, userId = null) {
     try {
+      console.log(`[PRODUCT CREATE] Called with userId: ${userId}`);
+      console.log(`[PRODUCT CREATE] Product name: ${productData.name}`);
+      
       // Check if product with same code or barcode already exists for this user
       const existingProduct = await Product.findOne({
         userId: userId,
@@ -153,6 +160,9 @@ class ProductService {
       // Set ownership
       if (userId) {
         productData.userId = userId;
+        console.log(`[PRODUCT CREATE] Setting userId: ${userId}`);
+      } else {
+        console.error(`[PRODUCT CREATE] WARNING: No userId provided!`);
       }
 
       const product = new Product(productData);
