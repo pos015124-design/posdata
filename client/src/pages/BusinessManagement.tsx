@@ -96,7 +96,7 @@ const BusinessManagement: React.FC = () => {
   const fetchBusinesses = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -134,7 +134,7 @@ const BusinessManagement: React.FC = () => {
 
   const handleApproveBusiness = async (businessId: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const response = await fetch(`/api/business/${businessId}/approve`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
@@ -174,7 +174,7 @@ const BusinessManagement: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const response = await fetch(`/api/business/${selectedBusiness._id}/reject`, {
         method: 'POST',
         headers: { 

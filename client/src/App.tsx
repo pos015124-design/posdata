@@ -13,6 +13,8 @@ import Settings from './pages/Settings';
 import Sellers from './pages/Sellers';
 import Orders from './pages/Orders';
 import Expenses from './pages/Expenses';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import BusinessManagement from './pages/BusinessManagement';
 import Store from './pages/Store';
 import IndividualStore from './pages/IndividualStore';
 import StoreDirectory from './pages/StoreDirectory';
@@ -56,6 +58,8 @@ function App() {
             <Route path="/expenses" element={<PrivateRoute><Expenses /></PrivateRoute>} />
             <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
             <Route path="/sellers" element={<PrivateRoute><Sellers /></PrivateRoute>} />
+            <Route path="/super-admin" element={<PrivateRoute><SuperAdminDashboard /></PrivateRoute>} />
+            <Route path="/business-management" element={<PrivateRoute><BusinessManagement /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
             
             {/* Default route - redirect to login page */}

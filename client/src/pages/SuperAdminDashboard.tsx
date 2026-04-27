@@ -104,7 +104,7 @@ const SuperAdminDashboard: React.FC = () => {
 
   const fetchPlatformData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       
       const [statsResponse, healthResponse] = await Promise.all([
         fetch('/api/platform/analytics', {

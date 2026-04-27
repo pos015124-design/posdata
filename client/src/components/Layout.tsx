@@ -27,17 +27,24 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: ShoppingCart, label: 'POS', path: '/pos' },
-    { icon: Package, label: 'Inventory', path: '/inventory' },
-    { icon: Users, label: 'Customers', path: '/customers' },
-    { icon: FileText, label: 'Orders', path: '/orders' },
-    { icon: DollarSign, label: 'Expenses', path: '/expenses' },
-    { icon: BarChart3, label: 'Reports', path: '/reports' },
-    { icon: Store, label: 'Sellers', path: '/sellers' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-  ];
+  const isSuperAdmin = user?.role === 'super_admin';
+  const menuItems = isSuperAdmin
+    ? [
+        { icon: LayoutDashboard, label: 'Super Admin', path: '/super-admin' },
+        { icon: Store, label: 'Businesses', path: '/business-management' },
+        { icon: Settings, label: 'Settings', path: '/settings' },
+      ]
+    : [
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+        { icon: ShoppingCart, label: 'POS', path: '/pos' },
+        { icon: Package, label: 'Inventory', path: '/inventory' },
+        { icon: Users, label: 'Customers', path: '/customers' },
+        { icon: FileText, label: 'Orders', path: '/orders' },
+        { icon: DollarSign, label: 'Expenses', path: '/expenses' },
+        { icon: BarChart3, label: 'Reports', path: '/reports' },
+        { icon: Store, label: 'Sellers', path: '/sellers' },
+        { icon: Settings, label: 'Settings', path: '/settings' },
+      ];
 
   const handleLogout = () => {
     logout();

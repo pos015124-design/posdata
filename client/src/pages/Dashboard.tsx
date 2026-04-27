@@ -42,6 +42,11 @@ export default function Dashboard() {
       : null;
 
   useEffect(() => {
+    if (user?.role === 'super_admin') {
+      navigate('/super-admin', { replace: true });
+      return;
+    }
+
     fetchDashboardStats();
     
     // Listen for updates from other pages/tabs
@@ -79,7 +84,7 @@ export default function Dashboard() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(refreshInterval);
     };
-  }, []);
+  }, [navigate, user?.role]);
 
   const fetchDashboardStats = async () => {
     try {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -7,6 +8,8 @@ import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, Credi
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../contexts/AuthContext';
 import * as settingsApi from '../api/settings';
+import PendingUsers from './PendingUsers';
+import BusinessManagement from './BusinessManagement';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
@@ -14,6 +17,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const [generalSettings, setGeneralSettings] = useState({
@@ -78,7 +82,7 @@ export default function Settings() {
       setLoading(true);
       
       // Load business settings from business API
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/business/my-business`;
       
       const businessResponse = await fetch(apiUrl, {
@@ -144,7 +148,7 @@ export default function Settings() {
       setSaving(true);
       
       // Get current user's business
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const baseUrl = import.meta.env.VITE_API_URL || '';
       
       // First, try to get existing business
@@ -307,6 +311,48 @@ export default function Settings() {
           <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Loading settings...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (user?.role === 'super_admin') {
+    return (
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Super Admin Settings</h1>
+            <p className="text-sm md:text-base text-gray-600 mt-1">Approve and manage users and businesses</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/super-admin')}>
+              Open Super Admin Dashboard
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              onClick={() => navigate('/business-management')}
+            >
+              Open Business Management
+            </Button>
+          </div>
+        </div>
+
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle>Pending User Approvals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PendingUsers />
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle>Business Approvals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BusinessManagement />
+          </CardContent>
+        </Card>
       </div>
     );
   }
