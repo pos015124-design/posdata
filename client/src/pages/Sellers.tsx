@@ -18,6 +18,7 @@ interface Seller {
 
 export default function Sellers() {
   const { toast } = useToast();
+  const baseUrl = import.meta.env.VITE_API_URL || '';
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +39,7 @@ export default function Sellers() {
   const fetchSellers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/sellers', {
+      const response = await fetch(`${baseUrl}/api/sellers`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
@@ -100,7 +101,7 @@ export default function Sellers() {
     try {
       // If editing, update existing seller
       if (selectedSeller) {
-        const response = await fetch(`/api/sellers/${selectedSeller._id}`, {
+        const response = await fetch(`${baseUrl}/api/sellers/${selectedSeller._id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -136,7 +137,7 @@ export default function Sellers() {
         }
       } else {
         // Create new seller
-        const response = await fetch('/api/sellers', {
+        const response = await fetch(`${baseUrl}/api/sellers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -204,7 +205,7 @@ export default function Sellers() {
     }
 
     try {
-      const response = await fetch(`/api/sellers/${sellerId}`, {
+      const response = await fetch(`${baseUrl}/api/sellers/${sellerId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
