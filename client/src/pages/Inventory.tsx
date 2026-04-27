@@ -8,6 +8,17 @@ import { useToast } from '../hooks/useToast';
 import * as productsApi from '../api/products';
 import * as uploadsApi from '../api/uploads';
 
+const resolveProductImageUrl = (imageUrl?: string | null) => {
+  if (!imageUrl) return '';
+  if (imageUrl.startsWith('data:') || imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  if (imageUrl.startsWith('/uploads')) {
+    return `${import.meta.env.VITE_API_URL || ''}${imageUrl}`;
+  }
+  return imageUrl;
+};
+
 export default function Inventory() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -389,7 +400,7 @@ export default function Inventory() {
                         <div className="flex items-center gap-3">
                           {imageUrl ? (
                             <img
-                              src={imageUrl.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || ''}${imageUrl}` : imageUrl}
+                              src={resolveProductImageUrl(imageUrl)}
                               alt={product.name}
                               className="w-10 h-10 object-cover rounded-lg border border-gray-200"
                             />
@@ -503,7 +514,7 @@ export default function Inventory() {
                     {productImage ? (
                       <div className="relative">
                         <img
-                          src={productImage.startsWith('data:') || productImage.startsWith('/uploads') ? productImage : `${import.meta.env.VITE_API_URL || ''}${productImage}`}
+                          src={resolveProductImageUrl(productImage)}
                           alt="Product preview"
                           className="w-24 h-24 object-cover rounded-lg border-2 border-gray-300"
                         />

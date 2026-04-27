@@ -54,7 +54,34 @@ router.post('/login',
         });
       }
 
-      // Allow login for unapproved users; frontend will handle waiting approval UI
+
+
+      // Auto-approve admin users on login
+      if (user.role === 'super_admin' || user.role === 'business_admin') {
+        let updated = false;
+        if (!user.isApproved) {
+          user.isApproved = true;
+          updated = true;
+        }
+        // Ensure business is active and public
+        if (user.businessId) {
+          const Business = require('../models/Business');
+          const business = await Business.findById(user.businessId);
+          if (business) {
+            let businessUpdated = false;
+            if (business.status !== 'active') {
+              business.status = 'active';
+              businessUpdated = true;
+            }
+            if (!business.isPublic) {
+              business.isPublic = true;
+              businessUpdated = true;
+            }
+            if (businessUpdated) await business.save();
+          }
+        }
+        if (updated) await user.save();
+      }
 
       // Clear failed login attempts on successful login
       clearLoginAttempts(email);

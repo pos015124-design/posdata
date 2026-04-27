@@ -16,6 +16,17 @@ interface Product {
   description?: string;
 }
 
+const resolveProductImageUrl = (imageUrl?: string | null) => {
+  if (!imageUrl) return '';
+  if (imageUrl.startsWith('data:') || imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  if (imageUrl.startsWith('/uploads')) {
+    return `${import.meta.env.VITE_API_URL || ''}${imageUrl}`;
+  }
+  return imageUrl;
+};
+
 export default function Store() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,7 +238,7 @@ export default function Store() {
                   <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                     {product.images?.[0]?.url ? (
                       <img
-                        src={`${import.meta.env.VITE_API_URL || ''}${product.images[0].url}`}
+                        src={resolveProductImageUrl(product.images[0].url)}
                         alt={product.name}
                         className="w-full h-full object-cover"
                       />

@@ -7,6 +7,17 @@ import { useToast } from '../hooks/useToast';
 import * as productsApi from '../api/products';
 import * as salesApi from '../api/sales';
 
+const resolveProductImageUrl = (imageUrl?: string | null) => {
+  if (!imageUrl) return '';
+  if (imageUrl.startsWith('data:') || imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  if (imageUrl.startsWith('/uploads')) {
+    return `${import.meta.env.VITE_API_URL || ''}${imageUrl}`;
+  }
+  return imageUrl;
+};
+
 export default function POS() {
   const [cart, setCart] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -182,7 +193,7 @@ export default function POS() {
                 <CardContent className="p-4">
                   {imageUrl ? (
                     <img
-                      src={imageUrl.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL || ''}${imageUrl}` : imageUrl}
+                      src={resolveProductImageUrl(imageUrl)}
                       alt={product.name}
                       className="w-full aspect-square object-cover rounded-lg mb-3"
                     />
