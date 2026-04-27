@@ -1,27 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Minus, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, Trash2, ArrowLeft, Store as StoreIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/useToast';
+import type { MarketplaceCartLine } from './Store';
 
-interface CartItem {
-  _id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
+export type CartLine = MarketplaceCartLine;
 
 export default function Cart() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartLine[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
-      setCart(JSON.parse(savedCart));
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch {
+        setCart([]);
+      }
     }
   }, []);
+
+  const grouped = useMemo(() => {
+    const map = new Map<
+      string,
+      { label: string; slug?: string | null; items: CartLine[] }
+    >();
+    for (const item of cart) {
+      const key = item.storeSlug ? `slug:${item.storeSlug}` : item.storeName ? `name:${item.storeName}` : 'unknown';
+      const label = item.storeName || 'Marketplace / mixed';
+      const slug = item.storeSlug;
+      if (!map.has(key)) {
+        map.set(key, { label, slug, items: [] });
+      }
+      map.get(key)!.items.push(item);
+    }
+    return Array.from(map.values());
+  }, [cart]);
 
   const updateQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -55,7 +72,7 @@ export default function Cart() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
           <p className="text-gray-600 mb-6">Add some products to get started</p>
           <Link to="/store">
-            <Button>Continue Shopping</Button>
+            <Button>Browse marketplace</Button>
           </Link>
         </div>
       </div>
@@ -64,12 +81,11 @@ export default function Cart() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/store" className="flex items-center gap-2 text-primary">
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Store</span>
+            <span>Back to marketplace</span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Shopping Cart</h1>
           <div></div>
@@ -77,54 +93,73 @@ export default function Cart() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
+        <p className="text-sm text-gray-600 mb-6">
+          Items are grouped by store. Checkout creates <strong>one order per seller</strong> so inventory and payouts stay
+          correct.
+        </p>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-4">
-            {cart.map(item => (
-              <div key={item._id} className="bg-white rounded-lg shadow p-4 flex gap-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                  <p className="text-lg font-bold text-primary mt-2">
-                    TZS {item.price.toLocaleString()}
-                  </p>
+          <div className="lg:col-span-2 space-y-8">
+            {grouped.map(group => (
+              <div key={group.slug || group.label} className="space-y-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2 font-semibold text-gray-900">
+                    <StoreIcon className="w-4 h-4 text-blue-600" />
+                    {group.slug ? (
+                      <Link to={`/store/${group.slug}`} className="hover:underline text-blue-700">
+                        {group.label}
+                      </Link>
+                    ) : (
+                      <span>{group.label}</span>
+                    )}
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => updateQuantity(item._id, item.quantity - 1)}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <span className="w-12 text-center font-semibold">{item.quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => updateQuantity(item._id, item.quantity + 1)}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFromCart(item._id)}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="text-right">
-                  <p className="font-bold text-gray-900">
-                    TZS {(item.price * item.quantity).toLocaleString()}
-                  </p>
-                </div>
+                {group.items.map(item => (
+                  <div key={item._id} className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 justify-between items-center">
+                    <div className="flex-1 min-w-[200px]">
+                      <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                      <p className="text-lg font-bold text-primary mt-2">
+                        TZS {Number(item.price ?? 0).toLocaleString()} <span className="text-sm font-normal text-gray-500">each</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item._id, item.quantity - 1)}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="w-12 text-center font-semibold">{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item._id, item.quantity + 1)}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFromCart(item._id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    <div className="text-right min-w-[100px]">
+                      <p className="font-bold text-gray-900">
+                        TZS {(Number(item.price ?? 0) * item.quantity).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow p-6 sticky top-4">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
@@ -135,7 +170,7 @@ export default function Cart() {
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Shipping</span>
-                  <span className="text-green-600">Free</span>
+                  <span className="text-green-600">Set with seller</span>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between text-lg font-bold">
@@ -144,11 +179,7 @@ export default function Cart() {
                   </div>
                 </div>
               </div>
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => navigate('/checkout')}
-              >
+              <Button className="w-full" size="lg" onClick={() => navigate('/checkout')}>
                 Proceed to Checkout
               </Button>
             </div>

@@ -263,16 +263,20 @@ export default function Sellers() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="w-full md:w-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Sellers</h1>
-          <p className="text-gray-600 mt-1 text-center md:text-left">Manage your marketplace sellers</p>
+        <div className="w-full md:w-auto max-w-2xl">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Vendor profiles</h1>
+          <p className="text-gray-600 mt-2 text-center md:text-left text-sm leading-relaxed">
+            Record supplier or consignment contacts for your account. Profiles are saved under{' '}
+            <strong>your</strong> login—they do not create separate staff users. Use roles elsewhere if someone needs their
+            own sign-in.
+          </p>
         </div>
         <Button 
           onClick={() => setShowAddModal(true)}
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 w-full md:w-auto"
         >
           <UserPlus className="w-4 h-4 mr-2" />
-          Add Seller
+          Add vendor profile
         </Button>
       </div>
 
@@ -374,7 +378,7 @@ export default function Sellers() {
           <Card className="w-full max-w-md">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>{selectedSeller ? 'Edit Seller' : 'Add New Seller'}</CardTitle>
+                <CardTitle>{selectedSeller ? 'Edit vendor profile' : 'Add vendor profile'}</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -431,7 +435,7 @@ export default function Sellers() {
                   onClick={handleAddSeller}
                   className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
-                  {selectedSeller ? 'Update Seller' : 'Add Seller'}
+                  {selectedSeller ? 'Save changes' : 'Save profile'}
                 </Button>
                 <Button
                   variant="outline"
@@ -455,7 +459,7 @@ export default function Sellers() {
           <Card className="w-full max-w-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Seller Details</CardTitle>
+                <CardTitle>Vendor profile</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -523,7 +527,7 @@ export default function Sellers() {
                   className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
                 >
                   <Edit className="w-4 h-4 mr-2" />
-                  Edit Seller
+                  Edit profile
                 </Button>
                 <Button
                   variant="outline"

@@ -27,6 +27,15 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
 }
 
+/** Public storefront pages: show sidebar for logged-in users (e.g. super admin browsing listings). */
+function StorefrontWithOptionalLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user) {
+    return <Layout>{children}</Layout>;
+  }
+  return <>{children}</>;
+}
+
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   return user ? <Navigate to="/dashboard" /> : <>{children}</>;
@@ -42,10 +51,31 @@ function App() {
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             
-            {/* E-commerce Storefront (Public) */}
-            <Route path="/store" element={<Store />} />
-            <Route path="/stores" element={<StoreDirectory />} />
-            <Route path="/store/:slug" element={<IndividualStore />} />
+            {/* E-commerce Storefront (public; app shell when logged in) */}
+            <Route
+              path="/store"
+              element={
+                <StorefrontWithOptionalLayout>
+                  <Store />
+                </StorefrontWithOptionalLayout>
+              }
+            />
+            <Route
+              path="/stores"
+              element={
+                <StorefrontWithOptionalLayout>
+                  <StoreDirectory />
+                </StorefrontWithOptionalLayout>
+              }
+            />
+            <Route
+              path="/store/:slug"
+              element={
+                <StorefrontWithOptionalLayout>
+                  <IndividualStore />
+                </StorefrontWithOptionalLayout>
+              }
+            />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             

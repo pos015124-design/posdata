@@ -214,6 +214,29 @@ router.get('/health', requireUser, requireSuperAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/platform/storefront-health
+ * Catalog visibility metrics (Super Admin only)
+ */
+router.get('/storefront-health', requireUser, requireSuperAdmin, async (req, res) => {
+  try {
+    const data = await PlatformService.getStorefrontHealth();
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    logger.error('Failed to get storefront health', {
+      error: error.message,
+      userId: req.user.userId
+    });
+    res.status(500).json({
+      error: 'Failed to fetch storefront health',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/platform/activity
  * Get platform activity logs (Super Admin only)
  */

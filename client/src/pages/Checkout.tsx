@@ -4,17 +4,12 @@ import { ArrowLeft, CreditCard, MapPin, Phone, Mail, CheckCircle } from 'lucide-
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useToast } from '../hooks/useToast';
-import * as salesApi from '../api/sales';
+import type { CartLine } from './Cart';
 
-interface CartItem {
-  _id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
+const apiBase = import.meta.env.VITE_API_URL || '';
 
 export default function Checkout() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [processing, setProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderId, setOrderId] = useState('');
@@ -65,29 +60,37 @@ export default function Checkout() {
     try {
       setProcessing(true);
 
-      const orderData = {
-        items: cart.map(item => ({
-          product: item._id,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        total: total,
-        paymentMethod: 'cash',
-        customer: {
-          name: customerInfo.name,
-          email: customerInfo.email,
-          phone: customerInfo.phone,
-          address: customerInfo.address,
-          city: customerInfo.city
-        },
-        notes: customerInfo.notes
-      };
+      const response = await fetch(`${apiBase}/api/public/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            product: item._id,
+            quantity: item.quantity
+          })),
+          paymentMethod: 'cash',
+          customer: {
+            name: customerInfo.name,
+            email: customerInfo.email,
+            phone: customerInfo.phone,
+            address: customerInfo.address,
+            city: customerInfo.city
+          },
+          notes: customerInfo.notes
+        })
+      });
 
-      const response = await salesApi.createSale(orderData);
-      
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || payload.error || 'Checkout failed');
+      }
+
+      const invoices: string[] = payload.invoiceNumbers || (payload.sales || []).map((s: any) => s.invoiceNumber).filter(Boolean);
+      const displayId =
+        invoices.length > 1 ? invoices.join(', ') : invoices[0] || payload.sales?.[0]?.invoiceNumber || 'N/A';
+
       setOrderComplete(true);
-      setOrderId(response.sale?.orderNumber || response.sale?._id || 'N/A');
+      setOrderId(displayId);
       
       // Clear cart
       localStorage.removeItem('cart');
@@ -99,13 +102,16 @@ export default function Checkout() {
       window.dispatchEvent(new Event('sale-created'));
       
       toast({
-        title: 'Order Placed!',
-        description: `Order #${orderId} has been placed successfully`,
+        title: 'Order placed',
+        description:
+          invoices.length > 1
+            ? `${invoices.length} seller orders: ${displayId}`
+            : `Invoice ${displayId}`
       });
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to place order',
+        description: error?.message || 'Failed to place order',
         variant: 'destructive',
       });
     } finally {

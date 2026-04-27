@@ -393,6 +393,63 @@ class PlatformService {
       throw error;
     }
   }
+
+  /**
+   * Read-only storefront ops metrics for super admin (public catalog health).
+   */
+  static async getStorefrontHealth() {
+    const Product = require('../models/Product');
+
+    const publicBizQuery = { status: 'active', isPublic: true };
+    const publicStores = await Business.find(publicBizQuery).select('userId name slug updatedAt').lean();
+
+    const ownerObjectIds = publicStores.map(b => b.userId).filter(Boolean);
+
+    const publishedProductCount = ownerObjectIds.length
+      ? await Product.countDocuments({
+          userId: { $in: ownerObjectIds },
+          status: 'active',
+          isPublished: true
+        })
+      : 0;
+
+    let publicStoresWithZeroPublishedProducts = 0;
+    for (const b of publicStores) {
+      if (!b.userId) {
+        publicStoresWithZeroPublishedProducts++;
+        continue;
+      }
+      const n = await Product.countDocuments({
+        userId: b.userId,
+        status: 'active',
+        isPublished: true
+      });
+      if (n === 0) publicStoresWithZeroPublishedProducts++;
+    }
+
+    const lastPublishedProduct = await Product.findOne({
+      status: 'active',
+      isPublished: true
+    })
+      .sort({ updatedAt: -1 })
+      .select('updatedAt name')
+      .lean();
+
+    const lastBusinessTouch = await Business.findOne({})
+      .sort({ updatedAt: -1 })
+      .select('updatedAt name slug')
+      .lean();
+
+    return {
+      activePublicStores: publicStores.length,
+      publishedProductsOnCatalog: publishedProductCount,
+      publicStoresWithZeroPublishedProducts,
+      lastPublishedProductActivityAt: lastPublishedProduct?.updatedAt || null,
+      lastPublishedProductName: lastPublishedProduct?.name || null,
+      lastBusinessRecordActivityAt: lastBusinessTouch?.updatedAt || null,
+      lastBusinessRecordName: lastBusinessTouch?.name || null
+    };
+  }
 }
 
 module.exports = PlatformService;

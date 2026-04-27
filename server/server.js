@@ -126,13 +126,33 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS configuration - allow all origins for images and API
-app.use(cors({
-  origin: true, // Allow all origins
+// CORS: set ALLOWED_ORIGINS=comma,separated,urls for production lockdown; omit for permissive (reflect request origin)
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+  : null;
+
+const corsShared = {
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
+};
+
+app.use(
+  cors(
+    ALLOWED_ORIGINS?.length
+      ? {
+          ...corsShared,
+          origin(origin, callback) {
+            if (!origin) return callback(null, true);
+            return callback(null, ALLOWED_ORIGINS.includes(origin));
+          }
+        }
+      : {
+          ...corsShared,
+          origin: true
+        }
+  )
+);
 
 // Security middleware
 app.use(helmet({
@@ -180,36 +200,8 @@ app.use('/api/catalog', catalogRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/migrate', require('./routes/migrationRoutes'));
 app.use('/api/public', require('./routes/storeRoutes'));
+// GET /api/public/products is defined in routes/storeRoutes.js (marketplace: active public stores only)
 
-// Public products endpoint for Store (no authentication required)
-app.get('/api/public/products', async (req, res) => {
-  try {
-    const Product = require('./models/Product');
-    const products = await Product.find({ status: 'active', isPublished: true })
-      .select('name code price images category description stock')
-      .sort({ createdAt: -1 });
-    
-    res.json({
-      success: true,
-      products: products.map(p => ({
-        _id: p._id,
-        name: p.name,
-        code: p.code,
-        price: p.price,
-        images: p.images || [], // Returns array of {url, alt, isPrimary, order}
-        category: p.category,
-        description: p.description,
-        stock: p.stock
-      }))
-    });
-  } catch (error) {
-    console.error('Error fetching public products:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch products',
-      message: error.message 
-    });
-  }
-});
 app.use('/api/sellers', sellerRoutes);
 
 // DEBUG: Test endpoint for sellers

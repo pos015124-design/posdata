@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { useToast } from '../hooks/useToast';
+import type { MarketplaceCartLine } from './Store';
 
 interface Product {
   _id: string;
@@ -15,7 +16,9 @@ interface Product {
   category: string;
   description?: string;
   stock: number;
-  isFeatured: boolean;
+  isFeatured?: boolean;
+  storeName?: string;
+  storeSlug?: string;
 }
 
 interface Business {
@@ -69,60 +72,74 @@ export default function IndividualStore() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
-  const [cart, setCart] = useState<Array<{_id: string; name: string; price: number; quantity: number}>>([]);
+  const [cart, setCart] = useState<MarketplaceCartLine[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (slug) {
-      fetchStore();
+    try {
+      const raw = localStorage.getItem('cart');
+      if (raw) setCart(JSON.parse(raw));
+    } catch {
+      /* ignore */
     }
+  }, []);
+
+  useEffect(() => {
+    if (!slug) {
+      setLoading(false);
+      setError({ message: 'No store was specified. Open a store from the directory or your dashboard link.' });
+      return;
+    }
+    fetchStore();
   }, [slug]);
 
   const fetchStore = async () => {
     try {
       setLoading(true);
-      console.log('🏪 Fetching store for slug:', slug);
-      const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/public/store/${slug}`;
-      console.log('🏪 API URL:', apiUrl);
-      
+      setError(null);
+      const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/public/store/${encodeURIComponent(slug || '')}`;
       const response = await fetch(apiUrl);
-      console.log('🏪 Response status:', response.status);
-      
-      const data = await response.json();
-      console.log('🏪 Store data:', data);
-      
+
+      const raw = await response.text();
+      let data: any = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        setError({ message: 'The store service returned an invalid response. Check that VITE_API_URL points to your API.' });
+        return;
+      }
+
       if (!response.ok) {
-        // Show helpful error if store not found
         if (response.status === 404 && data.availableStores) {
-          console.log('🏪 Available stores:', data.availableStores);
           const accessibleStores = data.availableStores.filter((s: any) => s.accessible);
-          console.log('🏪 Accessible stores:', accessibleStores);
-          
           setError({
-            message: data.message,
+            message: data.message || 'Store not found',
             hint: data.hint,
             availableStores: data.availableStores,
             accessibleStores: accessibleStores
           });
           return;
         }
-        throw new Error(data.message || 'Failed to load store');
+        throw new Error(data.message || data.error || 'Failed to load store');
       }
 
-      setBusiness(data.data.business);
-      const productList = data.data.products || [];
+      const payload = data.data;
+      if (!payload || !payload.business) {
+        setError({ message: 'Store data is incomplete. The business may need to be active and public.' });
+        return;
+      }
+
+      setBusiness(payload.business);
+      const productList = Array.isArray(payload.products) ? payload.products : [];
       setProducts(productList);
-      console.log('🏪 Products count:', productList.length);
-      
-      // Extract unique categories
-      const cats = [...new Set(productList.map((p: Product) => p.category).filter(Boolean))] as string[];
+
+      const cats = [...new Set(productList.map((p: Product) => p?.category).filter(Boolean))] as string[];
       setCategories(cats);
     } catch (error: any) {
-      console.error('❌ Failed to load store:', error);
-      setError({ message: error.message });
+      setError({ message: error?.message || 'Store not found' });
       toast({
         title: 'Error',
-        description: error.message || 'Store not found',
+        description: error?.message || 'Store not found',
         variant: 'destructive',
       });
     } finally {
@@ -131,8 +148,10 @@ export default function IndividualStore() {
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = (product.name ?? '').toString();
+    const code = (product.code ?? '').toString();
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = name.toLowerCase().includes(q) || code.toLowerCase().includes(q);
     const matchesCategory = !selectedCategory || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -140,16 +159,27 @@ export default function IndividualStore() {
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item._id === product._id);
-      if (existing) {
-        return prev.map(item => 
-          item._id === product._id 
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+      const line: MarketplaceCartLine = {
+        _id: product._id,
+        name: product.name,
+        price: Number(product.price ?? 0),
+        quantity: 1,
+        storeName: business?.name || product.storeName,
+        storeSlug: slug || product.storeSlug
+      };
+      const next = existing
+        ? prev.map(item =>
+            item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+          )
+        : [...prev, line];
+      try {
+        localStorage.setItem('cart', JSON.stringify(next));
+      } catch {
+        /* ignore */
       }
-      return [...prev, { _id: product._id, name: product.name, price: product.price, quantity: 1 }];
+      return next;
     });
-    
+
     toast({
       title: 'Added to cart',
       description: `${product.name} added to your cart`,
@@ -249,6 +279,16 @@ export default function IndividualStore() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-center text-sm text-slate-700">
+        <span className="hidden sm:inline">This is a single-vendor storefront. </span>
+        <Link to="/store" className="font-semibold text-blue-700 hover:underline">
+          Open marketplace
+        </Link>
+        <span className="mx-2 text-slate-400">·</span>
+        <Link to="/stores" className="text-blue-600 hover:underline">
+          All stores
+        </Link>
+      </div>
       {/* Store Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -309,7 +349,11 @@ export default function IndividualStore() {
               {business.address && (
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4" />
-                  <span>{business.address.street}, {business.address.city}</span>
+                  <span>
+                    {typeof business.address === 'object' && business.address !== null
+                      ? [business.address.street, business.address.city].filter(Boolean).join(', ') || '—'
+                      : String(business.address)}
+                  </span>
                 </div>
               )}
             </div>
@@ -419,7 +463,7 @@ export default function IndividualStore() {
                   
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-2xl font-bold text-blue-600">
-                      TZS {product.price.toLocaleString()}
+                      TZS {Number(product.price ?? 0).toLocaleString()}
                     </span>
                   </div>
                   

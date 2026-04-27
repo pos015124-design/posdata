@@ -6,7 +6,84 @@
 const express = require('express');
 const router = express.Router();
 const StoreService = require('../services/storeService');
+const SaleService = require('../services/saleService');
 const { logger } = require('../config/logger');
+
+/**
+ * POST /api/public/checkout
+ * Guest storefront checkout (no JWT). Items grouped by product owner → one sale per seller.
+ */
+router.post('/checkout', async (req, res) => {
+  try {
+    const { items, paymentMethod = 'cash', customer, notes } = req.body;
+
+    const result = await SaleService.processPublicMultiSellerOrder({
+      items,
+      paymentMethod,
+      customer,
+      notes
+    });
+
+    res.status(201).json({
+      success: true,
+      sellersCount: result.sellersCount,
+      sales: result.sales.map(s => ({
+        _id: s._id,
+        invoiceNumber: s.invoiceNumber,
+        total: s.total
+      })),
+      invoiceNumbers: result.sales.map(s => s.invoiceNumber)
+    });
+  } catch (error) {
+    logger.error('Public checkout failed', { error: error.message });
+    res.status(400).json({
+      error: 'Checkout failed',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/public/products
+ * Marketplace: products from all active, public stores (for main /store page)
+ * Must be registered before /store/:slug or "products" could be parsed as a slug
+ */
+router.get('/products', async (req, res) => {
+  try {
+    const { page = 1, limit = 100, search = '', category = '' } = req.query;
+    const result = await StoreService.getMarketplaceProducts({
+      page: parseInt(page, 10) || 1,
+      limit: Math.min(parseInt(limit, 10) || 100, 200),
+      search: typeof search === 'string' ? search : '',
+      category: typeof category === 'string' ? category : ''
+    });
+    res.json({
+      success: true,
+      products: result.products,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    logger.error('Failed to get marketplace products', { error: error.message });
+    res.status(500).json({
+      error: 'Failed to fetch products',
+      message: error.message
+    });
+  }
+});
+
+/** Distinct categories for marketplace filter chips */
+router.get('/categories', async (req, res) => {
+  try {
+    const result = await StoreService.getMarketplaceCategories();
+    res.json({ success: true, categories: result.categories });
+  } catch (error) {
+    logger.error('Failed to get marketplace categories', { error: error.message });
+    res.status(500).json({
+      error: 'Failed to fetch categories',
+      message: error.message
+    });
+  }
+});
 
 /**
  * GET /api/public/stores

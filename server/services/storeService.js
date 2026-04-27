@@ -52,7 +52,7 @@ class StoreService {
         slug: slug.toLowerCase(),
         status: 'active',
         isPublic: true
-      }).select('name slug description logo email phone address socialMedia');
+      }).select('name slug description logo email phone address socialMedia userId');
 
       if (!business) {
         console.log(`[Store Service] ❌ Business exists but is not accessible:`);
@@ -95,14 +95,140 @@ class StoreService {
           category: p.category,
           description: p.description,
           stock: p.stock,
-          isFeatured: p.isFeatured
+          isFeatured: p.isFeatured,
+          ownerId: business.userId,
+          storeName: business.name,
+          storeSlug: business.slug
         })),
         productCount: products.length
       };
 
     } catch (error) {
+      if (error.message === 'Store not found') {
+        throw error;
+      }
       throw new Error(`Error fetching store: ${error.message}`);
     }
+  }
+
+  /**
+   * AliExpress-style: published products from all active + public businesses.
+   * Individual /store/:slug still lists only that owner's products.
+   */
+  static async getMarketplaceProducts(pagination = {}) {
+    const page = Math.max(1, parseInt(pagination.page, 10) || 1);
+    const limit = Math.min(Math.max(1, parseInt(pagination.limit, 10) || 100), 200);
+    const skip = (page - 1) * limit;
+
+    const businesses = await Business.find({
+      status: 'active',
+      isPublic: true
+    })
+      .select('userId name slug')
+      .lean();
+
+    if (!businesses.length) {
+      return {
+        products: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      };
+    }
+
+    const userIdToStore = new Map();
+    const userIds = [];
+    for (const b of businesses) {
+      if (!b.userId) continue;
+      const uid = String(b.userId);
+      if (!userIdToStore.has(uid)) {
+        userIds.push(b.userId);
+        userIdToStore.set(uid, { storeName: b.name, storeSlug: b.slug });
+      }
+    }
+
+    const query = {
+      userId: { $in: userIds },
+      isPublished: true,
+      status: 'active'
+    };
+
+    const search = (pagination.search || '').trim();
+    if (search) {
+      const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.$or = [
+        { name: { $regex: esc, $options: 'i' } },
+        { code: { $regex: esc, $options: 'i' } },
+        { description: { $regex: esc, $options: 'i' } },
+        { category: { $regex: esc, $options: 'i' } }
+      ];
+    }
+
+    const cat = (pagination.category || '').trim();
+    if (cat) {
+      query.category = cat;
+    }
+
+    const total = await Product.countDocuments(query);
+    const raw = await Product.find(query)
+      .select('name code price images category description stock userId')
+      .sort({ isFeatured: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const products = raw.map(p => {
+      const store = userIdToStore.get(String(p.userId)) || { storeName: 'Store', storeSlug: null };
+      return {
+        _id: p._id,
+        name: p.name,
+        code: p.code,
+        price: p.price,
+        images: p.images || [],
+        category: p.category,
+        description: p.description,
+        stock: p.stock,
+        storeName: store.storeName,
+        storeSlug: store.storeSlug,
+        ownerId: p.userId
+      };
+    });
+
+    return {
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: total ? Math.ceil(total / limit) : 0
+      }
+    };
+  }
+
+  /** Distinct product categories among all marketplace-eligible listings */
+  static async getMarketplaceCategories() {
+    const businesses = await Business.find({
+      status: 'active',
+      isPublic: true
+    })
+      .select('userId')
+      .lean();
+
+    const userIds = businesses.map(b => b.userId).filter(Boolean);
+    if (!userIds.length) {
+      return { categories: [] };
+    }
+
+    const raw = await Product.distinct('category', {
+      userId: { $in: userIds },
+      isPublished: true,
+      status: 'active'
+    });
+
+    const categories = (raw || [])
+      .filter(c => c != null && String(c).trim() !== '')
+      .map(c => String(c))
+      .sort((a, b) => a.localeCompare(b));
+
+    return { categories };
   }
 
   /**

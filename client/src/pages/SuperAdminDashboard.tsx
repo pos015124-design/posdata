@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,9 @@ import {
   Clock,
   BarChart3,
   Settings,
-  Shield
+  Shield,
+  ShoppingBag,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 // import PlatformSettings from './PlatformSettings';
@@ -56,6 +59,16 @@ interface PlatformStats {
   }>;
 }
 
+interface StorefrontHealthData {
+  activePublicStores: number;
+  publishedProductsOnCatalog: number;
+  publicStoresWithZeroPublishedProducts: number;
+  lastPublishedProductActivityAt: string | null;
+  lastPublishedProductName: string | null;
+  lastBusinessRecordActivityAt: string | null;
+  lastBusinessRecordName: string | null;
+}
+
 interface SystemHealth {
   database: {
     status: string;
@@ -78,6 +91,7 @@ const SuperAdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [storefrontHealth, setStorefrontHealth] = useState<StorefrontHealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -107,11 +121,14 @@ const SuperAdminDashboard: React.FC = () => {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const baseUrl = import.meta.env.VITE_API_URL || '';
       
-      const [statsResponse, healthResponse] = await Promise.all([
+      const [statsResponse, healthResponse, storefrontResponse] = await Promise.all([
         fetch(`${baseUrl}/api/platform/analytics`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         fetch(`${baseUrl}/api/platform/health`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${baseUrl}/api/platform/storefront-health`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -130,6 +147,13 @@ const SuperAdminDashboard: React.FC = () => {
       const healthData = await healthResponse.json();
       setStats(statsData.data);
       setHealth(healthData.data);
+
+      if (storefrontResponse.ok) {
+        const sfData = await storefrontResponse.json().catch(() => null);
+        setStorefrontHealth(sfData?.data ?? null);
+      } else {
+        setStorefrontHealth(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load platform data');
     } finally {
@@ -236,6 +260,88 @@ const SuperAdminDashboard: React.FC = () => {
               <div className="text-2xl font-bold">{formatCurrency(stats.overview.totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
                 +{formatCurrency(stats.growth.revenueThisMonth)} this month
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Public storefronts</CardTitle>
+          <CardDescription>
+            Review the same marketplace and store pages shoppers see, including cross-seller listings and per-store catalogs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link to="/store">
+              <ShoppingBag className="h-4 w-4" />
+              Marketplace
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link to="/stores">
+              <Building2 className="h-4 w-4" />
+              Store directory
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {storefrontHealth && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Active public stores</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{storefrontHealth.activePublicStores}</div>
+              <p className="text-xs text-muted-foreground mt-1">status active &amp; visible</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Published SKUs (catalog)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{storefrontHealth.publishedProductsOnCatalog}</div>
+              <p className="text-xs text-muted-foreground mt-1">Across those stores</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Stores with zero listings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-700">
+                {storefrontHealth.publicStoresWithZeroPublishedProducts}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Public but nothing published yet</p>
+            </CardContent>
+          </Card>
+          <Card className="sm:col-span-2 lg:col-span-3">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Recent catalog activity</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-1">
+              <p>
+                Last product touch:{' '}
+                <span className="text-foreground font-medium">
+                  {storefrontHealth.lastPublishedProductActivityAt
+                    ? new Date(storefrontHealth.lastPublishedProductActivityAt).toLocaleString()
+                    : '—'}
+                </span>
+                {storefrontHealth.lastPublishedProductName ? ` (${storefrontHealth.lastPublishedProductName})` : ''}
+              </p>
+              <p>
+                Last business record update:{' '}
+                <span className="text-foreground font-medium">
+                  {storefrontHealth.lastBusinessRecordActivityAt
+                    ? new Date(storefrontHealth.lastBusinessRecordActivityAt).toLocaleString()
+                    : '—'}
+                </span>
+                {storefrontHealth.lastBusinessRecordName ? ` (${storefrontHealth.lastBusinessRecordName})` : ''}
               </p>
             </CardContent>
           </Card>

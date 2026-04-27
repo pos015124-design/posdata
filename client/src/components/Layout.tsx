@@ -13,7 +13,9 @@ import {
   Menu,
   X,
   DollarSign,
-  BarChart3
+  BarChart3,
+  ShoppingBag,
+  Building2
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -32,6 +34,8 @@ export default function Layout({ children }: LayoutProps) {
     ? [
         { icon: LayoutDashboard, label: 'Super Admin', path: '/super-admin' },
         { icon: Store, label: 'Businesses', path: '/business-management' },
+        { icon: ShoppingBag, label: 'Marketplace', path: '/store' },
+        { icon: Building2, label: 'All stores', path: '/stores' },
         { icon: Settings, label: 'Settings', path: '/settings' },
       ]
     : [

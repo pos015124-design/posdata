@@ -12,7 +12,8 @@
     "postinstall": "cd server && npm install",
     "heroku-postbuild": "cd server && npm install && cd ../client && npm install && npm run build && echo 'Client build completed'",
     "create-admin": "cd server && node createAdmin.js",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "smoke:public": "node scripts/smoke-public-api.mjs"
   },
   "engines": {
     "node": ">=18.x",
