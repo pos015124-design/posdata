@@ -144,24 +144,54 @@ export default function Reports() {
     });
   };
 
+  const getPeriodStart = (period: 'day' | 'week' | 'month' | 'year' | 'all') => {
+    const now = new Date();
+    switch (period) {
+      case 'day':
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      case 'week': {
+        const start = new Date(now);
+        start.setDate(now.getDate() - 7);
+        return start;
+      }
+      case 'month':
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+      case 'year':
+        return new Date(now.getFullYear(), 0, 1);
+      default:
+        return null;
+    }
+  };
+
   // Calculate profit metrics - ensure arrays before reduce
   const expensesArray = Array.isArray(expensesData) ? expensesData : [];
   const salesArray = Array.isArray(allSales) ? allSales : [];
+  const periodStart = getPeriodStart(selectedPeriod);
+  const filteredSales = salesArray.filter((sale: any) => {
+    if (!periodStart) return true;
+    const saleDate = new Date(sale.createdAt || sale.date);
+    return saleDate >= periodStart;
+  });
+  const filteredExpenses = expensesArray.filter((exp: any) => {
+    if (!periodStart) return true;
+    const expenseDate = new Date(exp.date || exp.createdAt);
+    return expenseDate >= periodStart;
+  });
   
-  const totalRevenue = salesData?.revenue?.monthly || 0;
-  const totalExpenses = expensesArray.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
+  const totalRevenue = filteredSales.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0);
+  const totalExpenses = filteredExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
   const grossProfit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
 
   // Calculate payment method breakdown - ensure array before reduce
-  const paymentMethodBreakdown = salesArray.reduce((acc: any, sale: any) => {
+  const paymentMethodBreakdown = filteredSales.reduce((acc: any, sale: any) => {
     const method = sale.paymentMethod || 'Cash';
     acc[method] = (acc[method] || 0) + (sale.total || 0);
     return acc;
   }, {});
 
   // Expense breakdown by category - ensure array before reduce
-  const expenseByCategory = expensesArray.reduce((acc: any, exp: any) => {
+  const expenseByCategory = filteredExpenses.reduce((acc: any, exp: any) => {
     const category = exp.category || 'Other';
     acc[category] = (acc[category] || 0) + (exp.amount || 0);
     return acc;
@@ -219,11 +249,11 @@ export default function Reports() {
     },
     {
       title: 'Total Orders',
-      value: salesArray.length.toString(),
-      change: salesArray.length > 0 ? 'Completed' : 'No orders yet',
+      value: filteredSales.length.toString(),
+      change: filteredSales.length > 0 ? 'Completed' : 'No orders yet',
       icon: ShoppingCart,
       color: 'from-purple-500 to-indigo-600',
-      trend: salesArray.length > 0 ? 'up' as const : 'down' as const
+      trend: filteredSales.length > 0 ? 'up' as const : 'down' as const
     },
   ];
 
@@ -581,7 +611,7 @@ export default function Reports() {
           <CardTitle>Recent Transactions</CardTitle>
         </CardHeader>
         <CardContent>
-          {allSales.length > 0 ? (
+          {filteredSales.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -593,7 +623,7 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allSales.slice(0, 10).map((sale: any) => (
+                  {filteredSales.slice(0, 10).map((sale: any) => (
                     <tr key={sale._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="py-3 px-4 text-sm text-gray-900">{formatDate(sale.date || sale.createdAt)}</td>
                       <td className="py-3 px-4 text-sm text-gray-700">{sale.items?.length || 0} items</td>

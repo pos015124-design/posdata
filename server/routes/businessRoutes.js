@@ -347,6 +347,44 @@ router.post('/:id/reject', requireAdmin, async (req, res) => {
 });
 
 /**
+ * POST /api/business/sync-approved-owners
+ * Backfill: activate businesses whose owners are already approved
+ */
+router.post('/sync-approved-owners', requireAdmin, async (req, res) => {
+  try {
+    const Business = require('../models/Business');
+    const User = require('../models/User');
+
+    const approvedOwners = await User.find({
+      role: 'business_admin',
+      isApproved: true,
+      businessId: { $exists: true, $ne: null }
+    }).select('businessId');
+
+    const businessIds = approvedOwners.map((u) => u.businessId).filter(Boolean);
+    const result = await Business.updateMany(
+      { _id: { $in: businessIds } },
+      { $set: { status: 'active', isPublic: true } }
+    );
+
+    res.json({
+      success: true,
+      message: `Synchronized ${result.modifiedCount || 0} business profile(s)`,
+      updatedCount: result.modifiedCount || 0
+    });
+  } catch (error) {
+    logger.error('Failed to sync approved owner businesses', {
+      error: error.message,
+      userId: req.user?.userId
+    });
+    res.status(500).json({
+      error: 'Sync failed',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/business/all
  * Get all businesses (Admin only)
  */

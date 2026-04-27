@@ -155,9 +155,9 @@ export default function POS() {
   };
 
   return (
-    <div className="h-[calc(100vh-2rem)] p-6 grid grid-cols-12 gap-6">
+    <div className="p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 min-h-[calc(100vh-2rem)]">
       {/* Products Section */}
-      <div className="col-span-7 space-y-4">
+      <div className="lg:col-span-7 space-y-4 min-w-0">
         <div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -170,7 +170,7 @@ export default function POS() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
           {loading ? (
             <div className="col-span-full text-center py-12 text-gray-500">
               <p>Loading products...</p>
@@ -217,16 +217,16 @@ export default function POS() {
       </div>
 
       {/* Cart Section */}
-      <div className="col-span-5">
-        <Card className="h-full border-0 shadow-xl">
+      <div className="lg:col-span-5 min-w-0">
+        <Card className="h-auto lg:h-full border-0 shadow-xl">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
             <CardTitle className="flex items-center gap-2">
               <Store className="w-5 h-5" />
               Current Sale
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            <div className="space-y-2 overflow-y-auto" style={{ maxHeight: '400px' }}>
+          <CardContent className="p-3 md:p-4 space-y-4">
+            <div className="space-y-2 overflow-y-auto" style={{ maxHeight: '50vh' }}>
               {cart.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <ShoppingCart className="w-16 h-16 mx-auto mb-3 opacity-50" />
@@ -234,8 +234,8 @@ export default function POS() {
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div key={item._id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
+                  <div key={item._id} className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 sm:gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="min-w-0">
                       <p className="font-medium text-sm">{item.name}</p>
                       <p className="text-xs text-gray-500">TZS {item.price.toLocaleString()} each</p>
                     </div>
@@ -258,7 +258,7 @@ export default function POS() {
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
-                    <span className="w-24 text-right font-bold">TZS {(item.price * item.quantity).toLocaleString()}</span>
+                    <span className="sm:w-24 text-left sm:text-right font-bold">TZS {(item.price * item.quantity).toLocaleString()}</span>
                     <Button
                       size="sm"
                       variant="ghost"

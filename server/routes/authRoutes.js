@@ -427,6 +427,15 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
     
     user.isApproved = true;
     await user.save();
+
+    // If user has a linked business, activate and publish it when approved.
+    if (user.businessId) {
+      const Business = require('../models/Business');
+      await Business.findByIdAndUpdate(user.businessId, {
+        status: 'active',
+        isPublic: true
+      });
+    }
     
     return res.json({ 
       success: true, 
@@ -445,10 +454,24 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
 
 router.put('/approve-all-pending', requireAdmin, async (req, res) => {
   try {
+    const pendingUsers = await User.find({ isApproved: false }).select('_id businessId');
+    const userIds = pendingUsers.map((u) => u._id);
+    const businessIds = pendingUsers
+      .map((u) => u.businessId)
+      .filter(Boolean);
+
     const result = await User.updateMany(
-      { isApproved: false },
+      { _id: { $in: userIds } },
       { $set: { isApproved: true } }
     );
+
+    if (businessIds.length > 0) {
+      const Business = require('../models/Business');
+      await Business.updateMany(
+        { _id: { $in: businessIds } },
+        { $set: { status: 'active', isPublic: true } }
+      );
+    }
 
     return res.json({
       success: true,

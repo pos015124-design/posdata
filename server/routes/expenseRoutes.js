@@ -7,7 +7,7 @@ const { requireUser } = require('./middleware/auth');
 router.get('/', requireUser, async (req, res) => {
   try {
     const { dateRange } = req.query;
-    let query = {};
+    let query = { createdBy: req.user.userId };
 
     // Apply date range filter
     if (dateRange && dateRange !== 'all') {
@@ -97,7 +97,7 @@ router.put('/:id', requireUser, async (req, res) => {
   try {
     const { description, amount, category, date, notes } = req.body;
 
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findOne({ _id: req.params.id, createdBy: req.user.userId });
 
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
@@ -132,7 +132,7 @@ router.put('/:id', requireUser, async (req, res) => {
 // Delete expense
 router.delete('/:id', requireUser, async (req, res) => {
   try {
-    const expense = await Expense.findByIdAndDelete(req.params.id);
+    const expense = await Expense.findOneAndDelete({ _id: req.params.id, createdBy: req.user.userId });
 
     if (!expense) {
       return res.status(404).json({ message: 'Expense not found' });
@@ -151,6 +151,7 @@ router.get('/range/:startDate/:endDate', requireUser, async (req, res) => {
     const { startDate, endDate } = req.params;
 
     const expenses = await Expense.find({
+      createdBy: req.user.userId,
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -168,6 +169,7 @@ router.get('/range/:startDate/:endDate', requireUser, async (req, res) => {
 router.get('/category/:category', requireUser, async (req, res) => {
   try {
     const expenses = await Expense.find({
+      createdBy: req.user.userId,
       category: req.params.category
     }).sort({ date: -1 });
 
@@ -186,6 +188,7 @@ router.get('/summary/:startDate/:endDate', requireUser, async (req, res) => {
     const summary = await Expense.aggregate([
       {
         $match: {
+          createdBy: req.user.userId,
           date: {
             $gte: new Date(startDate),
             $lte: new Date(endDate)
