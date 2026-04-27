@@ -25,31 +25,78 @@ export default function Store() {
   const [cart, setCart] = useState<Array<{_id: string; name: string; price: number; quantity: number}>>([]);
   const { toast } = useToast();
 
+  // Extract username from URL path (e.g., /store/hunter -> hunter)
+  const pathname = window.location.pathname;
+  const storeSlug = pathname.split('/store/')[1] || '';
+
   useEffect(() => {
-    fetchProducts();
+    if (storeSlug) {
+      fetchStoreProducts(storeSlug);
+    } else {
+      // Fallback to public products if no slug
+      fetchProducts();
+    }
     
     // Listen for product updates from other tabs/components
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'product-updated') {
-        fetchProducts(); // Refresh products when inventory changes
+        if (storeSlug) {
+          fetchStoreProducts(storeSlug);
+        } else {
+          fetchProducts();
+        }
       }
     };
     
     window.addEventListener('storage', handleStorageChange);
     
     // Auto-refresh every 30 seconds for real-time updates
-    const refreshInterval = setInterval(fetchProducts, 30000);
+    const refreshInterval = setInterval(() => {
+      if (storeSlug) {
+        fetchStoreProducts(storeSlug);
+      } else {
+        fetchProducts();
+      }
+    }, 30000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(refreshInterval);
     };
-  }, []);
+  }, [storeSlug]);
+
+  const fetchStoreProducts = async (slug: string) => {
+    try {
+      setLoading(true);
+      // Use individual store endpoint - shows ONLY this user's products
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/public/store/${slug}`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const productList = data.data.products || [];
+        setProducts(productList);
+        
+        // Extract unique categories
+        const cats = [...new Set(productList.map((p: any) => p.category).filter(Boolean))] as string[];
+        setCategories(cats);
+      } else {
+        // Store not found or error
+        setProducts([]);
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('Failed to load store products:', error);
+      setProducts([]);
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // Use public endpoint that doesn't require authentication
+      // Fallback: Use public endpoint that doesn't require authentication
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/public/products`);
       const data = await response.json();
       const productList = data.products || [];

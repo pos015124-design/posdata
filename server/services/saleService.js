@@ -78,6 +78,82 @@ class SaleService {
     return sale;
   }
 
+  /**
+   * Process a sale with inventory update and validation
+   * @param {Object} saleData - Sale data with items, payment, etc.
+   * @param {string} userId - User ID for data isolation
+   * @returns {Promise<Object>} Processed sale with details
+   */
+  async processSale(saleData, userId) {
+    const { items, paymentMethod, customerId, discounts, notes, amountPaid, taxRate, transactionNumber, total } = saleData;
+
+    // Validate items
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new Error('Items are required and must be an array');
+    }
+
+    // Validate payment method
+    if (!paymentMethod) {
+      throw new Error('Payment method is required');
+    }
+
+    // Calculate totals
+    let subtotal = 0;
+    const processedItems = items.map(item => {
+      const itemTotal = item.price * item.quantity;
+      subtotal += itemTotal;
+      return {
+        product: item.product || item._id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        total: itemTotal
+      };
+    });
+
+    // Calculate tax
+    const tax = subtotal * ((taxRate || 0) / 100);
+    const discountAmount = discounts || 0;
+    const finalTotal = subtotal + tax - discountAmount;
+
+    // Create sale record
+    const sale = new Sale({
+      items: processedItems,
+      subtotal,
+      tax: taxRate || 0,
+      taxAmount: tax,
+      discounts: discountAmount,
+      total: finalTotal,
+      paymentMethod,
+      customerId: customerId || null,
+      notes,
+      amountPaid: amountPaid || finalTotal,
+      transactionNumber,
+      userId, // CRITICAL: Link sale to user for data isolation
+      status: 'completed'
+    });
+
+    await sale.save();
+
+    // Update product stock levels
+    const Product = require('../models/Product');
+    for (const item of items) {
+      const productId = item.product || item._id;
+      if (productId) {
+        await Product.findByIdAndUpdate(productId, {
+          $inc: { stock: -item.quantity },
+          $inc: { 'analytics.sales': item.quantity, 'analytics.revenue': item.price * item.quantity }
+        });
+      }
+    }
+
+    return {
+      success: true,
+      sale,
+      message: 'Sale processed successfully'
+    };
+  }
+
   async updateSale(id, data) {
     const sale = await Sale.findByIdAndUpdate(
       id,
