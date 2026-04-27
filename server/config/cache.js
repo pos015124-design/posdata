@@ -269,9 +269,15 @@ class CacheService {
 // Create singleton instance
 const cacheService = new CacheService();
 
-// Cache middleware for Express routes
+// Cache middleware for Express routes - DISABLED FOR DATA ISOLATION
 const cacheMiddleware = (ttl = 300) => {
   return async (req, res, next) => {
+    // CRITICAL: Cache is DISABLED to prevent data leakage between users
+    // Cache keys were based on URL only, not userId, causing data sharing
+    return next();
+    
+    // Original caching logic (disabled):
+    /*
     // Skip caching for non-GET requests
     if (req.method !== 'GET') {
       return next();
@@ -305,6 +311,7 @@ const cacheMiddleware = (ttl = 300) => {
       logger.error('Cache middleware error', { error: error.message });
       next();
     }
+    */
   };
 };
 

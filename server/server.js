@@ -105,6 +105,19 @@ const port = process.env.PORT || 3001;
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// CRITICAL: Disable browser caching for API responses to prevent data leakage
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+  }
+  next();
+});
+
 // CORS configuration - allow all origins for images and API
 app.use(cors({
   origin: true, // Allow all origins

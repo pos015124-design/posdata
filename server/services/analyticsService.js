@@ -325,8 +325,8 @@ class AnalyticsService {
         }
       };
       
-      // Cache for 5 minutes
-      await cacheService.set(cacheKey, analytics, 300);
+      // REMOVED: Caching disabled for data isolation
+      // await cacheService.set(cacheKey, analytics, 300);
       
       return analytics;
       
@@ -457,8 +457,8 @@ class AnalyticsService {
         generatedAt: new Date().toISOString()
       };
 
-      // Cache for 10 minutes
-      await cacheService.set(cacheKey, analytics, 600);
+      // REMOVED: Caching disabled for data isolation
+      // await cacheService.set(cacheKey, analytics, 600);
 
       return analytics;
 
