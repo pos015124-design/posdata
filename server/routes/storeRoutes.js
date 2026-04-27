@@ -73,10 +73,29 @@ router.get('/store/:slug', async (req, res) => {
     
   } catch (error) {
     if (error.message === 'Store not found') {
-      return res.status(404).json({
-        error: 'Store not found',
-        message: 'This store does not exist or is not public'
-      });
+      // HELPFUL: Return list of available stores
+      try {
+        const Business = require('../models/Business');
+        const allBusinesses = await Business.find({}).select('slug name status isPublic');
+        
+        return res.status(404).json({
+          error: 'Store not found',
+          message: `Store '${req.params.slug}' does not exist or is not public`,
+          availableStores: allBusinesses.map(b => ({
+            slug: b.slug,
+            name: b.name,
+            status: b.status,
+            isPublic: b.isPublic,
+            accessible: b.status === 'active' && b.isPublic === true
+          })),
+          hint: 'Store must have status="active" AND isPublic=true to be accessible'
+        });
+      } catch (e) {
+        return res.status(404).json({
+          error: 'Store not found',
+          message: 'This store does not exist or is not public'
+        });
+      }
     }
     
     logger.error('Failed to get store', {

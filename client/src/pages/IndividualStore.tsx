@@ -30,11 +30,31 @@ interface Business {
   socialMedia?: any;
 }
 
+interface StoreError {
+  message: string;
+  hint?: string;
+  availableStores?: Array<{
+    slug: string;
+    name: string;
+    status: string;
+    isPublic: boolean;
+    accessible: boolean;
+  }>;
+  accessibleStores?: Array<{
+    slug: string;
+    name: string;
+    status: string;
+    isPublic: boolean;
+    accessible: boolean;
+  }>;
+}
+
 export default function IndividualStore() {
   const { slug } = useParams<{ slug: string }>();
   const [business, setBusiness] = useState<Business | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<StoreError | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
@@ -61,6 +81,20 @@ export default function IndividualStore() {
       console.log('🏪 Store data:', data);
       
       if (!response.ok) {
+        // Show helpful error if store not found
+        if (response.status === 404 && data.availableStores) {
+          console.log('🏪 Available stores:', data.availableStores);
+          const accessibleStores = data.availableStores.filter((s: any) => s.accessible);
+          console.log('🏪 Accessible stores:', accessibleStores);
+          
+          setError({
+            message: data.message,
+            hint: data.hint,
+            availableStores: data.availableStores,
+            accessibleStores: accessibleStores
+          });
+          return;
+        }
         throw new Error(data.message || 'Failed to load store');
       }
 
@@ -74,6 +108,7 @@ export default function IndividualStore() {
       setCategories(cats);
     } catch (error: any) {
       console.error('❌ Failed to load store:', error);
+      setError({ message: error.message });
       toast({
         title: 'Error',
         description: error.message || 'Store not found',
@@ -140,12 +175,61 @@ export default function IndividualStore() {
   if (!business) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-2xl mx-auto px-4">
           <Store className="w-24 h-24 mx-auto text-gray-300 mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Store Not Found</h2>
-          <p className="text-gray-600 mb-6">This store doesn't exist or is not public</p>
+          <p className="text-gray-600 mb-4">{error?.message || "This store doesn't exist or is not public"}</p>
+          
+          {error?.hint && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-blue-800 text-sm">{error.hint}</p>
+            </div>
+          )}
+          
+          {error?.accessibleStores && error.accessibleStores.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3">Available Stores:</h3>
+              <div className="grid gap-2">
+                {error.accessibleStores.map((store) => (
+                  <Link
+                    key={store.slug}
+                    to={`/store/${store.slug}`}
+                    className="block p-3 bg-white border border-gray-200 rounded-lg hover:border-primary transition-colors text-left"
+                  >
+                    <div className="font-semibold">{store.name}</div>
+                    <div className="text-sm text-gray-600">/store/{store.slug}</div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {error?.availableStores && error.availableStores.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3 text-gray-700">All Stores (including inactive):</h3>
+              <div className="bg-gray-100 rounded-lg p-4 text-left text-sm">
+                {error.availableStores.map((store) => (
+                  <div key={store.slug} className="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
+                    <span className="font-mono">{store.slug}</span>
+                    <span className="text-xs">
+                      {store.accessible ? (
+                        <span className="text-green-600 font-semibold">✓ Active & Public</span>
+                      ) : (
+                        <span className="text-red-600">
+                          {store.status !== 'active' ? 'Inactive' : ''}
+                          {store.status !== 'active' && !store.isPublic ? ', ' : ''}
+                          {!store.isPublic ? 'Private' : ''}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <Link to="/stores">
-            <Button>Browse Stores</Button>
+            <Button>Browse All Public Stores</Button>
           </Link>
         </div>
       </div>
