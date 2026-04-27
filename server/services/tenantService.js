@@ -72,16 +72,41 @@ class TenantService {
   static async createTenant(tenantData) {
     try {
       const { name, domain, adminEmail, plan = 'basic' } = tenantData;
+      const Tenant = mongoose.model('Tenant');
+
+      // Reuse existing tenant for the same admin email if present
+      const existingByEmail = await Tenant.findOne({ adminEmail }).lean();
+      if (existingByEmail) {
+        return {
+          tenantId: existingByEmail.tenantId,
+          name: existingByEmail.name,
+          domain: existingByEmail.domain,
+          plan: existingByEmail.plan,
+          status: existingByEmail.status,
+          createdAt: existingByEmail.createdAt
+        };
+      }
+
+      // Ensure domain uniqueness
+      const normalizedBaseDomain = (domain || name || 'tenant')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      let candidateDomain = normalizedBaseDomain || `tenant-${Date.now().toString(36)}`;
+      let suffix = 1;
+      while (await Tenant.findOne({ domain: candidateDomain }).lean()) {
+        candidateDomain = `${normalizedBaseDomain}-${suffix++}`;
+      }
       
       // Generate unique tenant ID
       const tenantId = this.generateTenantId(name);
       
       // Create tenant record in main database
-      const Tenant = mongoose.model('Tenant');
       const tenant = new Tenant({
         tenantId,
         name,
-        domain,
+        domain: candidateDomain,
         adminEmail,
         plan,
         status: 'active',
@@ -115,7 +140,7 @@ class TenantService {
 
     } catch (error) {
       logger.error('Failed to create tenant', { error: error.message, tenantData });
-      throw new Error('Tenant creation failed');
+      throw new Error(`Tenant creation failed: ${error.message}`);
     }
   }
 

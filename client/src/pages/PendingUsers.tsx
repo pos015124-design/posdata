@@ -9,26 +9,28 @@ interface PendingUser {
   email: string;
   role: string;
   isApproved: boolean;
+  isActive?: boolean;
+  createdAt?: string;
 }
 
 const PendingUsers: React.FC = () => {
-  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [users, setUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const baseUrl = import.meta.env.VITE_API_URL || '';
 
-  const fetchPendingUsers = async () => {
+  const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${baseUrl}/api/auth/pending-users`, {
+      const res = await fetch(`${baseUrl}/api/auth/users`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('accessToken')}`
         }
       });
       const data = await res.json();
-      setPendingUsers(data.users || []);
+      setUsers(data.users || []);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load pending users.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load users.' });
     } finally {
       setLoading(false);
     }
@@ -46,7 +48,7 @@ const PendingUsers: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         toast({ title: 'User Approved', description: data.message });
-        fetchPendingUsers();
+        fetchUsers();
       } else {
         toast({ variant: 'destructive', title: 'Error', description: data.message || 'Failed to approve user.' });
       }
@@ -67,7 +69,7 @@ const PendingUsers: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         toast({ title: 'Pending Users Approved', description: data.message });
-        fetchPendingUsers();
+        fetchUsers();
       } else {
         toast({ variant: 'destructive', title: 'Error', description: data.message || 'Failed to approve pending users.' });
       }
@@ -77,9 +79,11 @@ const PendingUsers: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPendingUsers();
+    fetchUsers();
     // eslint-disable-next-line
   }, []);
+
+  const pendingUsers = users.filter((u) => !u.isApproved);
 
   return (
     <Card className="mt-6">
@@ -103,24 +107,30 @@ const PendingUsers: React.FC = () => {
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Account</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pendingUsers.length === 0 ? (
+            {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center">No pending users.</TableCell>
+                <TableCell colSpan={5} className="text-center">No users found.</TableCell>
               </TableRow>
             ) : (
-              pendingUsers.map(user => (
+              users.map(user => (
                 <TableRow key={user._id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.role}</TableCell>
                   <TableCell>{user.isApproved ? 'Approved' : 'Pending'}</TableCell>
+                  <TableCell>{user.isActive === false ? 'Inactive' : 'Active'}</TableCell>
                   <TableCell>
-                    <Button size="sm" onClick={() => approveUser(user._id)}>
-                      Approve
-                    </Button>
+                    {!user.isApproved ? (
+                      <Button size="sm" onClick={() => approveUser(user._id)}>
+                        Approve
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-gray-500">—</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

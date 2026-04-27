@@ -57,8 +57,9 @@ router.post('/login',
 
 
 
-      // Auto-approve admin users on login
-      if (user.role === 'super_admin' || user.role === 'business_admin') {
+      // Auto-approve only platform admins on login.
+      // business_admin accounts must remain pending until super-admin approval.
+      if (user.role === 'super_admin' || user.role === 'admin') {
         let updated = false;
         if (!user.isApproved) {
           user.isApproved = true;
@@ -401,6 +402,19 @@ router.get('/pending-users', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error fetching pending users:', error, error?.stack);
     return res.status(500).json({ message: 'Server error', error: error?.message, stack: error?.stack });
+  }
+});
+
+router.get('/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find({})
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    return res.json({ users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
