@@ -3,11 +3,14 @@ import api from './api';
 // Define types for our settings
 export type BusinessSettings = {
   name: string;
+  slug?: string;
   address: string;
   phone: string;
   email: string;
   taxId: string;
   logo?: string;
+  isPublic?: boolean;
+  status?: string;
 }
 
 export type TaxSettings = {

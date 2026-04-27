@@ -25,10 +25,13 @@ export default function Settings() {
 
   const [businessSettings, setBusinessSettings] = useState({
     name: '',
+    slug: '',
     address: '',
     phone: '',
     email: '',
-    taxId: ''
+    taxId: '',
+    isPublic: false,
+    status: 'pending'
   });
 
   const [profileSettings, setProfileSettings] = useState({
@@ -80,10 +83,13 @@ export default function Settings() {
         if (settings.business) {
           setBusinessSettings({
             name: settings.business.name || '',
+            slug: settings.business.slug || '',
             address: settings.business.address || '',
             phone: settings.business.phone || '',
             email: settings.business.email || '',
-            taxId: settings.business.taxId || ''
+            taxId: settings.business.taxId || '',
+            isPublic: settings.business.isPublic || false,
+            status: settings.business.status || 'pending'
           });
         }
         if (settings.tax) {
@@ -374,16 +380,46 @@ export default function Settings() {
               )}
 
               {activeTab === 'business' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="businessName">Business Name</Label>
-                    <Input 
-                      id="businessName" 
-                      value={businessSettings.name}
-                      onChange={(e) => setBusinessSettings({...businessSettings, name: e.target.value})}
-                      placeholder="Enter business name" 
-                    />
+                <div className="space-y-6">
+                  {/* Store URL Preview */}
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                    <h3 className="font-semibold text-lg mb-2">Your Store URL</h3>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm bg-white px-3 py-2 rounded border flex-1">
+                        {window.location.origin}/store/{businessSettings.slug || 'your-slug'}
+                      </code>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      This is the public URL where customers can browse your products
+                    </p>
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="businessName">Business Name *</Label>
+                      <Input 
+                        id="businessName" 
+                        value={businessSettings.name}
+                        onChange={(e) => setBusinessSettings({...businessSettings, name: e.target.value})}
+                        placeholder="Enter business name" 
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="slug">Store Slug * (URL-friendly)</Label>
+                      <Input 
+                        id="slug" 
+                        value={businessSettings.slug || ''}
+                        onChange={(e) => {
+                          // Auto-format slug: lowercase, hyphens instead of spaces
+                          const slug = e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                          setBusinessSettings({...businessSettings, slug: slug});
+                        }}
+                        placeholder="my-store" 
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Used in your store URL. Only letters, numbers, and hyphens.</p>
+                    </div>
+                  </div>
+
                   <div>
                     <Label htmlFor="address">Address</Label>
                     <Input 
@@ -393,6 +429,7 @@ export default function Settings() {
                       placeholder="Business address" 
                     />
                   </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="phone">Phone</Label>
@@ -414,6 +451,7 @@ export default function Settings() {
                       />
                     </div>
                   </div>
+
                   <div>
                     <Label htmlFor="taxId">Tax ID / TIN Number</Label>
                     <Input 
@@ -423,6 +461,57 @@ export default function Settings() {
                       placeholder="Enter tax identification number" 
                     />
                   </div>
+
+                  {/* Public Store Toggle */}
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold">Public Store</h4>
+                        <p className="text-sm text-gray-600">Make your store visible to everyone</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="sr0-peer"
+                          checked={businessSettings.isPublic || false}
+                          onChange={(e) => setBusinessSettings({...businessSettings, isPublic: e.target.checked})}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {businessSettings.isPublic 
+                        ? '✅ Your store is public and accessible to everyone'
+                        : '⚠️ Your store is private. Only you can see it.'}
+                    </p>
+                  </div>
+
+                  {/* Status Display */}
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold">Store Status</h4>
+                        <p className="text-sm text-gray-600">Current status of your business</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        businessSettings.status === 'active' 
+                          ? 'bg-green-100 text-green-800'
+                          : businessSettings.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {businessSettings.status === 'active' ? '✅ Active' : 
+                         businessSettings.status === 'pending' ? '⏳ Pending Approval' : 
+                         businessSettings.status || 'Inactive'}
+                      </span>
+                    </div>
+                    {businessSettings.status === 'pending' && (
+                      <p className="text-xs text-yellow-600 mt-2">
+                        ⏳ Your business is awaiting admin approval
+                      </p>
+                    )}
+                  </div>
+
                   <Button
                     onClick={handleSaveBusiness}
                     disabled={saving}
