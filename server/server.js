@@ -59,13 +59,17 @@ const sellerInventoryRoutes = require("./routes/sellerInventoryRoutes");
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later'
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false // Disable the `X-RateLimit-*` headers
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // increased from 50 to 100 for easier testing
-  message: 'Too many login attempts from this IP, please try again later'
+  message: 'Too many login attempts from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
 // Upload rate limiter - more generous for file uploads
@@ -100,6 +104,10 @@ if (missingEnvVars.length > 0) {
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3001;
+
+// CRITICAL: Trust proxy for Render/Vercel deployment
+// This allows express-rate-limit to correctly identify users behind load balancers
+app.set('trust proxy', 1); // trust first proxy
 
 // Essential middleware
 app.use(express.json({ limit: '10mb' }));
