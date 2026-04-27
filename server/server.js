@@ -126,25 +126,39 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS: set ALLOWED_ORIGINS=comma,separated,urls for production lockdown; omit for permissive (reflect request origin)
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+// CORS: ALLOWED_ORIGINS=comma,separated,exact_origins (no path). Omit env = reflect browser Origin (dev / open API).
+// If set, every SPA origin that calls this API must be listed or preflight fails with "No Access-Control-Allow-Origin".
+const normalizeOrigin = (o) => (o || '').trim().replace(/\/+$/, '').toLowerCase();
+
+const ALLOWED_ORIGINS_RAW = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+  : null;
+
+const ALLOWED_ORIGINS_SET = ALLOWED_ORIGINS_RAW?.length
+  ? new Set(ALLOWED_ORIGINS_RAW.map(normalizeOrigin))
   : null;
 
 const corsShared = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'X-Refresh-Token'],
+  exposedHeaders: ['Content-Type'],
+  optionsSuccessStatus: 204
 };
 
 app.use(
   cors(
-    ALLOWED_ORIGINS?.length
+    ALLOWED_ORIGINS_SET
       ? {
           ...corsShared,
           origin(origin, callback) {
+            // Same-origin tools, curl, Postman — no Origin header
             if (!origin) return callback(null, true);
-            return callback(null, ALLOWED_ORIGINS.includes(origin));
+            const ok = ALLOWED_ORIGINS_SET.has(normalizeOrigin(origin));
+            if (!ok) {
+              console.warn(`[CORS] Blocked origin (add exact URL to ALLOWED_ORIGINS on the API host): ${origin}`);
+            }
+            return callback(null, ok);
           }
         }
       : {
