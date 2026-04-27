@@ -203,6 +203,16 @@ app.get('/api/public/products', async (req, res) => {
   }
 });
 app.use('/api/sellers', sellerRoutes);
+
+// DEBUG: Test endpoint for sellers
+app.get('/api/sellers/test', (req, res) => {
+  console.log('TEST: /api/sellers/test endpoint hit');
+  res.json({ 
+    message: 'Sellers API is working!',
+    timestamp: new Date().toISOString(),
+    note: 'If you see this, the route is working'
+  });
+});
 app.use('/api/products/import', importRoutes);
 app.use('/api/seller-inventory', sellerInventoryRoutes);
 

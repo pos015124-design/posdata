@@ -6,13 +6,19 @@ const Seller = require('../models/Seller');
 // Simple auth check - get from auth middleware
 const { requireUser } = require('./middleware/auth');
 
+// DEBUG: Log when this route file is loaded
+console.log('✅ Seller routes loaded successfully');
+
 // Get all sellers - SCOPED TO CURRENT USER
 router.get('/', requireUser, async (req, res) => {
+  console.log('GET /api/sellers - Request received');
   try {
     // Only return sellers created by the current user
     const sellers = await Seller.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    console.log(`GET /api/sellers - Found ${sellers.length} sellers for user ${req.user.userId}`);
     res.json({ sellers });
   } catch (err) {
+    console.error('GET /api/sellers - Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
