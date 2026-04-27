@@ -44,6 +44,15 @@ export default function Sellers() {
         }
       });
       
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Server returned non-JSON response:', contentType);
+        const text = await response.text();
+        console.error('Response body:', text.substring(0, 200));
+        throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+      }
+      
       if (response.ok) {
         const data = await response.json();
         const sellersList = data.sellers || [];
@@ -60,17 +69,18 @@ export default function Sellers() {
         }));
         setSellers(mappedSellers);
       } else {
+        const errorData = await response.json();
         toast({
           title: 'Error',
-          description: 'Failed to load sellers',
+          description: errorData.error || errorData.message || 'Failed to load sellers',
           variant: 'destructive',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch sellers:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load sellers',
+        description: error.message || 'Failed to load sellers. Please refresh the page.',
         variant: 'destructive',
       });
     } finally {
