@@ -50,21 +50,30 @@ export default function IndividualStore() {
   const fetchStore = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/public/store/${slug}`);
+      console.log('🏪 Fetching store for slug:', slug);
+      const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/public/store/${slug}`;
+      console.log('🏪 API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      console.log('🏪 Response status:', response.status);
+      
       const data = await response.json();
+      console.log('🏪 Store data:', data);
       
       if (!response.ok) {
         throw new Error(data.message || 'Failed to load store');
       }
 
       setBusiness(data.data.business);
-      setProducts(data.data.products || []);
+      const productList = data.data.products || [];
+      setProducts(productList);
+      console.log('🏪 Products count:', productList.length);
       
       // Extract unique categories
-      const cats = [...new Set((data.data.products || []).map((p: Product) => p.category).filter(Boolean))] as string[];
+      const cats = [...new Set(productList.map((p: Product) => p.category).filter(Boolean))] as string[];
       setCategories(cats);
     } catch (error: any) {
-      console.error('Failed to load store:', error);
+      console.error('❌ Failed to load store:', error);
       toast({
         title: 'Error',
         description: error.message || 'Store not found',

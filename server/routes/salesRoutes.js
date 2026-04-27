@@ -11,8 +11,36 @@ const {
 // Get all sales - SCOPED TO CURRENT USER
 router.get('/', requireUser, async (req, res) => {
   try {
-    const sales = await SaleService.getAllSales({}, {}, req.user.userId);
-    res.json({ sales });
+    const result = await SaleService.getAllSales({}, {}, req.user.userId);
+    
+    // Format sales for frontend
+    const sales = result.data.map(sale => ({
+      _id: sale._id,
+      invoiceNumber: sale.invoiceNumber,
+      items: sale.items.map(item => ({
+        productId: item.productId,
+        name: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.total
+      })),
+      subtotal: sale.subtotal,
+      tax: sale.tax,
+      discount: sale.discount,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      amountPaid: sale.amountPaid,
+      change: sale.change,
+      createdAt: sale.createdAt,
+      updatedAt: sale.updatedAt
+    }));
+    
+    console.log(`[Sales API] Returning ${sales.length} sales for user ${req.user.userId}`);
+    
+    res.json({ 
+      sales,
+      pagination: result.pagination
+    });
   } catch (error) {
     console.error('Error fetching sales:', error);
     res.status(500).json({ message: error.message });
