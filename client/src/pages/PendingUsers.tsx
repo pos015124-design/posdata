@@ -15,11 +15,12 @@ const PendingUsers: React.FC = () => {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const baseUrl = import.meta.env.VITE_API_URL || '';
 
   const fetchPendingUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/pending-users', {
+      const res = await fetch(`${baseUrl}/api/auth/pending-users`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('accessToken')}`
         }
@@ -35,7 +36,7 @@ const PendingUsers: React.FC = () => {
 
   const approveUser = async (userId: string) => {
     try {
-      const res = await fetch(`/api/auth/approve/${userId}`, {
+      const res = await fetch(`${baseUrl}/api/auth/approve/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -54,6 +55,27 @@ const PendingUsers: React.FC = () => {
     }
   };
 
+  const approveAllUsers = async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/approve-all-pending`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Pending Users Approved', description: data.message });
+        fetchPendingUsers();
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: data.message || 'Failed to approve pending users.' });
+      }
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to approve pending users.' });
+    }
+  };
+
   useEffect(() => {
     fetchPendingUsers();
     // eslint-disable-next-line
@@ -62,7 +84,17 @@ const PendingUsers: React.FC = () => {
   return (
     <Card className="mt-6">
       <CardHeader>
-        <CardTitle>Pending User Approvals</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>Pending User Approvals</CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={approveAllUsers}
+            disabled={loading || pendingUsers.length === 0}
+          >
+            Approve All
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>

@@ -65,8 +65,13 @@ export default function Settings() {
   });
 
   useEffect(() => {
+    // Super admins don't own a business profile, so skip seller business settings fetches.
+    if (user?.role === 'super_admin') {
+      setLoading(false);
+      return;
+    }
     loadSettings();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     if (user) {

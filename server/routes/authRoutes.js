@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Staff = require('../models/Staff');
+const TenantService = require('../services/tenantService');
 const { requireUser, requireAdmin } = require('./middleware/auth.js');
 const {
   validateLogin,
@@ -182,7 +183,7 @@ router.post('/register',
         firstName: name?.split(' ')[0] || '',
         lastName: name?.split(' ').slice(1).join(' ') || '',
         role: 'business_admin', // Business owner/seller role
-        isApproved: true // Auto-approve business registrations
+        isApproved: false // Require super-admin approval
       });
       await user.save();
 
@@ -190,7 +191,22 @@ router.post('/register',
       if (businessName || name) {
         try {
           const Business = require('../models/Business');
+          // Ensure tenant exists for business/user linkage
+          const tenant = await TenantService.createTenant({
+            name: businessName || `${name}'s Store`,
+            domain: (businessName || name)
+              .toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .trim(),
+            adminEmail: email,
+            plan: 'basic'
+          });
+
+          user.tenantId = tenant.tenantId;
           const business = new Business({
+            tenantId: tenant.tenantId,
             name: businessName || `${name}'s Store`,
             slug: (businessName || name)
               .toLowerCase()
@@ -200,8 +216,8 @@ router.post('/register',
               .trim(),
             email: email,
             userId: user._id,
-            status: 'active',
-            isPublic: true,
+            status: 'pending',
+            isPublic: false,
             category: 'retail'
           });
           await business.save();
@@ -409,6 +425,24 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error approving user:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.put('/approve-all-pending', requireAdmin, async (req, res) => {
+  try {
+    const result = await User.updateMany(
+      { isApproved: false },
+      { $set: { isApproved: true } }
+    );
+
+    return res.json({
+      success: true,
+      message: `Approved ${result.modifiedCount || 0} pending user account(s)`,
+      approvedCount: result.modifiedCount || 0
+    });
+  } catch (error) {
+    console.error('Error approving all pending users:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });

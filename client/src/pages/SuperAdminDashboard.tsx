@@ -105,27 +105,33 @@ const SuperAdminDashboard: React.FC = () => {
   const fetchPlatformData = async () => {
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_URL || '';
       
       const [statsResponse, healthResponse] = await Promise.all([
-        fetch('/api/platform/analytics', {
+        fetch(`${baseUrl}/api/platform/analytics`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch('/api/platform/health', {
+        fetch(`${baseUrl}/api/platform/health`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData.data);
+      if (!statsResponse.ok || !healthResponse.ok) {
+        const statsError = !statsResponse.ok ? await statsResponse.json().catch(() => null) : null;
+        const healthError = !healthResponse.ok ? await healthResponse.json().catch(() => null) : null;
+        throw new Error(
+          statsError?.message ||
+          healthError?.message ||
+          'Failed to load platform data'
+        );
       }
 
-      if (healthResponse.ok) {
-        const healthData = await healthResponse.json();
-        setHealth(healthData.data);
-      }
+      const statsData = await statsResponse.json();
+      const healthData = await healthResponse.json();
+      setStats(statsData.data);
+      setHealth(healthData.data);
     } catch (err) {
-      setError('Failed to load platform data');
+      setError(err instanceof Error ? err.message : 'Failed to load platform data');
     } finally {
       setLoading(false);
     }

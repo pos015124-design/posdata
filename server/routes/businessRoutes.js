@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const BusinessService = require('../services/businessService');
+const TenantService = require('../services/tenantService');
 const { requireUser, requireAdmin } = require('./middleware/auth');
 const { body, validationResult } = require('express-validator');
 const { logger } = require('../config/logger');
@@ -136,6 +137,7 @@ router.get('/my-business', requireUser, async (req, res) => {
 router.post('/my-business', requireUser, async (req, res) => {
   try {
     const Business = require('../models/Business');
+    const User = require('../models/User');
     const { name, slug, email, phone, address, category, description, isPublic } = req.body;
     
     // Check if user already has a business
@@ -176,8 +178,31 @@ router.post('/my-business', requireUser, async (req, res) => {
       });
     }
     
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'Unable to resolve current user'
+      });
+    }
+
+    // Ensure tenantId exists before creating business
+    let tenantId = user.tenantId;
+    if (!tenantId) {
+      const tenant = await TenantService.createTenant({
+        name: name || `${req.user.email}'s Store`,
+        domain: businessSlug,
+        adminEmail: email || req.user.email,
+        plan: 'basic'
+      });
+      tenantId = tenant.tenantId;
+      user.tenantId = tenantId;
+      await user.save();
+    }
+
     // Create business
     const business = new Business({
+      tenantId,
       name: name || `${req.user.email}'s Store`,
       slug: businessSlug,
       email: email || req.user.email,
@@ -193,7 +218,6 @@ router.post('/my-business', requireUser, async (req, res) => {
     await business.save();
     
     // Link user to business
-    const User = require('../models/User');
     await User.findByIdAndUpdate(req.user.userId, {
       businessId: business._id
     });
