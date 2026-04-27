@@ -29,5 +29,8 @@
       "src": "/(.*)",
       "dest": "/client/dist/$1"
     }
-  ]
+  ],
+  "env": {
+    "FORCE_REBUILD": "2026-04-27-v2"
+  }
 }
