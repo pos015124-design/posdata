@@ -7,9 +7,9 @@ class SaleService {
 
     let query = {};
 
-    // CRITICAL: Filter by userId for data isolation
+    // CRITICAL: Filter by createdBy for data isolation
     if (userId) {
-      query.userId = userId;
+      query.createdBy = userId;
     }
 
     if (startDate && endDate) {
@@ -46,9 +46,9 @@ class SaleService {
   async getRecentSales(limit = 10, userId = null) {
     let query = {};
     
-    // CRITICAL: Filter by userId for data isolation
+    // CRITICAL: Filter by createdBy for data isolation
     if (userId) {
-      query.userId = userId;
+      query.createdBy = userId;
     }
     
     return await Sale.find(query)
@@ -60,9 +60,9 @@ class SaleService {
   async getSaleById(id, userId = null) {
     let query = { _id: id };
     
-    // CRITICAL: Filter by userId for data isolation
+    // CRITICAL: Filter by createdBy for data isolation
     if (userId) {
-      query.userId = userId;
+      query.createdBy = userId;
     }
     
     const sale = await Sale.findOne(query).populate('customerId', 'name email');
@@ -103,8 +103,8 @@ class SaleService {
       const itemTotal = item.price * item.quantity;
       subtotal += itemTotal;
       return {
-        product: item.product || item._id,
-        name: item.name,
+        productId: item.product || item._id,
+        productName: item.name,
         quantity: item.quantity,
         price: item.price,
         total: itemTotal
@@ -112,24 +112,29 @@ class SaleService {
     });
 
     // Calculate tax
-    const tax = subtotal * ((taxRate || 0) / 100);
+    const taxAmount = subtotal * ((taxRate || 0) / 100);
     const discountAmount = discounts || 0;
-    const finalTotal = subtotal + tax - discountAmount;
+    const finalTotal = subtotal + taxAmount - discountAmount;
+
+    // Generate unique invoice number
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const invoiceNumber = `INV-${timestamp}-${random}`;
 
     // Create sale record
     const sale = new Sale({
+      invoiceNumber,
       items: processedItems,
       subtotal,
       tax: taxRate || 0,
-      taxAmount: tax,
-      discounts: discountAmount,
+      discount: discountAmount,
       total: finalTotal,
       paymentMethod,
       customerId: customerId || null,
       notes,
       amountPaid: amountPaid || finalTotal,
-      transactionNumber,
-      userId, // CRITICAL: Link sale to user for data isolation
+      change: (amountPaid || finalTotal) - finalTotal,
+      createdBy: userId, // CRITICAL: Link sale to user for data isolation
       status: 'completed'
     });
 
@@ -141,8 +146,11 @@ class SaleService {
       const productId = item.product || item._id;
       if (productId) {
         await Product.findByIdAndUpdate(productId, {
-          $inc: { stock: -item.quantity },
-          $inc: { 'analytics.sales': item.quantity, 'analytics.revenue': item.price * item.quantity }
+          $inc: { 
+            stock: -item.quantity,
+            'analytics.sales': item.quantity,
+            'analytics.revenue': item.price * item.quantity
+          }
         });
       }
     }
@@ -177,9 +185,9 @@ class SaleService {
   async getSalesSummary(userId = null) {
     let query = {};
     
-    // CRITICAL: Filter by userId for data isolation
+    // CRITICAL: Filter by createdBy for data isolation
     if (userId) {
-      query.userId = userId;
+      query.createdBy = userId;
     }
     
     const today = new Date();
