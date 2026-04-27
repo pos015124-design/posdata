@@ -136,6 +136,21 @@ app.use((req, res, next) => {
 // You can set FRONTEND_URL / CLIENT_URL / SHOP_URL (single origin) on Render instead of a long ALLOWED_ORIGINS list.
 const normalizeOrigin = (o) => (o || '').trim().replace(/\/+$/, '').toLowerCase();
 
+/** Split comma-separated origins; also fix "host.https://other" (dot instead of comma between URLs). */
+function splitOriginsParts(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+  const healed = raw.replace(/\.(https?:\/\/)/gi, ',$1');
+  if (healed !== raw) {
+    console.warn(
+      '[CORS] Origins string used a period before "https://" instead of a comma. Auto-split. Use commas in ALLOWED_ORIGINS, e.g. https://a.com,https://b.com'
+    );
+  }
+  return healed
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function buildAllowedOriginsSet() {
   const primary = (process.env.ALLOWED_ORIGINS || '').trim();
   if (primary === '*') return null;
@@ -148,9 +163,7 @@ function buildAllowedOriginsSet() {
     process.env.VITE_APP_URL
   ]
     .filter(Boolean)
-    .flatMap((s) => s.split(','))
-    .map((s) => s.trim())
-    .filter(Boolean);
+    .flatMap((s) => splitOriginsParts(s));
 
   if (!merged.length) return null;
   return new Set(merged.map(normalizeOrigin));
