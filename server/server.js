@@ -56,12 +56,15 @@ const importRoutes = require("./routes/importRoutes");
 const sellerInventoryRoutes = require("./routes/sellerInventoryRoutes");
 
 // Rate limiting
+const skipPreflight = (req) => req.method === 'OPTIONS';
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false // Disable the `X-RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  skip: skipPreflight
 });
 
 const authLimiter = rateLimit({
@@ -69,7 +72,8 @@ const authLimiter = rateLimit({
   max: 100, // increased from 50 to 100 for easier testing
   message: 'Too many login attempts from this IP, please try again later',
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: skipPreflight
 });
 
 // Upload rate limiter - more generous for file uploads
@@ -79,6 +83,7 @@ const uploadLimiter = rateLimit({
   message: 'Too many upload requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false,
+  skip: skipPreflight,
   handler: (req, res) => {
     res.status(429).json({
       error: 'Too many upload requests',
@@ -126,17 +131,32 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS: ALLOWED_ORIGINS=comma,separated,exact_origins (no path). Omit env = reflect browser Origin (dev / open API).
-// If set, every SPA origin that calls this API must be listed or preflight fails with "No Access-Control-Allow-Origin".
+// CORS: list browser origins (scheme+host, no path). Omit all = permissive (reflect Origin).
+// ALLOWED_ORIGINS=* also means permissive.
+// You can set FRONTEND_URL / CLIENT_URL / SHOP_URL (single origin) on Render instead of a long ALLOWED_ORIGINS list.
 const normalizeOrigin = (o) => (o || '').trim().replace(/\/+$/, '').toLowerCase();
 
-const ALLOWED_ORIGINS_RAW = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
-  : null;
+function buildAllowedOriginsSet() {
+  const primary = (process.env.ALLOWED_ORIGINS || '').trim();
+  if (primary === '*') return null;
 
-const ALLOWED_ORIGINS_SET = ALLOWED_ORIGINS_RAW?.length
-  ? new Set(ALLOWED_ORIGINS_RAW.map(normalizeOrigin))
-  : null;
+  const merged = [
+    process.env.ALLOWED_ORIGINS,
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    process.env.SHOP_URL,
+    process.env.VITE_APP_URL
+  ]
+    .filter(Boolean)
+    .flatMap((s) => s.split(','))
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (!merged.length) return null;
+  return new Set(merged.map(normalizeOrigin));
+}
+
+const ALLOWED_ORIGINS_SET = buildAllowedOriginsSet();
 
 const corsShared = {
   credentials: true,
@@ -167,6 +187,12 @@ app.use(
         }
   )
 );
+
+if (ALLOWED_ORIGINS_SET) {
+  console.log('[CORS] Strict allowlist:', [...ALLOWED_ORIGINS_SET].join(', '));
+} else {
+  console.log('[CORS] Permissive (reflect Origin). Set ALLOWED_ORIGINS, FRONTEND_URL, or * to change.');
+}
 
 // Security middleware
 app.use(helmet({
