@@ -79,9 +79,18 @@ export default function Settings() {
       
       // Load business settings from business API
       const token = localStorage.getItem('token');
-      const businessResponse = await fetch('/api/business/my-business', {
+      const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/business/my-business`;
+      
+      const businessResponse = await fetch(apiUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      // Check if response is JSON
+      const contentType = businessResponse.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('Business API returned non-JSON response, using defaults');
+        return; // Use defaults
+      }
       
       if (businessResponse.ok) {
         const businessData = await businessResponse.json();
@@ -97,6 +106,11 @@ export default function Settings() {
           isPublic: business.isPublic || false,
           status: business.status || 'pending'
         });
+      } else if (businessResponse.status === 404) {
+        // Business doesn't exist yet - that's okay, user can create one
+        console.log('No business found, user can create one');
+      } else {
+        console.error('Failed to load business:', businessResponse.status);
       }
       
     } catch (error) {
@@ -131,9 +145,10 @@ export default function Settings() {
       
       // Get current user's business
       const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_URL || '';
       
       // First, try to get existing business
-      const getResponse = await fetch('/api/business/my-business', {
+      const getResponse = await fetch(`${baseUrl}/api/business/my-business`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -159,7 +174,7 @@ export default function Settings() {
       
       if (businessId) {
         // Update existing business
-        response = await fetch(`/api/business/${businessId}`, {
+        response = await fetch(`${baseUrl}/api/business/${businessId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -168,8 +183,8 @@ export default function Settings() {
           body: JSON.stringify(businessData)
         });
       } else {
-        // Create new business - use business registration endpoint
-        response = await fetch('/api/business/my-business', {
+        // Create new business
+        response = await fetch(`${baseUrl}/api/business/my-business`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -180,6 +195,7 @@ export default function Settings() {
       }
       
       if (response.ok) {
+        const result = await response.json();
         toast({
           title: 'Success',
           description: 'Business settings saved successfully!',
