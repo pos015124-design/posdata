@@ -11,15 +11,20 @@ class ProductService {
    */
   static async getAllProducts(pagination = {}, query = {}, userId = null) {
     try {
+      console.log(`getAllProducts called with userId: ${userId}`);
+      
       // Create a mock request object for pagination utility
       const mockReq = { pagination, query };
 
       // Additional filters based on query parameters
       const additionalFilter = {};
 
-      // Filter by user's products if userId provided
+      // CRITICAL: Filter by user's products if userId provided
       if (userId) {
         additionalFilter.userId = userId;
+        console.log(`Filtering products by userId: ${userId}`);
+      } else {
+        console.warn('WARNING: getAllProducts called WITHOUT userId - returning ALL products!');
       }
 
       if (query.category) {
