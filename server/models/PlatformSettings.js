@@ -384,7 +384,33 @@ platformSettingsSchema.statics.getSettings = async function() {
 // Static method to update settings
 platformSettingsSchema.statics.updateSettings = async function(updates, userId) {
   const settings = await this.getSettings();
-  Object.assign(settings, updates);
+
+  /**
+   * Deep-merge `source` into `target` (Mongoose document or plain object).
+   * Only plain objects are recursed into — arrays and primitives are replaced directly.
+   * This prevents a partial nested update (e.g. { email: { fromEmail: 'x' } })
+   * from wiping sibling keys (email.provider, email.enabled, etc.).
+   */
+  function deepMerge(target, source) {
+    for (const key of Object.keys(source)) {
+      const srcVal = source[key];
+      const tgtVal = target[key];
+      if (
+        srcVal !== null &&
+        typeof srcVal === 'object' &&
+        !Array.isArray(srcVal) &&
+        tgtVal !== null &&
+        typeof tgtVal === 'object' &&
+        !Array.isArray(tgtVal)
+      ) {
+        deepMerge(tgtVal, srcVal);
+      } else {
+        target[key] = srcVal;
+      }
+    }
+  }
+
+  deepMerge(settings, updates);
   settings.lastModifiedBy = userId;
   return settings.save();
 };

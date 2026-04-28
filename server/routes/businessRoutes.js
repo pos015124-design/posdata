@@ -212,7 +212,8 @@ router.post('/my-business', requireUser, async (req, res) => {
       description: description || '',
       userId: req.user.userId,
       status: 'active', // Auto-activate for now
-      isPublic: isPublic !== undefined ? isPublic : true
+      isPublic: isPublic !== undefined ? isPublic : true,
+      analytics: { views: 0, orders: 0, revenue: 0 }
     });
     
     await business.save();

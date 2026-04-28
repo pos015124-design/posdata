@@ -40,7 +40,8 @@ interface Business {
     zipCode?: string;
     country?: string;
   };
-  analytics: {
+  /** analytics may be absent on older records created before the field was added */
+  analytics?: {
     views: number;
     orders: number;
     revenue: number;
@@ -358,7 +359,7 @@ const BusinessManagement: React.FC = () => {
                         {getStatusBadge(business.status)}
                       </TableCell>
                       <TableCell>
-                        {formatCurrency(business.analytics.revenue)}
+                        {formatCurrency(business.analytics?.revenue ?? 0)}
                       </TableCell>
                       <TableCell>
                         {formatDate(business.createdAt)}
@@ -499,15 +500,15 @@ const BusinessManagement: React.FC = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Views</Label>
-                  <p className="font-medium">{selectedBusiness.analytics.views}</p>
+                  <p className="font-medium">{selectedBusiness.analytics?.views ?? 0}</p>
                 </div>
                 <div>
                   <Label>Orders</Label>
-                  <p className="font-medium">{selectedBusiness.analytics.orders}</p>
+                  <p className="font-medium">{selectedBusiness.analytics?.orders ?? 0}</p>
                 </div>
                 <div>
                   <Label>Revenue</Label>
-                  <p className="font-medium">{formatCurrency(selectedBusiness.analytics.revenue)}</p>
+                  <p className="font-medium">{formatCurrency(selectedBusiness.analytics?.revenue ?? 0)}</p>
                 </div>
               </div>
 
