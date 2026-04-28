@@ -280,6 +280,8 @@ export default function Inventory() {
       });
     }
   };
+
+  const handleBarcodeScan = () => {
     setIsScanning(true);
     // Simulate barcode scanner - in production, use a real barcode scanner library
     setTimeout(() => {
