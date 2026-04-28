@@ -111,4 +111,66 @@ router.get('/status', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/migrate/backfill-business-userid
+ * Backfill the userId field on Business documents that were created before
+ * userId was added to the schema. Matches each Business to its owner User
+ * via the User.businessId reference and writes the ObjectId back.
+ *
+ * Safe to run multiple times (skips businesses that already have userId set).
+ */
+router.post('/backfill-business-userid', async (req, res) => {
+  try {
+    const Business = mongoose.model('Business');
+    const User = mongoose.model('User');
+
+    // Find businesses that are missing userId
+    const businesses = await Business.find({
+      $or: [{ userId: { $exists: false } }, { userId: null }]
+    }).lean();
+
+    console.log(`[Backfill] Found ${businesses.length} businesses without userId`);
+
+    let updated = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (const biz of businesses) {
+      try {
+        // Find the business_admin user whose businessId matches this business
+        const owner = await User.findOne({
+          businessId: biz._id,
+          role: 'business_admin'
+        }).select('_id');
+
+        if (!owner) {
+          skipped++;
+          console.log(`[Backfill] No owner found for business ${biz._id} (${biz.name})`);
+          continue;
+        }
+
+        await Business.updateOne(
+          { _id: biz._id },
+          { $set: { userId: owner._id } }
+        );
+        updated++;
+        console.log(`[Backfill] ✓ Set userId=${owner._id} on business ${biz._id} (${biz.name})`);
+      } catch (err) {
+        errors.push(`Business ${biz._id}: ${err.message}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Backfill complete. Updated: ${updated}, Skipped (no owner): ${skipped}, Errors: ${errors.length}`,
+      updated,
+      skipped,
+      errors
+    });
+  } catch (error) {
+    console.error('[Backfill] Failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

@@ -261,7 +261,25 @@ export default function Inventory() {
     setImageFile(null);
   };
 
-  const handleBarcodeScan = () => {
+  const handleTogglePublish = async (product: any) => {
+    try {
+      await productsApi.updateProduct(product._id, { isPublished: !product.isPublished });
+      toast({
+        title: product.isPublished ? 'Product unpublished' : 'Product published',
+        description: product.isPublished
+          ? `${product.name} is now hidden from your store`
+          : `${product.name} is now visible in your store`,
+      });
+      fetchProducts();
+      localStorage.setItem('product-updated', Date.now().toString());
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update product visibility',
+        variant: 'destructive',
+      });
+    }
+  };
     setIsScanning(true);
     // Simulate barcode scanner - in production, use a real barcode scanner library
     setTimeout(() => {
@@ -426,15 +444,18 @@ export default function Inventory() {
                       </td>
                       <td className="py-3 px-4 font-semibold">TZS {product.price?.toLocaleString()}</td>
                       <td className="py-3 px-4 text-center">
-                        {product.isPublished ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                            ✓ Published
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-                            Draft
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePublish(product)}
+                          title={product.isPublished ? 'Click to unpublish' : 'Click to publish to store'}
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
+                            product.isPublished
+                              ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+                              : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
+                          }`}
+                        >
+                          {product.isPublished ? '✓ Published' : 'Draft — Publish?'}
+                        </button>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">

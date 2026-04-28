@@ -210,7 +210,7 @@ router.post('/my-business', requireUser, async (req, res) => {
       address: address || {},
       category: category || 'retail',
       description: description || '',
-      userId: req.user.userId,
+      userId: user._id,          // ObjectId — matches product.userId type
       status: 'active', // Auto-activate for now
       isPublic: isPublic !== undefined ? isPublic : true,
       analytics: { views: 0, orders: 0, revenue: 0 }

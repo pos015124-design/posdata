@@ -45,6 +45,15 @@ const businessSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+
+  // Owner — the User who created / manages this business.
+  // Stored as ObjectId so product queries (userId: business.userId) work
+  // without type-casting. Index allows fast reverse-lookup.
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  },
   
   // Basic Information
   name: {

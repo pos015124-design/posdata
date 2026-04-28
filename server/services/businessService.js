@@ -67,6 +67,7 @@ class BusinessService {
         address: businessData.address,
         category: businessData.category,
         businessType: businessData.businessType || 'hybrid',
+        userId: businessOwner._id,   // ObjectId — links business to its owner for product queries
         status: 'pending', // Requires admin approval
         isPublic: false,
         ecommerce: {

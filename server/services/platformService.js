@@ -398,12 +398,18 @@ class PlatformService {
    * Read-only storefront ops metrics for super admin (public catalog health).
    */
   static async getStorefrontHealth() {
+    const mongoose = require('mongoose');
     const Product = require('../models/Product');
 
     const publicBizQuery = { status: 'active', isPublic: true };
     const publicStores = await Business.find(publicBizQuery).select('userId name slug updatedAt').lean();
 
-    const ownerObjectIds = publicStores.map(b => b.userId).filter(Boolean);
+    // Cast userId strings to ObjectId for correct product queries
+    const ownerObjectIds = publicStores
+      .map(b => {
+        try { return b.userId ? new mongoose.Types.ObjectId(String(b.userId)) : null; } catch { return null; }
+      })
+      .filter(Boolean);
 
     const publishedProductCount = ownerObjectIds.length
       ? await Product.countDocuments({
@@ -419,8 +425,10 @@ class PlatformService {
         publicStoresWithZeroPublishedProducts++;
         continue;
       }
+      let oid;
+      try { oid = new mongoose.Types.ObjectId(String(b.userId)); } catch { publicStoresWithZeroPublishedProducts++; continue; }
       const n = await Product.countDocuments({
-        userId: b.userId,
+        userId: oid,
         status: 'active',
         isPublished: true
       });

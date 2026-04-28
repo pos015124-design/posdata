@@ -3,6 +3,7 @@
  * Each seller/business has their own unique store
  */
 
+const mongoose = require('mongoose');
 const Business = require('../models/Business');
 const Product = require('../models/Product');
 const { logger } = require('../config/logger');
@@ -63,9 +64,32 @@ class StoreService {
       
       console.log(`[Store Service] ✅ Store accessible, fetching products...`);
 
+      // Cast userId to ObjectId so the query matches product.userId (ObjectId field)
+      let ownerObjectId;
+      try {
+        ownerObjectId = new mongoose.Types.ObjectId(String(business.userId));
+      } catch {
+        console.log(`[Store Service] ❌ business.userId is not a valid ObjectId: ${business.userId}`);
+        return {
+          business: {
+            _id: business._id,
+            name: business.name,
+            slug: business.slug,
+            description: business.description,
+            logo: business.logo,
+            email: business.email,
+            phone: business.phone,
+            address: business.address,
+            socialMedia: business.socialMedia
+          },
+          products: [],
+          productCount: 0
+        };
+      }
+
       // Get published products for this business
       const products = await Product.find({
-        userId: business.userId,
+        userId: ownerObjectId,
         isPublished: true,
         status: 'active'
       })
@@ -140,7 +164,12 @@ class StoreService {
       if (!b.userId) continue;
       const uid = String(b.userId);
       if (!userIdToStore.has(uid)) {
-        userIds.push(b.userId);
+        // Cast to ObjectId so the $in query matches product.userId (ObjectId field)
+        try {
+          userIds.push(new mongoose.Types.ObjectId(uid));
+        } catch {
+          continue; // skip malformed ids
+        }
         userIdToStore.set(uid, { storeName: b.name, storeSlug: b.slug });
       }
     }
@@ -272,11 +301,19 @@ class StoreService {
       // Get product count for each business
       const storesWithCounts = await Promise.all(
         businesses.map(async (business) => {
-          const productCount = await Product.countDocuments({
-            userId: business.userId,
-            isPublished: true,
-            status: 'active'
-          });
+          let productCount = 0;
+          if (business.userId) {
+            try {
+              const ownerObjectId = new mongoose.Types.ObjectId(String(business.userId));
+              productCount = await Product.countDocuments({
+                userId: ownerObjectId,
+                isPublished: true,
+                status: 'active'
+              });
+            } catch {
+              // userId not a valid ObjectId — count stays 0
+            }
+          }
 
           return {
             _id: business._id,
@@ -331,7 +368,7 @@ class StoreService {
 
       // Build query
       const query = {
-        userId: business.userId,
+        userId: new mongoose.Types.ObjectId(String(business.userId)),
         isPublished: true,
         status: 'active'
       };
