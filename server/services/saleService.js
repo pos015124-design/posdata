@@ -127,17 +127,8 @@ class SaleService {
       byOwner.set(r.ownerId, list);
     }
 
-    const guestBlob =
-      customer || notes
-        ? JSON.stringify({
-            guestCustomer: customer || {},
-            orderNotes: notes || ''
-          })
-        : '';
-
     const sales = [];
     for (const [, groupItems] of byOwner) {
-      const combinedNotes = guestBlob || notes || '';
       const saleData = {
         items: groupItems.map(i => ({
           product: i.product,
@@ -146,10 +137,17 @@ class SaleService {
           price: i.price
         })),
         paymentMethod,
-        notes: combinedNotes,
+        notes: notes || '',
         total: groupItems.reduce((s, i) => s + i.price * i.quantity, 0),
         taxRate: 0,
-        amountPaid: groupItems.reduce((s, i) => s + i.price * i.quantity, 0)
+        amountPaid: groupItems.reduce((s, i) => s + i.price * i.quantity, 0),
+        // Store customer info directly on the sale
+        customerName: customer?.name || '',
+        customerEmail: customer?.email || '',
+        customerPhone: customer?.phone || '',
+        customerAddress: customer?.address || '',
+        customerCity: customer?.city || '',
+        source: 'storefront'
       };
 
       const result = await this.processSale(saleData, groupItems[0].ownerId);
@@ -170,7 +168,8 @@ class SaleService {
    * @returns {Promise<Object>} Processed sale with details
    */
   async processSale(saleData, userId) {
-    const { items, paymentMethod, customerId, discounts, notes, amountPaid, taxRate, transactionNumber, total } = saleData;
+    const { items, paymentMethod, customerId, discounts, notes, amountPaid, taxRate, transactionNumber, total,
+      customerName, customerEmail, customerPhone, customerAddress, customerCity, source } = saleData;
 
     // Validate items
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -216,6 +215,12 @@ class SaleService {
       total: finalTotal,
       paymentMethod,
       customerId: customerId || null,
+      customerName: customerName || '',
+      customerEmail: customerEmail || '',
+      customerPhone: customerPhone || '',
+      customerAddress: customerAddress || '',
+      customerCity: customerCity || '',
+      source: source || 'pos',
       notes,
       amountPaid: amountPaid || finalTotal,
       change: (amountPaid || finalTotal) - finalTotal,
