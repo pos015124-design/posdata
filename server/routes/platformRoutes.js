@@ -332,8 +332,10 @@ router.get('/stats', requireUser, requireSuperAdmin, async (req, res) => {
   try {
     const Business = require('../models/Business');
     const User = require('../models/User');
-    const Order = require('../models/Order');
+    const Sale = require('../models/Sale');
     
+    const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+
     const [
       totalBusinesses,
       activeBusinesses,
@@ -346,11 +348,10 @@ router.get('/stats', requireUser, requireSuperAdmin, async (req, res) => {
       Business.countDocuments({ status: 'active' }),
       Business.countDocuments({ status: 'pending' }),
       User.countDocuments({ role: { $ne: 'super_admin' } }),
-      Order.countDocuments(),
-      Order.countDocuments({
-        createdAt: {
-          $gte: new Date(new Date().setHours(0, 0, 0, 0))
-        }
+      Sale.countDocuments({ status: { $ne: 'cancelled' } }),
+      Sale.countDocuments({
+        status: { $ne: 'cancelled' },
+        createdAt: { $gte: todayStart }
       })
     ]);
     

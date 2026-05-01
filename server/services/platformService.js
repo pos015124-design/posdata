@@ -8,7 +8,7 @@ const PlatformSettings = require('../models/PlatformSettings');
 const Business = require('../models/Business');
 const User = require('../models/User');
 const Tenant = require('../models/Tenant');
-const Order = require('../models/Order');
+const Sale = require('../models/Sale');   // ← Sales live here, not in Order
 const { logger } = require('../config/logger');
 
 class PlatformService {
@@ -19,61 +19,62 @@ class PlatformService {
    */
   static async getPlatformAnalytics() {
     try {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
       const [
         totalBusinesses,
         activeBusinesses,
         pendingBusinesses,
         totalUsers,
         totalOrders,
-        totalRevenue,
+        totalRevenueAgg,
         recentBusinesses,
-        topBusinesses
+        topBusinesses,
+        newBusinessesThisMonth,
+        newUsersThisMonth,
+        ordersThisMonth,
+        revenueThisMonthAgg
       ] = await Promise.all([
         Business.countDocuments(),
         Business.countDocuments({ status: 'active' }),
         Business.countDocuments({ status: 'pending' }),
         User.countDocuments({ role: { $ne: 'super_admin' } }),
-        Order.countDocuments(),
-        Order.aggregate([
-          { $match: { status: { $in: ['completed', 'delivered'] } } },
+        // Count all non-cancelled sales across every seller
+        Sale.countDocuments({ status: { $ne: 'cancelled' } }),
+        // Sum revenue across all sellers
+        Sale.aggregate([
+          { $match: { status: { $ne: 'cancelled' } } },
           { $group: { _id: null, total: { $sum: '$total' } } }
         ]),
         Business.find({ status: 'pending' })
           .sort({ createdAt: -1 })
           .limit(5)
           .select('name email category createdAt'),
+        // Top businesses by revenue — read from Sale aggregate per owner
         Business.find({ status: 'active' })
           .sort({ 'analytics.revenue': -1 })
           .limit(10)
-          .select('name analytics.revenue analytics.orders category')
-      ]);
-      
-      // Calculate growth metrics (last 30 days)
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      
-      const [
-        newBusinessesThisMonth,
-        newUsersThisMonth,
-        ordersThisMonth,
-        revenueThisMonth
-      ] = await Promise.all([
+          .select('name analytics.revenue analytics.orders category'),
         Business.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-        User.countDocuments({ 
+        User.countDocuments({
           createdAt: { $gte: thirtyDaysAgo },
           role: { $ne: 'super_admin' }
         }),
-        Order.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-        Order.aggregate([
-          { 
-            $match: { 
+        Sale.countDocuments({
+          createdAt: { $gte: thirtyDaysAgo },
+          status: { $ne: 'cancelled' }
+        }),
+        Sale.aggregate([
+          {
+            $match: {
               createdAt: { $gte: thirtyDaysAgo },
-              status: { $in: ['completed', 'delivered'] }
+              status: { $ne: 'cancelled' }
             }
           },
           { $group: { _id: null, total: { $sum: '$total' } } }
         ])
       ]);
-      
+
       return {
         overview: {
           totalBusinesses,
@@ -81,22 +82,20 @@ class PlatformService {
           pendingBusinesses,
           totalUsers,
           totalOrders,
-          totalRevenue: totalRevenue[0]?.total || 0
+          totalRevenue: totalRevenueAgg[0]?.total || 0
         },
         growth: {
           newBusinessesThisMonth,
           newUsersThisMonth,
           ordersThisMonth,
-          revenueThisMonth: revenueThisMonth[0]?.total || 0
+          revenueThisMonth: revenueThisMonthAgg[0]?.total || 0
         },
         recentBusinesses,
         topBusinesses
       };
-      
+
     } catch (error) {
-      logger.error('Failed to get platform analytics', {
-        error: error.message
-      });
+      logger.error('Failed to get platform analytics', { error: error.message });
       throw error;
     }
   }
@@ -259,45 +258,34 @@ class PlatformService {
    */
   static async getRevenueAnalytics(period = '30d') {
     try {
-      const periodMap = {
-        '7d': 7,
-        '30d': 30,
-        '90d': 90,
-        '1y': 365
-      };
-      
+      const periodMap = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
       const days = periodMap[period] || 30;
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       
-      const analytics = await Order.aggregate([
+      const analytics = await Sale.aggregate([
         {
           $match: {
             createdAt: { $gte: startDate },
-            status: { $in: ['completed', 'delivered'] }
+            status: { $ne: 'cancelled' }
           }
         },
         {
           $group: {
             _id: {
-              year: { $year: '$createdAt' },
+              year:  { $year:  '$createdAt' },
               month: { $month: '$createdAt' },
-              day: { $dayOfMonth: '$createdAt' }
+              day:   { $dayOfMonth: '$createdAt' }
             },
             revenue: { $sum: '$total' },
-            orders: { $sum: 1 }
+            orders:  { $sum: 1 }
           }
         },
-        {
-          $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
-        }
+        { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
       ]);
       
       return analytics;
     } catch (error) {
-      logger.error('Failed to get revenue analytics', {
-        error: error.message,
-        period
-      });
+      logger.error('Failed to get revenue analytics', { error: error.message, period });
       throw error;
     }
   }
