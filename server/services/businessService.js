@@ -304,9 +304,7 @@ class BusinessService {
   
   /**
    * Get all businesses (admin only)
-   * @param {Object} filters - Filter options
-   * @param {Object} pagination - Pagination options
-   * @returns {Promise<Object>} Businesses list with pagination
+   * Enriches each business with live sales stats from the Sale collection.
    */
   static async getAllBusinesses(filters = {}, pagination = {}) {
     try {
@@ -334,9 +332,52 @@ class BusinessService {
           .lean(),
         Business.countDocuments(query)
       ]);
+
+      // Enrich with live sales stats — aggregate Sale by createdBy (owner userId)
+      const Sale = require('../models/Sale');
+      const ownerIds = businesses
+        .map(b => b.userId)
+        .filter(Boolean)
+        .map(id => {
+          try { return new mongoose.Types.ObjectId(String(id)); } catch { return null; }
+        })
+        .filter(Boolean);
+
+      let salesByOwner = new Map();
+      if (ownerIds.length) {
+        const agg = await Sale.aggregate([
+          { $match: { createdBy: { $in: ownerIds }, status: { $ne: 'cancelled' } } },
+          {
+            $group: {
+              _id: '$createdBy',
+              totalRevenue: { $sum: '$total' },
+              totalOrders: { $sum: 1 }
+            }
+          }
+        ]);
+        for (const row of agg) {
+          salesByOwner.set(String(row._id), {
+            revenue: row.totalRevenue || 0,
+            orders: row.totalOrders || 0
+          });
+        }
+      }
+
+      // Merge live stats into each business object
+      const enriched = businesses.map(b => {
+        const live = b.userId ? salesByOwner.get(String(b.userId)) : null;
+        return {
+          ...b,
+          analytics: {
+            views:   b.analytics?.views   || 0,
+            orders:  live?.orders  ?? b.analytics?.orders  ?? 0,
+            revenue: live?.revenue ?? b.analytics?.revenue ?? 0
+          }
+        };
+      });
       
       return {
-        businesses,
+        businesses: enriched,
         pagination: {
           page,
           limit,

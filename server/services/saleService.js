@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Sale = require('../models/Sale');
 
 class SaleService {
@@ -230,8 +231,9 @@ class SaleService {
 
     await sale.save();
 
-    // Update product stock levels
+    // Update product stock levels and business analytics
     const Product = require('../models/Product');
+    const Business = require('../models/Business');
     for (const item of items) {
       const productId = item.product || item._id;
       if (productId) {
@@ -242,6 +244,23 @@ class SaleService {
             'analytics.revenue': item.price * item.quantity
           }
         });
+      }
+    }
+
+    // Keep Business.analytics in sync so super admin sees live numbers
+    if (userId) {
+      try {
+        await Business.findOneAndUpdate(
+          { userId: new mongoose.Types.ObjectId(String(userId)) },
+          {
+            $inc: {
+              'analytics.orders': 1,
+              'analytics.revenue': finalTotal
+            }
+          }
+        );
+      } catch {
+        // Non-critical — getAllBusinesses aggregates live from Sale anyway
       }
     }
 
