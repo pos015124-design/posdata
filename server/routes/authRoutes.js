@@ -388,6 +388,37 @@ router.get('/pending-users', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/auth/users — all users (alias used by PendingUsers component)
+router.get('/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ role: { $ne: 'super_admin' } })
+      .select('-password')
+      .sort({ createdAt: -1 });
+    return res.json({ users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PUT /api/auth/approve-all-pending — approve every unapproved user at once
+router.put('/approve-all-pending', requireAdmin, async (req, res) => {
+  try {
+    const result = await User.updateMany(
+      { isApproved: false, role: { $ne: 'super_admin' } },
+      { $set: { isApproved: true } }
+    );
+    return res.json({
+      success: true,
+      message: `Approved ${result.modifiedCount} pending user(s)`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error approving all pending users:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.put('/approve/:userId', requireAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);

@@ -13,7 +13,7 @@ router.get('/', requireUser, async (req, res) => {
   try {
     const result = await SaleService.getAllSales({}, {}, req.user.userId);
     
-    // Format sales for frontend
+    // Format sales for frontend — include all fields the Orders page needs
     const sales = result.data.map(sale => ({
       _id: sale._id,
       invoiceNumber: sale.invoiceNumber,
@@ -31,6 +31,15 @@ router.get('/', requireUser, async (req, res) => {
       paymentMethod: sale.paymentMethod,
       amountPaid: sale.amountPaid,
       change: sale.change,
+      status: sale.status || 'completed',
+      source: sale.source || 'pos',
+      // Customer info from storefront orders
+      customerName: sale.customerName || '',
+      customerEmail: sale.customerEmail || '',
+      customerPhone: sale.customerPhone || '',
+      customerAddress: sale.customerAddress || '',
+      customerCity: sale.customerCity || '',
+      notes: sale.notes || '',
       createdAt: sale.createdAt,
       updatedAt: sale.updatedAt
     }));
