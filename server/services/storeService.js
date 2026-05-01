@@ -291,9 +291,9 @@ class StoreService {
       // Get total count
       const total = await Business.countDocuments(query);
 
-      // Get businesses
+      // Get businesses — include userId so product count query works
       const businesses = await Business.find(query)
-        .select('name slug description logo email category')
+        .select('name slug description logo email category userId')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);

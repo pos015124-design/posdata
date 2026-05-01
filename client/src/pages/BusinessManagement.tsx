@@ -60,6 +60,8 @@ interface BusinessListResponse {
   };
 }
 
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+
 const BusinessManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -107,7 +109,7 @@ const BusinessManagement: React.FC = () => {
         ...(searchTerm && { search: searchTerm })
       });
 
-      const response = await fetch(`/api/business/all?${params}`, {
+      const response = await fetch(`${BASE_URL}/api/business/all?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -136,7 +138,7 @@ const BusinessManagement: React.FC = () => {
   const handleApproveBusiness = async (businessId: string) => {
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const response = await fetch(`/api/business/${businessId}/approve`, {
+      const response = await fetch(`${BASE_URL}/api/business/${businessId}/approve`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -176,7 +178,7 @@ const BusinessManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const response = await fetch(`/api/business/${selectedBusiness._id}/reject`, {
+      const response = await fetch(`${BASE_URL}/api/business/${selectedBusiness._id}/reject`, {
         method: 'POST',
         headers: { 
           Authorization: `Bearer ${token}`,
