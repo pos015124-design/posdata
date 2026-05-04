@@ -48,6 +48,19 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isSuspended: {
+    type: Boolean,
+    default: false
+  },
+  suspendedAt: Date,
+  suspendedReason: { type: String, trim: true },
+
+  // Terms & Conditions acceptance
+  termsAccepted: {
+    type: Boolean,
+    default: false
+  },
+  termsAcceptedAt: Date,
 
   // Enhanced Permissions for Multi-tenant E-commerce
   permissions: {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,13 +12,33 @@ import {
   Store,
   ExternalLink,
   Copy,
-  Share2
+  Share2,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import * as salesApi from '../api/sales';
 import * as customersApi from '../api/customers';
 import * as productsApi from '../api/products';
 import * as businessApi from '../api/business';
 import { useToast } from '../hooks/useToast';
+
+/** Play a short notification beep using Web Audio API — no external files needed */
+function playOrderSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+  } catch { /* audio not available */ }
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -29,16 +49,17 @@ export default function Dashboard() {
     totalOrders: 0,
     totalCustomers: 0,
     totalProducts: 0,
-    recentOrders: []
+    recentOrders: [] as any[]
   });
   const [loading, setLoading] = useState(true);
   const [businessSlug, setBusinessSlug] = useState<string | null>(null);
-  
-  // Always calculate storeUrl - use fallback if no business slug
-  const storeUrl = businessSlug 
-    ? `${window.location.origin}/store/${businessSlug}` 
-    : user?.email 
-      ? `${window.location.origin}/store/${user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-')}` 
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const prevOrderCount = useRef<number | null>(null);
+
+  const storeUrl = businessSlug
+    ? `${window.location.origin}/store/${businessSlug}`
+    : user?.email
+      ? `${window.location.origin}/store/${user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-')}`
       : null;
 
   useEffect(() => {
@@ -48,36 +69,23 @@ export default function Dashboard() {
     }
 
     fetchDashboardStats();
-    
-    // Listen for updates from other pages/tabs
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'product-updated' || e.key === 'sale-created' || e.key === 'customer-updated') {
-        console.log('🔄 Dashboard refreshing due to:', e.key);
-        fetchDashboardStats(); // Refresh dashboard stats
-      }
-    };
-    
-    // Listen for custom events from same tab (POS, Checkout)
-    const handleSaleCreated = () => {
-      console.log('🔄 Dashboard refreshing due to sale-created event');
-      fetchDashboardStats();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('sale-created', handleSaleCreated);
-    
-    // Refresh when user returns to tab
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('🔄 Dashboard refreshing on tab focus');
         fetchDashboardStats();
       }
     };
+    const handleSaleCreated = () => fetchDashboardStats();
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('sale-created', handleSaleCreated);
+
+    const handleVisibilityChange = () => { if (!document.hidden) fetchDashboardStats(); };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Auto-refresh every 10 seconds for real-time updates
-    const refreshInterval = setInterval(fetchDashboardStats, 10000);
-    
+
+    // Poll every 15 seconds for new orders
+    const refreshInterval = setInterval(fetchDashboardStats, 15000);
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('sale-created', handleSaleCreated);
@@ -95,58 +103,47 @@ export default function Dashboard() {
         productsApi.getProducts()
       ]);
 
-      console.log('Dashboard Data:', { salesRes, customersRes, productsRes });
+      const salesArray = Array.isArray(salesRes?.sales) ? salesRes.sales
+        : Array.isArray(salesRes?.data) ? salesRes.data : [];
+      const productsArray = Array.isArray(productsRes?.products) ? productsRes.products
+        : Array.isArray(productsRes?.data) ? productsRes.data : [];
+      const customersArray = Array.isArray(customersRes?.customers) ? customersRes.customers
+        : Array.isArray(customersRes?.data) ? customersRes.data : [];
 
-      // Handle different response structures for sales
-      const salesArray = Array.isArray(salesRes?.sales) 
-        ? salesRes.sales 
-        : Array.isArray(salesRes?.data) 
-          ? salesRes.data 
-          : [];
-      
-      // Handle different response structures for products
-      const productsArray = Array.isArray(productsRes?.products) 
-        ? productsRes.products 
-        : Array.isArray(productsRes?.data) 
-          ? productsRes.data 
-          : [];
-      
-      console.log('Products Response:', productsRes);
-      console.log('Products Array:', productsArray);
-      console.log('Product Count:', productsArray.length);
-      
-      // Handle different response structures for customers
-      const customersArray = Array.isArray(customersRes?.customers) 
-        ? customersRes.customers 
-        : Array.isArray(customersRes?.data) 
-          ? customersRes.data 
-          : [];
+      const newOrderCount = salesArray.length;
+
+      // 🔔 New order notification
+      if (prevOrderCount.current !== null && newOrderCount > prevOrderCount.current && notificationsEnabled) {
+        const diff = newOrderCount - prevOrderCount.current;
+        if (playOrderSound) playOrderSound();
+        toast({
+          title: `🛒 ${diff} new order${diff > 1 ? 's' : ''}!`,
+          description: 'A customer just placed an order in your store.',
+        });
+        // Browser notification if permission granted
+        if (Notification.permission === 'granted') {
+          new Notification(`Dukani — ${diff} new order${diff > 1 ? 's' : ''}`, {
+            body: 'A customer just placed an order in your store.',
+            icon: '/favicon.ico',
+            tag: 'new-order'
+          });
+        }
+      }
+      prevOrderCount.current = newOrderCount;
 
       setStats({
         totalSales: salesArray.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0),
-        totalOrders: salesArray.length,
+        totalOrders: newOrderCount,
         totalCustomers: customersArray.length,
         totalProducts: productsArray.length,
         recentOrders: salesArray.slice(0, 5)
       });
 
-      // Fetch user's business to get the real slug
       try {
         const businessRes = await businessApi.getMyBusiness();
-        if (businessRes?.data?.slug) {
-          console.log('✅ Found business profile:', businessRes.data);
-          setBusinessSlug(businessRes.data.slug);
-          // Also save to localStorage for other components
-          localStorage.setItem('business', JSON.stringify(businessRes.data));
-        }
-      } catch (error) {
-        console.log('⚠️ No business profile found, using email-based slug');
-        // Fallback: generate from user email
-        if (user?.email) {
-          const slug = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
-          console.log('📧 Generated slug from email:', slug);
-          setBusinessSlug(slug);
-        }
+        if (businessRes?.data?.slug) setBusinessSlug(businessRes.data.slug);
+      } catch {
+        if (user?.email) setBusinessSlug(user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-'));
       }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
@@ -215,22 +212,29 @@ export default function Dashboard() {
           <p className="text-gray-600 mt-1 text-center md:text-left">Welcome back, {user?.email}!</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
+          {/* Notification toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (!notificationsEnabled && Notification.permission === 'default') {
+                Notification.requestPermission();
+              }
+              setNotificationsEnabled(v => !v);
+            }}
+            title={notificationsEnabled ? 'Mute order alerts' : 'Enable order alerts'}
+            className={notificationsEnabled ? 'text-blue-600 border-blue-300' : 'text-gray-400'}
+          >
+            {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+          </Button>
           {storeUrl && (
-            <Button 
-              variant="outline"
-              onClick={shareStore}
-              className="flex items-center gap-2"
-            >
-              <Share2 className="w-4 h-4" />
-              Share Store
+            <Button variant="outline" onClick={shareStore} className="flex items-center gap-2">
+              <Share2 className="w-4 h-4" />Share Store
             </Button>
           )}
-          <Button 
-            onClick={() => navigate('/pos')}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 flex items-center gap-2"
-          >
-            <Store className="w-4 h-4" />
-            Go to POS
+          <Button onClick={() => navigate('/pos')}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 flex items-center gap-2">
+            <Store className="w-4 h-4" />Go to POS
           </Button>
         </div>
       </div>

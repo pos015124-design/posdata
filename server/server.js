@@ -54,6 +54,7 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const sellerRoutes = require("./routes/sellerRoutes");
 const importRoutes = require("./routes/importRoutes");
 const sellerInventoryRoutes = require("./routes/sellerInventoryRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 // Rate limiting
 const skipPreflight = (req) => req.method === 'OPTIONS';
@@ -268,6 +269,7 @@ app.get('/api/sellers/test', (req, res) => {
 });
 app.use('/api/products/import', importRoutes);
 app.use('/api/seller-inventory', sellerInventoryRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

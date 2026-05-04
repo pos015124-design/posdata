@@ -198,8 +198,8 @@ class StoreService {
 
     const total = await Product.countDocuments(query);
     const raw = await Product.find(query)
-      .select('name code price images category description stock userId')
-      .sort({ isFeatured: -1, createdAt: -1 })
+      .select('name code price images category description stock userId isSponsored sponsoredUntil')
+      .sort({ isSponsored: -1, isFeatured: -1, createdAt: -1 }) // sponsored first, then featured, then newest
       .skip(skip)
       .limit(limit)
       .lean();
@@ -215,6 +215,7 @@ class StoreService {
         category: p.category,
         description: p.description,
         stock: p.stock,
+        isSponsored: p.isSponsored || false,
         storeName: store.storeName,
         storeSlug: store.storeSlug,
         ownerId: p.userId

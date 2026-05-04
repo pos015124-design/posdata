@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Store, ShoppingCart, Search, Share2, MapPin, Phone, Mail, ExternalLink } from 'lucide-react';
+import { Store, ShoppingCart, Search, Share2, MapPin, Phone, Mail, ExternalLink, Star, MessageSquare, Send } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { useToast } from '../hooks/useToast';
 import type { MarketplaceCartLine } from './Store';
+
+const BASE = import.meta.env.VITE_API_URL || '';
 
 interface Product {
   _id: string;
@@ -62,6 +64,144 @@ const resolveProductImageUrl = (imageUrl?: string | null) => {
   }
   return imageUrl;
 };
+
+function StarRating({ value, onChange, size = 'md' }: { value: number; onChange?: (v: number) => void; size?: 'sm' | 'md' }) {
+  const sz = size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map(s => (
+        <button key={s} type="button" onClick={() => onChange?.(s)}
+          className={`${onChange ? 'cursor-pointer hover:scale-110' : 'cursor-default'} transition-transform`}>
+          <Star className={`${sz} ${s <= value ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ReviewSection({ slug, storeName }: { slug: string; storeName: string }) {
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ reviewerName: '', reviewerEmail: '', rating: 5, comment: '' });
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetch(`${BASE}/api/reviews/${slug}`)
+      .then(r => r.json())
+      .then(d => { setReviews(d.data?.reviews || []); setStats(d.data?.stats); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.reviewerName.trim() || form.rating < 1) {
+      toast({ title: 'Name and rating required', variant: 'destructive' }); return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${BASE}/api/reviews/${slug}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      const d = await res.json();
+      if (d.success) {
+        toast({ title: 'Review submitted!', description: 'Thank you for your feedback.' });
+        setReviews(prev => [d.data, ...prev]);
+        setStats((s: any) => s ? { ...s, total: s.total + 1, avgRating: ((s.avgRating * s.total) + form.rating) / (s.total + 1) } : s);
+        setForm({ reviewerName: '', reviewerEmail: '', rating: 5, comment: '' });
+        setShowForm(false);
+      } else {
+        toast({ title: 'Error', description: d.error || 'Failed to submit', variant: 'destructive' });
+      }
+    } catch { toast({ title: 'Network error', variant: 'destructive' }); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-blue-600" />Customer Reviews
+          </h2>
+          {stats && stats.total > 0 && (
+            <div className="flex items-center gap-3 mt-1">
+              <StarRating value={Math.round(stats.avgRating)} size="sm" />
+              <span className="text-sm text-gray-600">{stats.avgRating.toFixed(1)} out of 5 · {stats.total} review{stats.total !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+        </div>
+        <Button onClick={() => setShowForm(!showForm)} variant="outline" className="gap-2">
+          <Star className="w-4 h-4 text-amber-400" />Write a Review
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card className="mb-6 border-blue-200 bg-blue-50">
+          <CardContent className="p-5">
+            <form onSubmit={submit} className="space-y-4">
+              <h3 className="font-semibold text-gray-900">Review {storeName}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">Your Name *</label>
+                  <Input value={form.reviewerName} onChange={e => setForm(f => ({ ...f, reviewerName: e.target.value }))} placeholder="Amina Hassan" required />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">Email (optional)</label>
+                  <Input type="email" value={form.reviewerEmail} onChange={e => setForm(f => ({ ...f, reviewerEmail: e.target.value }))} placeholder="you@example.com" />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Rating *</label>
+                <StarRating value={form.rating} onChange={r => setForm(f => ({ ...f, rating: r }))} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Comment</label>
+                <textarea value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
+                  placeholder="Share your experience with this store…" rows={3}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={submitting} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                  <Send className="w-4 h-4" />{submitting ? 'Submitting…' : 'Submit Review'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {loading ? (
+        <div className="text-center py-8 text-gray-400 text-sm">Loading reviews…</div>
+      ) : reviews.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">
+          <Star className="w-10 h-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">No reviews yet. Be the first to review this store!</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reviews.map(r => (
+            <div key={r._id} className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-sm text-gray-900">{r.reviewerName}</p>
+                  <StarRating value={r.rating} size="sm" />
+                </div>
+                <span className="text-xs text-gray-400 shrink-0">{new Date(r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+              </div>
+              {r.comment && <p className="text-sm text-gray-600 mt-2">{r.comment}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function IndividualStore() {
   const { slug } = useParams<{ slug: string }>();
@@ -482,6 +622,9 @@ export default function IndividualStore() {
           </div>
         )}
       </div>
+
+      {/* Reviews Section */}
+      <ReviewSection slug={slug || ''} storeName={business.name} />
 
       {/* Footer */}
       <footer className="bg-white border-t mt-12 py-8">

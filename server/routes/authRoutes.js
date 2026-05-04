@@ -176,13 +176,16 @@ router.post('/register',
       }
 
       // Create user with business_admin role (seller/business owner)
+      // isApproved: false — requires manual admin approval before access is granted
       const user = new User({
         email,
         password,
         firstName: name?.split(' ')[0] || '',
         lastName: name?.split(' ').slice(1).join(' ') || '',
-        role: 'business_admin', // Business owner/seller role
-        isApproved: true // Auto-approve business registrations
+        role: 'business_admin',
+        isApproved: false,
+        termsAccepted: true,
+        termsAcceptedAt: new Date()
       });
       await user.save();
 
@@ -236,7 +239,8 @@ router.post('/register',
 
       res.status(201).json({
         success: true,
-        message: 'Registration successful! You can now login.',
+        message: 'Registration successful! Your account is pending admin approval. You will be notified once approved.',
+        requiresApproval: true,
         user: {
           email: user.email,
           role: user.role,
@@ -415,6 +419,59 @@ router.put('/approve-all-pending', requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error approving all pending users:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PUT /api/auth/suspend/:userId — suspend a user
+router.put('/suspend/:userId', requireAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'super_admin') return res.status(403).json({ message: 'Cannot suspend super admin' });
+
+    user.isSuspended = true;
+    user.isActive = false;
+    user.suspendedAt = new Date();
+    user.suspendedReason = reason || 'Suspended by admin';
+    await user.save();
+
+    return res.json({ success: true, message: 'User suspended successfully' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PUT /api/auth/activate/:userId — reactivate a suspended user
+router.put('/activate/:userId', requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.isSuspended = false;
+    user.isActive = true;
+    user.isApproved = true;
+    user.suspendedAt = undefined;
+    user.suspendedReason = undefined;
+    await user.save();
+
+    return res.json({ success: true, message: 'User activated successfully' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// DELETE /api/auth/users/:userId — delete a user
+router.delete('/users/:userId', requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'super_admin') return res.status(403).json({ message: 'Cannot delete super admin' });
+
+    await User.findByIdAndDelete(req.params.userId);
+    return res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
     return res.status(500).json({ message: 'Server error' });
   }
 });

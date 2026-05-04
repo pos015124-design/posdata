@@ -210,8 +210,73 @@ router.post('/cart/add', requireUser, async (req, res) => {
   }
 });
 
-// Get all sellers for a product (multi-seller marketplace)
-const SellerInventory = require('../models/SellerInventory');
+// Clone a product from another seller into your own inventory
+// POST /api/products/:id/clone
+router.post('/:id/clone', requireUser, mongoIdValidation('id'), handleValidationErrors, async (req, res) => {
+  try {
+    const source = await ProductService.getProductById(req.params.id);
+    if (!source) return res.status(404).json({ message: 'Product not found' });
+
+    // Build clone data — new ownership, reset analytics, keep content
+    const cloneData = {
+      name: source.name,
+      description: source.description,
+      shortDescription: source.shortDescription,
+      code: `${source.code}-${Date.now().toString(36)}`, // unique code
+      barcode: '',
+      price: source.price,
+      compareAtPrice: source.compareAtPrice,
+      purchasePrice: source.purchasePrice || 0,
+      stock: 0,           // seller sets their own stock
+      reorderPoint: source.reorderPoint,
+      category: source.category,
+      subcategory: source.subcategory,
+      tags: source.tags || [],
+      images: source.images || [],
+      isPublished: false, // seller must explicitly publish
+      isFeatured: false,
+      isSponsored: false,
+      clonedFrom: source._id,
+      trackInventory: true,
+      requiresShipping: source.requiresShipping
+    };
+
+    const product = await ProductService.createProduct(cloneData, req.user.userId);
+    res.status(201).json({ success: true, product, message: 'Product cloned to your inventory' });
+  } catch (error) {
+    console.error('Error cloning product:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// GET /api/products/catalog/public — browse all published products for cloning
+router.get('/catalog/public', requireUser, async (req, res) => {
+  try {
+    const Product = require('../models/Product');
+    const { search = '', category = '', page = 1, limit = 20 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = {
+      isPublished: true,
+      status: 'active',
+      userId: { $ne: req.user.userId } // exclude own products
+    };
+    if (category) query.category = category;
+    if (search) query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { category: { $regex: search, $options: 'i' } }
+    ];
+
+    const [products, total] = await Promise.all([
+      Product.find(query).select('name code price images category description userId').skip(skip).limit(parseInt(limit)).lean(),
+      Product.countDocuments(query)
+    ]);
+
+    res.json({ success: true, products, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 const Seller = require('../models/Seller');
 
 // GET /api/products/:id/sellers - Get all sellers for a product

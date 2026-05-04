@@ -20,19 +20,24 @@ import IndividualStore from './pages/IndividualStore';
 import StoreDirectory from './pages/StoreDirectory';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import LandingPage from './pages/LandingPage';
+import WaitingApproval from './pages/WaitingApproval';
 import { Toaster } from './components/ui/toaster';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
+  const { user, logout } = useAuth();
+  if (!user) return <Navigate to="/login" />;
+  // Show waiting screen if not yet approved
+  if (user.isApproved === false && user.role !== 'super_admin') {
+    return <WaitingApproval onLogout={logout} />;
+  }
+  return <Layout>{children}</Layout>;
 }
 
-/** Public storefront pages: show sidebar for logged-in users (e.g. super admin browsing listings). */
+/** Public storefront pages: show sidebar for logged-in users */
 function StorefrontWithOptionalLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (user) {
-    return <Layout>{children}</Layout>;
-  }
+  if (user) return <Layout>{children}</Layout>;
   return <>{children}</>;
 }
 
@@ -47,39 +52,22 @@ function App() {
       <LanguageProvider>
         <AuthProvider>
           <Routes>
-            {/* Public Routes */}
+            {/* Default: marketplace is the first thing visitors see */}
+            <Route path="/" element={<Store />} />
+            <Route path="/about" element={<LandingPage />} />
+
+            {/* Auth */}
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            
-            {/* E-commerce Storefront (public; app shell when logged in) */}
-            <Route
-              path="/store"
-              element={
-                <StorefrontWithOptionalLayout>
-                  <Store />
-                </StorefrontWithOptionalLayout>
-              }
-            />
-            <Route
-              path="/stores"
-              element={
-                <StorefrontWithOptionalLayout>
-                  <StoreDirectory />
-                </StorefrontWithOptionalLayout>
-              }
-            />
-            <Route
-              path="/store/:slug"
-              element={
-                <StorefrontWithOptionalLayout>
-                  <IndividualStore />
-                </StorefrontWithOptionalLayout>
-              }
-            />
+
+            {/* E-commerce Storefront (public) */}
+            <Route path="/store" element={<StorefrontWithOptionalLayout><Store /></StorefrontWithOptionalLayout>} />
+            <Route path="/stores" element={<StorefrontWithOptionalLayout><StoreDirectory /></StorefrontWithOptionalLayout>} />
+            <Route path="/store/:slug" element={<StorefrontWithOptionalLayout><IndividualStore /></StorefrontWithOptionalLayout>} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
-            
-            {/* Private Routes (Requires Auth) */}
+
+            {/* Private Routes */}
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/pos" element={<PrivateRoute><POS /></PrivateRoute>} />
             <Route path="/inventory" element={<PrivateRoute><Inventory /></PrivateRoute>} />
@@ -91,12 +79,9 @@ function App() {
             <Route path="/super-admin" element={<PrivateRoute><SuperAdminDashboard /></PrivateRoute>} />
             <Route path="/business-management" element={<PrivateRoute><BusinessManagement /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-            
-            {/* Default route - redirect to login page */}
-            <Route path="/" element={<Navigate to="/login" />} />
-            
-            {/* Catch all - redirect to login */}
-            <Route path="*" element={<Navigate to="/login" />} />
+
+            {/* Catch all */}
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
           <Toaster />
         </AuthProvider>

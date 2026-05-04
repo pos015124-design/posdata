@@ -15,6 +15,7 @@ type User = {
   email: string;
   role: string;
   isApproved?: boolean;
+  isSuspended?: boolean;
   permissions?: Permissions;
 };
 

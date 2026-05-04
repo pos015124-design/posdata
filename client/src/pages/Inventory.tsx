@@ -3,19 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Package, Search, Plus, Edit, Trash2, Scan, X, Upload, Image as ImageIcon, Download } from 'lucide-react';
+import { Package, Search, Plus, Edit, Trash2, Scan, X, Upload, Image as ImageIcon, Download, Copy, Globe } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import * as productsApi from '../api/products';
 import * as uploadsApi from '../api/uploads';
 
+const BASE = import.meta.env.VITE_API_URL || '';
+
 const resolveProductImageUrl = (imageUrl?: string | null) => {
   if (!imageUrl) return '';
-  if (imageUrl.startsWith('data:') || imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
-  if (imageUrl.startsWith('/uploads')) {
-    return `${import.meta.env.VITE_API_URL || ''}${imageUrl}`;
-  }
+  if (imageUrl.startsWith('data:') || imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
+  if (imageUrl.startsWith('/uploads')) return `${BASE}${imageUrl}`;
   return imageUrl;
 };
 
@@ -27,6 +25,13 @@ export default function Inventory() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
+
+  // Product cloning
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [cloning, setCloning] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -295,6 +300,42 @@ export default function Inventory() {
     }, 1000);
   };
 
+  const fetchCatalog = async (search = '') => {
+    setCatalogLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const params = new URLSearchParams({ search, limit: '30' });
+      const res = await fetch(`${BASE}/api/products/catalog/public?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setCatalogProducts(data.products || []);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load catalog', variant: 'destructive' });
+    } finally { setCatalogLoading(false); }
+  };
+
+  const handleCloneProduct = async (productId: string) => {
+    setCloning(productId);
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const res = await fetch(`${BASE}/api/products/${productId}/clone`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Product cloned!', description: 'Edit it in your inventory to set your price and stock.' });
+        fetchProducts();
+        setShowCloneModal(false);
+      } else {
+        toast({ title: 'Error', description: data.message || 'Clone failed', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally { setCloning(null); }
+  };
+
   const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -366,6 +407,14 @@ export default function Inventory() {
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Product
+        </Button>
+        <Button
+          onClick={() => { setShowCloneModal(true); fetchCatalog(); }}
+          variant="outline"
+          className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+        >
+          <Globe className="w-4 h-4" />
+          Browse & Clone
         </Button>
         <Button
           onClick={() => setShowImportModal(true)}
@@ -758,6 +807,62 @@ export default function Inventory() {
                   Cancel
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Browse & Clone Modal */}
+      {showCloneModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <CardHeader className="relative shrink-0">
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-purple-600" />Browse & Clone Products
+              </CardTitle>
+              <p className="text-sm text-gray-500 mt-1">Find a product another seller has listed and add it to your inventory instantly.</p>
+              <button onClick={() => setShowCloneModal(false)} className="absolute right-4 top-4 p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex gap-2 mt-3">
+                <Input placeholder="Search products…" value={catalogSearch}
+                  onChange={e => { setCatalogSearch(e.target.value); fetchCatalog(e.target.value); }}
+                  className="flex-1" />
+              </div>
+            </CardHeader>
+            <CardContent className="overflow-y-auto flex-1">
+              {catalogLoading ? (
+                <div className="text-center py-8 text-gray-500">Loading catalog…</div>
+              ) : catalogProducts.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No products found from other sellers</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {catalogProducts.map(p => {
+                    const img = p.images?.find((i: any) => i.isPrimary)?.url || p.images?.[0]?.url;
+                    return (
+                      <div key={p._id} className="flex items-center gap-3 p-3 border rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-colors">
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                          {img ? <img src={resolveProductImageUrl(img)} alt={p.name} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-300" /></div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{p.name}</p>
+                          <p className="text-xs text-gray-500">{p.category} · TZS {p.price?.toLocaleString()}</p>
+                        </div>
+                        <Button size="sm" disabled={cloning === p._id}
+                          onClick={() => handleCloneProduct(p._id)}
+                          className="shrink-0 bg-purple-600 hover:bg-purple-700 text-white gap-1 text-xs">
+                          <Copy className="w-3.5 h-3.5" />
+                          {cloning === p._id ? 'Cloning…' : 'Clone'}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

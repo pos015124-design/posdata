@@ -31,6 +31,7 @@ interface Product {
   storeName?: string;
   storeSlug?: string | null;
   ownerId?: string;
+  isSponsored?: boolean;
 }
 
 const PAGE_SIZE = 24;
@@ -144,6 +145,11 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: (p: Product)
         {product.stock === 0 && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
             <span className="bg-white text-gray-800 text-xs font-bold px-3 py-1 rounded-full">Out of stock</span>
+          </div>
+        )}
+        {product.isSponsored && (
+          <div className="absolute top-2 right-2">
+            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">⭐ Sponsored</span>
           </div>
         )}
         {product.storeName && (

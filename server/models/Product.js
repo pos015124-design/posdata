@@ -161,6 +161,22 @@ const productSchema = new mongoose.Schema({
     default: false,
     index: true
   },
+  // Sponsored/promoted product — appears first in marketplace
+  isSponsored: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  sponsoredUntil: {
+    type: Date,
+    default: null
+  },
+  // Source product this was cloned from (product linking)
+  clonedFrom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    default: null
+  },
   isDigital: {
     type: Boolean,
     default: false

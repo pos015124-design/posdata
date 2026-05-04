@@ -119,8 +119,13 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <ShoppingBag className="w-8 h-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">E-Shop</span>
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow">
+                <ShoppingBag className="w-5 h-5 text-white" />
+              </div>
+              <div className="ml-2">
+                <span className="text-lg font-extrabold text-gray-900">Dukani</span>
+                <p className="text-xs text-gray-400 leading-none">by BHABY GROUP LTD</p>
+              </div>
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
@@ -319,13 +324,18 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center mb-4">
-                <ShoppingBag className="w-8 h-8 text-blue-400" />
-                <span className="ml-2 text-xl font-bold">E-Shop</span>
+            <div className="flex items-center mb-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <ShoppingBag className="w-5 h-5 text-white" />
               </div>
-              <p className="text-gray-400">
-                The complete e-commerce platform for modern businesses.
-              </p>
+              <div className="ml-2">
+                <span className="text-lg font-bold text-white">Dukani</span>
+                <p className="text-xs text-gray-400 leading-none">by BHABY GROUP LTD</p>
+              </div>
+            </div>
+            <p className="text-gray-400">
+              The complete e-commerce platform for modern businesses.
+            </p>
             </div>
             <div>
               <h3 className="font-semibold mb-4">Product</h3>
@@ -356,7 +366,8 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 E-Shop. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} BHABY GROUP LTD — Dukani Marketplace. All rights reserved.</p>
+            <p className="text-xs mt-1 text-gray-500">Powered by BHABY GROUP LTD · bhabygroup.co.tz</p>
           </div>
         </div>
       </footer>
