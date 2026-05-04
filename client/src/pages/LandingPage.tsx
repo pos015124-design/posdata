@@ -123,7 +123,7 @@ const LandingPage: React.FC = () => {
                 <ShoppingBag className="w-5 h-5 text-white" />
               </div>
               <div className="ml-2">
-                <span className="text-lg font-extrabold text-gray-900">Dukani</span>
+                <span className="text-lg font-extrabold text-gray-900">E-Shop</span>
                 <p className="text-xs text-gray-400 leading-none">by BHABY GROUP LTD</p>
               </div>
             </div>
@@ -329,7 +329,7 @@ const LandingPage: React.FC = () => {
                 <ShoppingBag className="w-5 h-5 text-white" />
               </div>
               <div className="ml-2">
-                <span className="text-lg font-bold text-white">Dukani</span>
+                <span className="text-lg font-bold text-white">E-Shop</span>
                 <p className="text-xs text-gray-400 leading-none">by BHABY GROUP LTD</p>
               </div>
             </div>
@@ -366,7 +366,7 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} BHABY GROUP LTD — Dukani Marketplace. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} BHABY GROUP LTD — E-Shop Marketplace. All rights reserved.</p>
             <p className="text-xs mt-1 text-gray-500">Powered by BHABY GROUP LTD · bhabygroup.co.tz</p>
           </div>
         </div>

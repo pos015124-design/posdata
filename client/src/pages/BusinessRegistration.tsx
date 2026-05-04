@@ -192,7 +192,7 @@ const BusinessRegistration: React.FC = () => {
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Submitted!</h2>
               <p className="text-gray-600 mb-6">
-                Thank you for registering your business with Dukani. Your application is now under review.
+                Thank you for registering your business with E-Shop. Your application is now under review.
                 You'll receive an email notification once your account is approved.
               </p>
               <div className="space-y-3">
@@ -219,7 +219,7 @@ const BusinessRegistration: React.FC = () => {
             <Link to="/" className="flex items-center">
               <ArrowLeft className="w-5 h-5 mr-2" />
               <ShoppingBag className="w-8 h-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Dukani</span>
+              <span className="ml-2 text-xl font-bold text-gray-900">E-Shop</span>
             </Link>
             <div className="text-sm text-gray-500">
               Step {currentStep} of 3

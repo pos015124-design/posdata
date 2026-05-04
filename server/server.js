@@ -270,6 +270,7 @@ app.get('/api/sellers/test', (req, res) => {
 app.use('/api/products/import', importRoutes);
 app.use('/api/seller-inventory', sellerInventoryRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/billing', require('./routes/billingRoutes'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -1,5 +1,5 @@
-/* Dukani Service Worker — BHABY GROUP LTD */
-const CACHE = 'dukani-v1';
+/* E-Shop Service Worker — BHABY GROUP LTD */
+const CACHE = 'eshop-v1';
 const OFFLINE_URL = '/';
 
 // Assets to pre-cache on install
@@ -48,7 +48,7 @@ self.addEventListener('push', event => {
   if (!event.data) return;
   const data = event.data.json();
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Dukani', {
+    self.registration.showNotification(data.title || 'E-Shop', {
       body: data.body || 'You have a new notification',
       icon: '/favicon.ico',
       badge: '/favicon.ico',

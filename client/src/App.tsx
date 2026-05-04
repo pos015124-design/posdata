@@ -22,6 +22,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import LandingPage from './pages/LandingPage';
 import WaitingApproval from './pages/WaitingApproval';
+import SellerBilling from './pages/SellerBilling';
 import { Toaster } from './components/ui/toaster';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -79,6 +80,7 @@ function App() {
             <Route path="/super-admin" element={<PrivateRoute><SuperAdminDashboard /></PrivateRoute>} />
             <Route path="/business-management" element={<PrivateRoute><BusinessManagement /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/billing" element={<PrivateRoute><SellerBilling /></PrivateRoute>} />
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" />} />

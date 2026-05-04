@@ -122,7 +122,7 @@ export default function Dashboard() {
         });
         // Browser notification if permission granted
         if (Notification.permission === 'granted') {
-          new Notification(`Dukani — ${diff} new order${diff > 1 ? 's' : ''}`, {
+          new Notification(`E-Shop — ${diff} new order${diff > 1 ? 's' : ''}`, {
             body: 'A customer just placed an order in your store.',
             icon: '/favicon.ico',
             tag: 'new-order'

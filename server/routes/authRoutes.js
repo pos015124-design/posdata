@@ -485,6 +485,30 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
     
     user.isApproved = true;
     await user.save();
+
+    // Auto-create registration fee billing record for the newly approved seller
+    if (user.role === 'business_admin') {
+      try {
+        const SellerBilling = require('../models/SellerBilling');
+        const Business = require('../models/Business');
+        const existing = await SellerBilling.findOne({ userId: user._id, type: 'registration' });
+        if (!existing) {
+          const business = await Business.findOne({ userId: user._id }).select('_id name');
+          await SellerBilling.create({
+            userId: user._id,
+            businessId: business?._id,
+            businessName: business?.name || user.email,
+            type: 'registration',
+            amount: 300000,
+            description: 'One-time seller registration fee — E-Shop by BHABY GROUP LTD',
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          });
+        }
+      } catch (billingErr) {
+        console.error('Failed to create registration billing record:', billingErr.message);
+        // Non-critical — don't fail the approval
+      }
+    }
     
     return res.json({ 
       success: true, 

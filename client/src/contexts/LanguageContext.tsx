@@ -350,7 +350,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     
     // System
-    "system.title": "Dukani System",
+    "system.title": "E-Shop System",
   },
   sw: {
     // Navigation
@@ -676,7 +676,7 @@ const translations: Record<Language, Record<string, string>> = {
     "settings.failedToSave": "Imeshindwa kuhifadhi mipangilio",
     
     // System
-    "system.title": "Mfumo wa Dukani",
+    "system.title": "Mfumo wa E-Shop",
   }
 };
 

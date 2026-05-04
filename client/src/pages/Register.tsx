@@ -20,7 +20,7 @@ function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () =
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-sm text-gray-700">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <p className="font-bold text-blue-900 mb-1">BHABY GROUP LTD — Dukani Marketplace</p>
+            <p className="font-bold text-blue-900 mb-1">BHABY GROUP LTD — E-Shop Marketplace</p>
             <p className="text-blue-700 text-xs">Seller Agreement & Fee Structure</p>
           </div>
 
@@ -146,7 +146,7 @@ export default function Register() {
             </div>
             <div>
               <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">BHABY GROUP LTD</p>
-              <CardTitle className="text-2xl font-extrabold text-gray-900 mt-1">Join Dukani</CardTitle>
+              <CardTitle className="text-2xl font-extrabold text-gray-900 mt-1">Join E-Shop</CardTitle>
               <CardDescription>Create your seller account and start selling today</CardDescription>
             </div>
           </CardHeader>

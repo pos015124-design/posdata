@@ -303,7 +303,7 @@ export default function Store() {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div className="hidden sm:block">
-              <p className="text-base font-bold text-gray-900 leading-none">Dukani</p>
+              <p className="text-base font-bold text-gray-900 leading-none">E-Shop</p>
               <p className="text-xs text-gray-400 leading-none">Marketplace</p>
             </div>
           </Link>

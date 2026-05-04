@@ -19,7 +19,8 @@ import {
   Shield,
   Building,
   Globe,
-  Activity
+  Activity,
+  CreditCard
 } from "lucide-react"
 
 export function Sidebar() {
@@ -114,6 +115,14 @@ export function Sidebar() {
       badge: null,
       gradient: "from-gray-500 to-slate-600"
     },
+    {
+      href: "/billing",
+      label: "Billing & Fees",
+      icon: CreditCard,
+      permission: "dashboard",
+      badge: null,
+      gradient: "from-blue-600 to-indigo-600"
+    },
   ]
 
   // Define the permission type
@@ -147,7 +156,7 @@ export function Sidebar() {
             <Store className="h-4 w-4 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gradient">Dukani</h1>
+            <h1 className="text-lg font-bold text-gradient">E-Shop</h1>
             <p className="text-xs text-muted-foreground">Retail System</p>
           </div>
         </div>

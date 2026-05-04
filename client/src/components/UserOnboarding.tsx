@@ -138,7 +138,7 @@ export const UserOnboarding = () => {
       <Dialog open={showOnboarding} onOpenChange={setShowOnboarding}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Welcome to Dukani System</DialogTitle>
+            <DialogTitle>Welcome to E-Shop System</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-6">
@@ -212,7 +212,7 @@ export const UserOnboarding = () => {
                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
                 <h3 className="text-lg font-semibold mb-1">Congratulations!</h3>
                 <p className="text-muted-foreground">
-                  You've completed all setup tasks. Your Dukani system is ready to use.
+                  You've completed all setup tasks. Your E-Shop system is ready to use.
                 </p>
               </div>
             ) : (

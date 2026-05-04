@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, ShoppingBag, User, Phone, Mail,
@@ -84,7 +84,7 @@ export default function Checkout() {
     }
   };
 
-  /* ── Success screen ── */
+  /* ΓöÇΓöÇ Success screen ΓöÇΓöÇ */
   if (orderComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center px-4">
@@ -129,7 +129,7 @@ export default function Checkout() {
     );
   }
 
-  /* ── Checkout form ── */
+  /* ΓöÇΓöÇ Checkout form ΓöÇΓöÇ */
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
@@ -147,9 +147,9 @@ export default function Checkout() {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2 text-sm">
           <span className="text-gray-400">Cart</span>
-          <span className="text-gray-300">›</span>
+          <span className="text-gray-300">ΓÇ║</span>
           <span className="font-semibold text-blue-600">Checkout</span>
-          <span className="text-gray-300">›</span>
+          <span className="text-gray-300">ΓÇ║</span>
           <span className="text-gray-400">Confirmation</span>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function Checkout() {
                     <textarea
                       value={info.notes}
                       onChange={set('notes')}
-                      placeholder="Any special instructions for the seller…"
+                      placeholder="Any special instructions for the sellerΓÇª"
                       rows={3}
                       className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                     />
@@ -264,7 +264,7 @@ export default function Checkout() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-                        <p className="text-xs text-gray-400">{item.storeName} · ×{item.quantity}</p>
+                        <p className="text-xs text-gray-400">{item.storeName} ┬╖ ├ù{item.quantity}</p>
                       </div>
                       <p className="text-sm font-bold text-gray-900 shrink-0">TZS {(item.price * item.quantity).toLocaleString()}</p>
                     </div>
@@ -294,9 +294,9 @@ export default function Checkout() {
                   {processing ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing…
+                      ProcessingΓÇª
                     </span>
-                  ) : `Place order · TZS ${total.toLocaleString()}`}
+                  ) : `Place order ┬╖ TZS ${total.toLocaleString()}`}
                 </Button>
                 <p className="text-xs text-gray-400 text-center mt-3">
                   By placing this order you agree to our terms of service
