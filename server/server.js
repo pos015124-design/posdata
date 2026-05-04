@@ -336,10 +336,10 @@ const startServer = async () => {
   if (process.env.VERCEL !== '1') {
     // Start server for local development or traditional hosting
     const server = http.createServer(app);
-    server.listen(port, () => {
-      console.log(`🚀 Server running at http://localhost:${port}`);
-      console.log(`✅ Registration endpoint available at http://localhost:${port}/api/auth/register`);
-      console.log(`✅ Login endpoint available at http://localhost:${port}/api/auth/login`);
+    server.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Server running at http://0.0.0.0:${port}`);
+      console.log(`✅ Registration endpoint available at http://0.0.0.0:${port}/api/auth/register`);
+      console.log(`✅ Login endpoint available at http://0.0.0.0:${port}/api/auth/login`);
       console.log('✅ Server started successfully!');
     });
 
