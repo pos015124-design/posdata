@@ -108,7 +108,13 @@ export default function Settings() {
         setBusinessSettings({
           name: business.name || '',
           slug: business.slug || '',
-          address: business.address || '',
+          // address is stored as an object {street,city,...} — flatten to a display string
+          address: business.address
+            ? typeof business.address === 'object'
+              ? [business.address.street, business.address.city, business.address.state, business.address.country]
+                  .filter(Boolean).join(', ')
+              : business.address
+            : '',
           phone: business.phone || '',
           email: business.email || '',
           taxId: business.taxId || '',
@@ -168,11 +174,18 @@ export default function Settings() {
         businessId = getData.data._id;
       }
       
-      // Prepare business data
+      // Prepare business data — address must be sent as an object, not a string
+      const addressStr = businessSettings.address || '';
+      const addressParts = addressStr.split(',').map((s: string) => s.trim());
       const businessData = {
         name: businessSettings.name,
         slug: businessSettings.slug,
-        address: businessSettings.address,
+        address: {
+          street: addressParts[0] || '',
+          city:   addressParts[1] || '',
+          state:  addressParts[2] || '',
+          country: addressParts[3] || 'Tanzania'
+        },
         phone: businessSettings.phone,
         email: businessSettings.email,
         isPublic: businessSettings.isPublic,
@@ -540,8 +553,9 @@ export default function Settings() {
                       id="address" 
                       value={businessSettings.address}
                       onChange={(e) => setBusinessSettings({...businessSettings, address: e.target.value})}
-                      placeholder="Business address" 
+                      placeholder="Street, City, Region, Country" 
                     />
+                    <p className="text-xs text-gray-500 mt-1">Separate parts with commas: Street, City, Region, Country</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
