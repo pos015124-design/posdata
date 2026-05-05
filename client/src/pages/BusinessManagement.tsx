@@ -229,10 +229,7 @@ const BusinessManagement: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return `TZS ${Number(amount ?? 0).toLocaleString()}`;
   };
 
   const formatDate = (dateString: string) => {

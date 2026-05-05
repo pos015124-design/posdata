@@ -146,10 +146,7 @@ const BusinessDashboard: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: business?.ecommerce.currency || 'USD'
-    }).format(amount);
+    return `TZS ${Number(amount ?? 0).toLocaleString()}`;
   };
 
   const getStatusBadge = (status: string) => {
