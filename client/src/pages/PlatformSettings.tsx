@@ -36,6 +36,8 @@ interface ApiResponse {
   };
 }
 
+const BASE = import.meta.env.VITE_API_URL || '';
+
 const PlatformSettings: React.FC = () => {
   const [settings, setSettings] = useState<PlatformSettingsData>(defaultSettings);
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,7 @@ const PlatformSettings: React.FC = () => {
   useEffect(() => {
     const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
     setLoading(true);
-    fetch('/api/platform/settings', {
+    fetch(`${BASE}/api/platform/settings`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (res) => {
@@ -81,7 +83,7 @@ const PlatformSettings: React.FC = () => {
         email: { fromEmail: settings.supportEmail },
         businessRegistration: { enabled: settings.allowNewSignups },
       };
-      const res = await fetch('/api/platform/settings', {
+      const res = await fetch(`${BASE}/api/platform/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
