@@ -34,14 +34,14 @@ export default function Reports() {
     // Listen for updates from other pages
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'product-updated' || e.key === 'sale-created') {
-        fetchReportsData(); // Refresh reports when data changes
+        fetchReportsData(true); // silent refresh
       }
     };
     
     window.addEventListener('storage', handleStorageChange);
     
-    // Auto-refresh every 15 seconds for real-time updates
-    const refreshInterval = setInterval(fetchReportsData, 15000);
+    // Poll every 5 minutes silently — no spinner on background refresh
+    const refreshInterval = setInterval(() => fetchReportsData(true), 300000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -49,9 +49,9 @@ export default function Reports() {
     };
   }, [selectedPeriod]);
 
-  const fetchReportsData = async () => {
+  const fetchReportsData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       
       // Fetch all data with error handling for each API call
       const [salesAnalytics, inventoryAnalytics, expensesRes, allSalesRes, productsRes] = await Promise.allSettled([

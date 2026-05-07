@@ -72,19 +72,19 @@ export default function Dashboard() {
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'product-updated' || e.key === 'sale-created' || e.key === 'customer-updated') {
-        fetchDashboardStats();
+        fetchDashboardStats(true); // silent — no spinner
       }
     };
-    const handleSaleCreated = () => fetchDashboardStats();
+    const handleSaleCreated = () => fetchDashboardStats(true);
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('sale-created', handleSaleCreated);
 
-    const handleVisibilityChange = () => { if (!document.hidden) fetchDashboardStats(); };
+    const handleVisibilityChange = () => { if (!document.hidden) fetchDashboardStats(true); };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Poll every 15 seconds for new orders
-    const refreshInterval = setInterval(fetchDashboardStats, 15000);
+    // Poll every 2 minutes silently — storage events handle instant updates
+    const refreshInterval = setInterval(() => fetchDashboardStats(true), 120000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -94,9 +94,9 @@ export default function Dashboard() {
     };
   }, [navigate, user?.role]);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [salesRes, customersRes, productsRes] = await Promise.all([
         salesApi.getAllSales(),
         customersApi.getCustomers(),

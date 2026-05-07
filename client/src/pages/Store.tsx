@@ -234,10 +234,10 @@ export default function Store() {
   }, []);
 
   // Fetch products
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (silent = false) => {
     try {
       setLoadError(null);
-      setLoading(true);
+      if (!silent) setLoading(true);
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(page), search: debouncedSearch });
       if (selectedCategory) params.set('category', selectedCategory);
       const r = await fetch(`${BASE}/api/public/products?${params}`);
@@ -259,9 +259,10 @@ export default function Store() {
 
   // Listen for product updates
   useEffect(() => {
-    const handler = (e: StorageEvent) => { if (e.key === 'product-updated') fetchProducts(); };
+    const handler = (e: StorageEvent) => { if (e.key === 'product-updated') fetchProducts(true); };
     window.addEventListener('storage', handler);
-    const t = setInterval(fetchProducts, 60000);
+    // Poll every 5 minutes silently — no loading flicker
+    const t = setInterval(() => fetchProducts(true), 300000);
     return () => { window.removeEventListener('storage', handler); clearInterval(t); };
   }, [fetchProducts]);
 

@@ -33,14 +33,14 @@ export default function POS() {
     // Listen for product updates from inventory
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'product-updated') {
-        fetchProducts(); // Refresh POS products when inventory changes
+        fetchProducts(true); // silent refresh
       }
     };
     
     window.addEventListener('storage', handleStorageChange);
     
-    // Auto-refresh every 20 seconds for real-time updates
-    const refreshInterval = setInterval(fetchProducts, 20000);
+    // Poll every 5 minutes silently — storage events handle instant updates
+    const refreshInterval = setInterval(() => fetchProducts(true), 300000);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -48,9 +48,9 @@ export default function POS() {
     };
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await productsApi.getProducts();
       // Handle different response structures
       const productsList = Array.isArray(response?.products) 
