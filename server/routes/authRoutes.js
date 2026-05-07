@@ -56,31 +56,13 @@ router.post('/login',
 
 
 
-      // Auto-approve admin users on login
-      if (user.role === 'super_admin' || user.role === 'business_admin') {
-        let updated = false;
+      // Only super_admin is auto-approved on login.
+      // business_admin users must wait for manual admin approval.
+      if (user.role === 'super_admin') {
         if (!user.isApproved) {
           user.isApproved = true;
-          updated = true;
+          await user.save();
         }
-        // Ensure business is active and public
-        if (user.businessId) {
-          const Business = require('../models/Business');
-          const business = await Business.findById(user.businessId);
-          if (business) {
-            let businessUpdated = false;
-            if (business.status !== 'active') {
-              business.status = 'active';
-              businessUpdated = true;
-            }
-            if (!business.isPublic) {
-              business.isPublic = true;
-              businessUpdated = true;
-            }
-            if (businessUpdated) await business.save();
-          }
-        }
-        if (updated) await user.save();
       }
 
       // Clear failed login attempts on successful login
@@ -203,8 +185,8 @@ router.post('/register',
               .trim(),
             email: email,
             userId: user._id,
-            status: 'active',
-            isPublic: true,
+            status: 'pending',   // requires admin approval
+            isPublic: false,     // not visible until approved
             category: 'retail'
           });
           await business.save();
@@ -388,7 +370,7 @@ router.get('/pending-users', requireAdmin, async (req, res) => {
     return res.json({ users: pendingUsers });
   } catch (error) {
     console.error('Error fetching pending users:', error, error?.stack);
-    return res.status(500).json({ message: 'Server error', error: error?.message, stack: error?.stack });
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 

@@ -1,13 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const { requireUser } = require('./middleware/auth');
+
+// All migration endpoints require super_admin authentication
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Super admin access required' });
+  }
+  next();
+};
 
 /**
  * POST /api/migrate/indexes
  * Run database migration to fix product indexes
  * This endpoint should only be called once and ideally protected
  */
-router.post('/indexes', async (req, res) => {
+router.post('/indexes', requireUser, requireSuperAdmin, async (req, res) => {
   try {
     console.log('🚀 Starting product index migration...');
 
@@ -94,7 +103,7 @@ router.post('/indexes', async (req, res) => {
 });
 
 // GET /api/migrate/status - Check current indexes
-router.get('/status', async (req, res) => {
+router.get('/status', requireUser, requireSuperAdmin, async (req, res) => {
   try {
     const Product = mongoose.model('Product');
     const indexes = await Product.collection.indexes();
@@ -119,7 +128,7 @@ router.get('/status', async (req, res) => {
  *
  * Safe to run multiple times (skips businesses that already have userId set).
  */
-router.post('/backfill-business-userid', async (req, res) => {
+router.post('/backfill-business-userid', requireUser, requireSuperAdmin, async (req, res) => {
   try {
     const Business = mongoose.model('Business');
     const User = mongoose.model('User');

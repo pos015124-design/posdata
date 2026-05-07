@@ -86,8 +86,7 @@ router.post('/register', validateBusinessRegistration, handleValidationErrors, a
     });
     res.status(400).json({
       error: 'Registration failed',
-      message: error.message,
-      details: error.stack
+      message: error.message
     });
   }
 });
