@@ -23,6 +23,7 @@ import Checkout from './pages/Checkout';
 import LandingPage from './pages/LandingPage';
 import WaitingApproval from './pages/WaitingApproval';
 import SellerBilling from './pages/SellerBilling';
+import InstallPWA from './components/InstallPWA';
 import { Toaster } from './components/ui/toaster';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -86,6 +87,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
           <Toaster />
+          <InstallPWA />
         </AuthProvider>
       </LanguageProvider>
     </Router>
