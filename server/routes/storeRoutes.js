@@ -8,12 +8,23 @@ const router = express.Router();
 const StoreService = require('../services/storeService');
 const SaleService = require('../services/saleService');
 const { logger } = require('../config/logger');
+const rateLimit = require('express-rate-limit');
+
+// Stricter rate limit for checkout — prevents order spam / inventory abuse
+const checkoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 checkout attempts per IP per 15 min
+  message: { error: 'Too many checkout attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS'
+});
 
 /**
  * POST /api/public/checkout
  * Guest storefront checkout (no JWT). Items grouped by product owner → one sale per seller.
  */
-router.post('/checkout', async (req, res) => {
+router.post('/checkout', checkoutLimiter, async (req, res) => {
   try {
     const { items, paymentMethod = 'cash', customer, notes } = req.body;
 

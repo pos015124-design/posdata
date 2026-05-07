@@ -219,6 +219,20 @@ router.post('/register',
         timestamp: new Date().toISOString()
       });
 
+      // Notify admin of new seller registration (non-blocking)
+      try {
+        const { sendNewSellerRegistrationToAdmin } = require('../utils/emailService');
+        const Business = require('../models/Business');
+        const biz = await Business.findOne({ userId: user._id }).select('name');
+        await sendNewSellerRegistrationToAdmin({
+          sellerEmail: user.email,
+          sellerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email.split('@')[0],
+          businessName: biz?.name || businessName || name || user.email
+        });
+      } catch (emailErr) {
+        console.error('Failed to send admin registration notification:', emailErr.message);
+      }
+
       res.status(201).json({
         success: true,
         message: 'Registration successful! Your account is pending admin approval. You will be notified once approved.',
@@ -468,14 +482,23 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
     user.isApproved = true;
     await user.save();
 
-    // Auto-create registration fee billing record for the newly approved seller
+    const Business = require('../models/Business');
+    let business = null;
+
     if (user.role === 'business_admin') {
+      // Activate the seller's business so products appear in marketplace
+      business = await Business.findOne({ userId: user._id });
+      if (business) {
+        business.status = 'active';
+        business.isPublic = true;
+        await business.save();
+      }
+
+      // Auto-create registration fee billing record
       try {
         const SellerBilling = require('../models/SellerBilling');
-        const Business = require('../models/Business');
         const existing = await SellerBilling.findOne({ userId: user._id, type: 'registration' });
         if (!existing) {
-          const business = await Business.findOne({ userId: user._id }).select('_id name');
           await SellerBilling.create({
             userId: user._id,
             businessId: business?._id,
@@ -488,7 +511,18 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
         }
       } catch (billingErr) {
         console.error('Failed to create registration billing record:', billingErr.message);
-        // Non-critical — don't fail the approval
+      }
+
+      // Send approval email to seller (non-blocking)
+      try {
+        const { sendSellerApprovalEmail } = require('../utils/emailService');
+        await sendSellerApprovalEmail({
+          sellerEmail: user.email,
+          sellerName: user.fullName || user.firstName || user.email.split('@')[0],
+          businessName: business?.name || user.email
+        });
+      } catch (emailErr) {
+        console.error('Failed to send approval email:', emailErr.message);
       }
     }
     

@@ -155,6 +155,42 @@ class SaleService {
       sales.push(result.sale);
     }
 
+    // Send emails after all sales created (non-blocking, never throws)
+    setImmediate(async () => {
+      try {
+        const { sendNewOrderToSeller, sendOrderConfirmationToBuyer } = require('../utils/emailService');
+        const User = require('../models/User');
+
+        for (const sale of sales) {
+          const seller = await User.findById(sale.createdBy).select('email firstName');
+          if (seller?.email) {
+            sendNewOrderToSeller({
+              sellerEmail: seller.email,
+              sellerName: seller.firstName || seller.email.split('@')[0],
+              invoiceNumber: sale.invoiceNumber,
+              items: sale.items.map(i => ({ name: i.productName, quantity: i.quantity, price: i.price })),
+              total: sale.total,
+              customer: { name: sale.customerName, phone: sale.customerPhone, city: sale.customerCity }
+            }).catch(e => console.error('[Email] seller notify failed:', e.message));
+          }
+        }
+
+        if (customer?.email) {
+          const allItems = sales.flatMap(s => s.items.map(i => ({ name: i.productName, quantity: i.quantity, price: i.price })));
+          sendOrderConfirmationToBuyer({
+            buyerEmail: customer.email,
+            buyerName: customer.name,
+            invoices: sales.map(s => s.invoiceNumber),
+            items: allItems,
+            total: sales.reduce((sum, s) => sum + s.total, 0),
+            paymentMethod
+          }).catch(e => console.error('[Email] buyer confirm failed:', e.message));
+        }
+      } catch (e) {
+        console.error('[Email] order email error:', e.message);
+      }
+    });
+
     return {
       success: true,
       sales,
@@ -262,6 +298,29 @@ class SaleService {
       } catch {
         // Non-critical — getAllBusinesses aggregates live from Sale anyway
       }
+    }
+
+    // Auto-create 5% commission billing record for this sale
+    try {
+      const SellerBilling = require('../models/SellerBilling');
+      const commissionAmount = Math.round(finalTotal * 0.05);
+      if (commissionAmount > 0 && userId) {
+        const biz = await Business.findOne({ userId: new mongoose.Types.ObjectId(String(userId)) }).select('_id name');
+        await SellerBilling.create({
+          userId: new mongoose.Types.ObjectId(String(userId)),
+          businessId: biz?._id,
+          businessName: biz?.name,
+          type: 'commission',
+          amount: commissionAmount,
+          saleId: sale._id,
+          saleInvoice: invoiceNumber,
+          description: `5% commission on ${invoiceNumber} (TZS ${finalTotal.toLocaleString()})`,
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        });
+      }
+    } catch (billingErr) {
+      console.error('[Billing] Commission creation failed:', billingErr.message);
+      // Non-critical
     }
 
     return {
