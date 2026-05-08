@@ -404,13 +404,32 @@ router.get('/users', requireAdmin, async (req, res) => {
 // PUT /api/auth/approve-all-pending — approve every unapproved user at once
 router.put('/approve-all-pending', requireAdmin, async (req, res) => {
   try {
+    // Find all unapproved sellers first so we can also activate their businesses
+    const pendingUsers = await User.find({
+      isApproved: false,
+      role: { $ne: 'super_admin' }
+    }).select('_id role');
+
+    // Approve all users
     const result = await User.updateMany(
       { isApproved: false, role: { $ne: 'super_admin' } },
       { $set: { isApproved: true } }
     );
+
+    // Activate each seller's business
+    const Business = require('../models/Business');
+    for (const u of pendingUsers) {
+      if (u.role === 'business_admin') {
+        await Business.findOneAndUpdate(
+          { userId: u._id },
+          { $set: { status: 'active', isPublic: true } }
+        );
+      }
+    }
+
     return res.json({
       success: true,
-      message: `Approved ${result.modifiedCount} pending user(s)`,
+      message: `Approved ${result.modifiedCount} pending user(s) and activated their businesses`,
       modifiedCount: result.modifiedCount
     });
   } catch (error) {

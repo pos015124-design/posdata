@@ -282,12 +282,22 @@ router.get('/pending', requireAdmin, async (req, res) => {
 /**
  * POST /api/business/:id/approve
  * Approve a business registration (Admin only)
+ * Also approves the business owner's user account.
  */
 router.post('/:id/approve', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
     const business = await BusinessService.approveBusiness(id, req.user.userId);
+
+    // Also ensure the owner's user account is approved
+    const User = require('../models/User');
+    if (business.userId) {
+      await User.findOneAndUpdate(
+        { _id: business.userId },
+        { $set: { isApproved: true } }
+      );
+    }
     
     res.json({
       success: true,
