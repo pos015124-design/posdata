@@ -499,6 +499,10 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
     }
     
     user.isApproved = true;
+    // Ensure business_admin has all their permissions set correctly
+    if (user.role === 'business_admin') {
+      user.setDefaultPermissions();
+    }
     await user.save();
 
     const Business = require('../models/Business');

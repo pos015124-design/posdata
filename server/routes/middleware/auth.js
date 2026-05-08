@@ -20,7 +20,7 @@ const requireUser = async (req, res, next) => {
         ip: req.ip,
         userAgent: req.get('User-Agent')
       });
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(401).json({ message: 'Session expired. Please log in again.' });
     }
     
     console.log(`[AUTH] User found in DB - ${user.email}, isActive: ${user.isActive}`);
