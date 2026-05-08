@@ -350,15 +350,17 @@ export default function Store() {
       <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white">
         <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-4">
-              <Sparkles className="w-4 h-4" />
-              {pagination.total > 0 ? `${pagination.total.toLocaleString()} products available` : 'All public stores in one place'}
-            </div>
+            {pagination.total > 0 && (
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-4">
+                <Sparkles className="w-4 h-4" />
+                {pagination.total.toLocaleString()} products from local sellers
+              </div>
+            )}
             <h1 className="text-3xl md:text-4xl font-extrabold mb-3 leading-tight">
-              Shop from every store,<br />all in one feed
+              Tanzania's local marketplace —<br />everything in one place
             </h1>
             <p className="text-white/80 text-base mb-6">
-              Browse products from all active businesses. Visit any store's page for their full catalogue.
+              Discover unique products from verified local businesses. Fast delivery, secure checkout, real sellers.
             </p>
             <div className="flex gap-3 flex-wrap">
               <Link to="/stores">
@@ -454,7 +456,9 @@ export default function Store() {
             <StoreIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
             <p className="text-lg font-medium text-gray-600 mb-1">No products found</p>
             <p className="text-sm mb-4">
-              {debouncedSearch || selectedCategory ? 'Try different filters' : 'No published products yet. Sellers need an active, public business.'}
+              {debouncedSearch || selectedCategory
+                ? 'Try a different search term or category'
+                : 'Our sellers are setting up their stores. Check back soon!'}
             </p>
             {(debouncedSearch || selectedCategory) && (
               <Button variant="outline" onClick={() => { setSearchTerm(''); setSelectedCategory(''); }}>Clear filters</Button>

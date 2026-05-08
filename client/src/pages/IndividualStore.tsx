@@ -502,18 +502,20 @@ export default function IndividualStore() {
       </header>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-12">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-10">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Welcome to {business.name}</h2>
-          <p className="text-lg mb-6 opacity-90">Browse our products and shop with confidence</p>
+          <h2 className="text-2xl md:text-3xl font-bold mb-2">{business.name}</h2>
+          <p className="text-white/80 mb-5 max-w-xl mx-auto text-sm md:text-base">
+            {business.description || `Explore our full range of products and find exactly what you need.`}
+          </p>
           <div className="max-w-2xl mx-auto">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
-                placeholder="Search products..."
+                placeholder="Search products…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 h-14 text-lg bg-white text-gray-900"
+                className="pl-12 h-12 text-base bg-white text-gray-900"
               />
             </div>
           </div>
@@ -597,9 +599,11 @@ export default function IndividualStore() {
                       {product.description}
                     </p>
                   )}
-                  <p className="text-xs text-gray-500 mb-2">
-                    Category: {product.category}
-                  </p>
+                  {product.category && (
+                    <span className="inline-block text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full mb-2 capitalize">
+                      {product.category}
+                    </span>
+                  )}
                   
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-2xl font-bold text-blue-600">
