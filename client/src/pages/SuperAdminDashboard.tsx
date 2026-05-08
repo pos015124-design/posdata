@@ -15,6 +15,7 @@ import BusinessReviewModal from './BusinessReviewModal';
 import PendingUsers from './PendingUsers';
 import BusinessManagement from './BusinessManagement';
 import PlatformSettings from './PlatformSettings';
+import AdminBilling from './AdminBilling';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -222,6 +223,7 @@ const SuperAdminDashboard: React.FC = () => {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="businesses">Businesses</TabsTrigger>
           <TabsTrigger value="pending-users">Users</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
@@ -323,6 +325,11 @@ const SuperAdminDashboard: React.FC = () => {
         {/* ── Settings tab ── */}
         <TabsContent value="settings">
           <PlatformSettings />
+        </TabsContent>
+
+        {/* ── Billing tab ── */}
+        <TabsContent value="billing">
+          <AdminBilling />
         </TabsContent>
 
         {/* ── System health tab ── */}
