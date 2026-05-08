@@ -392,38 +392,40 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="w-full md:w-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Inventory</h1>
-          <p className="text-gray-600 mt-1 text-center md:text-left">Manage your products and stock</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h1>
+          <p className="text-gray-600 mt-0.5 text-sm">Manage your products and stock</p>
         </div>
-        <Button
-          onClick={() => {
-            resetForm();
-            setEditingProduct(null);
-            setShowAddModal(true);
-          }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
-        <Button
-          onClick={() => { setShowCloneModal(true); fetchCatalog(); }}
-          variant="outline"
-          className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
-        >
-          <Globe className="w-4 h-4" />
-          Browse & Clone
-        </Button>
-        <Button
-          onClick={() => setShowImportModal(true)}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Import Products
-        </Button>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Button
+            onClick={() => {
+              resetForm();
+              setEditingProduct(null);
+              setShowAddModal(true);
+            }}
+            size="sm"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5"
+          >
+            <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Product</span><span className="sm:hidden">Add</span>
+          </Button>
+          <Button
+            onClick={() => { setShowCloneModal(true); fetchCatalog(); }}
+            variant="outline"
+            size="sm"
+            className="border-purple-300 text-purple-700 hover:bg-purple-50 h-9 gap-1.5"
+          >
+            <Globe className="w-4 h-4" /><span className="hidden sm:inline">Browse & Clone</span><span className="sm:hidden">Clone</span>
+          </Button>
+          <Button
+            onClick={() => setShowImportModal(true)}
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5"
+          >
+            <Download className="w-4 h-4" /><span className="hidden sm:inline">Import</span>
+          </Button>
+        </div>
       </div>
 
       <Card className="border-0 shadow-lg">
@@ -444,17 +446,17 @@ export default function Inventory() {
           {loading ? (
             <div className="text-center py-8">Loading products...</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-semibold">Product</th>
-                    <th className="text-left py-3 px-4 font-semibold">Code</th>
-                    <th className="text-left py-3 px-4 font-semibold">Barcode</th>
-                    <th className="text-left py-3 px-4 font-semibold">Category</th>
+                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Code</th>
+                    <th className="text-left py-3 px-4 font-semibold hidden md:table-cell">Barcode</th>
+                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Category</th>
                     <th className="text-left py-3 px-4 font-semibold">Stock</th>
                     <th className="text-left py-3 px-4 font-semibold">Price</th>
-                    <th className="text-center py-3 px-4 font-semibold">Store</th>
+                    <th className="text-center py-3 px-4 font-semibold hidden sm:table-cell">Store</th>
                     <th className="text-left py-3 px-4 font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -462,39 +464,39 @@ export default function Inventory() {
                   {filteredProducts.map((product) => {
                     const primaryImage = product.images?.find((img: any) => img.isPrimary) || product.images?.[0];
                     const imageUrl = primaryImage?.url;
-                    
+
                     return (
                     <tr key={product._id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           {imageUrl ? (
                             <img
                               src={resolveProductImageUrl(imageUrl)}
                               alt={product.name}
-                              className="w-10 h-10 object-cover rounded-lg border border-gray-200"
+                              className="w-9 h-9 object-cover rounded-lg border border-gray-200 shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
-                              <Package className="w-5 h-5 text-blue-600" />
+                            <div className="w-9 h-9 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center shrink-0">
+                              <Package className="w-4 h-4 text-blue-600" />
                             </div>
                           )}
-                          <span className="font-medium">{product.name}</span>
+                          <span className="font-medium text-sm truncate max-w-[120px] sm:max-w-none">{product.name}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{product.code}</td>
-                      <td className="py-3 px-4 text-gray-600 font-mono text-sm">{product.barcode}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                      <td className="py-3 px-4 text-gray-600 text-sm hidden sm:table-cell">{product.code}</td>
+                      <td className="py-3 px-4 text-gray-600 font-mono text-xs hidden md:table-cell">{product.barcode}</td>
+                      <td className="py-3 px-4 hidden sm:table-cell">
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
                           {product.category || 'N/A'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`font-semibold ${product.stock <= product.reorderPoint ? 'text-red-600' : 'text-green-600'}`}>
+                        <span className={`font-semibold text-sm ${product.stock <= product.reorderPoint ? 'text-red-600' : 'text-green-600'}`}>
                           {product.stock}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-semibold">TZS {product.price?.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 font-semibold text-sm">TZS {product.price?.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-center hidden sm:table-cell">
                         <button
                           type="button"
                           onClick={() => handleTogglePublish(product)}
@@ -505,21 +507,21 @@ export default function Inventory() {
                               : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
                           }`}
                         >
-                          {product.isPublished ? '✓ Published' : 'Draft — Publish?'}
+                          {product.isPublished ? '✓ Live' : 'Draft'}
                         </button>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(product)}>
-                            <Edit className="w-4 h-4" />
+                        <div className="flex gap-1.5">
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(product)} className="h-8 w-8 p-0">
+                            <Edit className="w-3.5 h-3.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
                             onClick={() => handleDelete(product._id)}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </td>
@@ -548,7 +550,7 @@ export default function Inventory() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Product Name</Label>
                     <Input name="name" value={formData.name} onChange={handleInputChange} required />
@@ -628,7 +630,7 @@ export default function Inventory() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Price (TZS)</Label>
                     <Input name="price" type="number" value={formData.price} onChange={handleInputChange} required />
@@ -639,7 +641,7 @@ export default function Inventory() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Stock</Label>
                     <Input name="stock" type="number" value={formData.stock} onChange={handleInputChange} required />

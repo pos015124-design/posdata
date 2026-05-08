@@ -128,21 +128,21 @@ export default function Customers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="w-full md:w-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Customers</h1>
-          <p className="text-gray-600 mt-1 text-center md:text-left">Manage your customer base</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Customers</h1>
+          <p className="text-gray-600 mt-0.5 text-sm">Manage your customer base</p>
         </div>
         <Button
+          size="sm"
           onClick={() => {
             resetForm();
             setEditingCustomer(null);
             setShowAddModal(true);
           }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5 shrink-0"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Customer
+          <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Customer</span><span className="sm:hidden">Add</span>
         </Button>
       </div>
 

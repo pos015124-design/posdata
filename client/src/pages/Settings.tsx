@@ -335,21 +335,22 @@ export default function Settings() {
 
   if (user?.role === 'super_admin') {
     return (
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Super Admin Settings</h1>
-            <p className="text-sm md:text-base text-gray-600 mt-1">Approve and manage users and businesses</p>
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div className="pl-10 lg:pl-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Super Admin Settings</h1>
+            <p className="text-sm text-gray-600 mt-0.5">Approve and manage users and businesses</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/super-admin')}>
-              Open Super Admin Dashboard
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/super-admin')}>
+              Super Admin
             </Button>
             <Button
+              size="sm"
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               onClick={() => navigate('/business-management')}
             >
-              Open Business Management
+              Businesses
             </Button>
           </div>
         </div>
@@ -376,12 +377,12 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-sm md:text-base text-gray-600 mt-1">Manage your account and preferences</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Settings</h1>
+          <p className="text-sm text-gray-600 mt-0.5">Manage your account and preferences</p>
         </div>
       </div>
 
@@ -510,9 +511,9 @@ export default function Settings() {
                 <div className="space-y-6">
                   {/* Store URL Preview */}
                   <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                    <h3 className="font-semibold text-lg mb-2">Your Store URL</h3>
+                    <h3 className="font-semibold text-base mb-2">Your Store URL</h3>
                     <div className="flex items-center gap-2">
-                      <code className="text-sm bg-white px-3 py-2 rounded border flex-1">
+                      <code className="text-xs sm:text-sm bg-white px-3 py-2 rounded border flex-1 break-all">
                         {window.location.origin}/store/{businessSettings.slug || 'your-slug'}
                       </code>
                     </div>

@@ -15,8 +15,8 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({ data, title }) => (
     </CardHeader>
     <CardContent>
       {data.length ? (
-        <div style={{ width: '100%', height: 300 }}>
-          <ResponsiveContainer>
+        <div className="w-full h-[180px] sm:h-[260px] md:h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />

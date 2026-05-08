@@ -47,15 +47,15 @@ function StatCard({ label, value, sub, icon: Icon, gradient }: {
 }) {
   return (
     <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-            <p className="text-2xl font-extrabold text-gray-900 mt-1">{value}</p>
-            {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">{label}</p>
+            <p className="text-lg sm:text-2xl font-extrabold text-gray-900 mt-1 truncate">{value}</p>
+            {sub && <p className="text-xs text-gray-400 mt-0.5 truncate">{sub}</p>}
           </div>
-          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow`}>
-            <Icon className="w-6 h-6 text-white" />
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow shrink-0`}>
+            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
         </div>
       </CardContent>
@@ -146,16 +146,16 @@ const SuperAdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Shield className="w-6 h-6 text-blue-600" />Super Admin
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-blue-600" />Super Admin
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">
             Platform overview · Last refreshed {lastRefresh.toLocaleTimeString()}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={refreshAll} className="gap-2">
+        <Button variant="outline" size="sm" onClick={refreshAll} className="gap-1.5 shrink-0">
           <RefreshCw className="w-4 h-4" />Refresh all
         </Button>
       </div>
@@ -252,17 +252,17 @@ const SuperAdminDashboard: React.FC = () => {
                   {stats?.pendingUsers?.length ? (
                     <div className="space-y-3">
                       {stats.pendingUsers.slice(0, 5).map((u: any) => (
-                        <div key={u._id} className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
-                          <div>
-                            <p className="font-semibold text-sm text-gray-900">{u.email}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 capitalize">{u.role?.replace('_', ' ')} · Registered {new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
+                        <div key={u._id} className="flex items-center justify-between gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-gray-900 truncate">{u.email}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 capitalize">{u.role?.replace('_', ' ')} · {new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
                           </div>
                           <button
                             onClick={async () => {
                               await fetch(`${BASE}/api/auth/approve/${u._id}`, { method: 'PUT', headers: authHeaders() });
                               loadAnalytics();
                             }}
-                            className="text-xs font-bold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+                            className="text-xs font-bold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors shrink-0"
                           >
                             Approve
                           </button>

@@ -65,9 +65,10 @@ export default function Layout({ children }: LayoutProps) {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 md:p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+        aria-label="Toggle menu"
       >
-        {sidebarOpen ? <X className="w-5 h-5 md:w-6 md:h-6" /> : <Menu className="w-5 h-5 md:w-6 md:h-6" />}
+        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
       {/* Sidebar Overlay for Mobile */}
@@ -123,7 +124,8 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 ml-0 lg:ml-72">
-        <div className="px-4 py-6 md:px-6 lg:px-8">
+        {/* Top spacer on mobile so content clears the hamburger button */}
+        <div className="pt-14 lg:pt-0 px-4 py-4 md:px-6 lg:px-8 pb-8">
           {children}
         </div>
       </main>

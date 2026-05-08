@@ -175,33 +175,38 @@ export function Staff() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("staff.title")}</h1>
-          <p className="text-muted-foreground">
+      <div className="flex justify-between items-start gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("staff.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
             {t("staff.subtitle")}
           </p>
         </div>
         {/* Add Staff button removed as requested */}
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto -mx-4 sm:mx-0">
+        <Table className="min-w-[500px]">
           <TableHeader>
             <TableRow>
               <TableHead>{t("staff.name")}</TableHead>
-              <TableHead>{t("staff.email")}</TableHead>
+              <TableHead className="hidden sm:table-cell">{t("staff.email")}</TableHead>
               <TableHead>{t("staff.role")}</TableHead>
               <TableHead>{t("staff.status")}</TableHead>
-              <TableHead>{t("staff.created")}</TableHead>
+              <TableHead className="hidden md:table-cell">{t("staff.created")}</TableHead>
               <TableHead>{t("staff.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {staff && staff.length > 0 ? staff.map((member) => (
               <TableRow key={member._id}>
-                <TableCell className="font-medium">{member.name}</TableCell>
-                <TableCell>{member.email}</TableCell>
+                <TableCell className="font-medium">
+                  <div>
+                    <p>{member.name}</p>
+                    <p className="text-xs text-muted-foreground sm:hidden truncate max-w-[120px]">{member.email}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">{member.email}</TableCell>
                 <TableCell>
                   <Badge variant={member.role === 'Manager' || member.role === 'Admin' ? 'default' : 'secondary'}>
                     {member.role}
@@ -212,29 +217,17 @@ export function Staff() {
                     {member.user?.isApproved ? t("staff.approved") : t("staff.pending")}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden md:table-cell">
                   {member.createdAt ? format(new Date(member.createdAt), "MMM d, yyyy") : "N/A"}
                 </TableCell>
                 <TableCell>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedStaff(member);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
+                  <div className="flex gap-1.5">
+                    <Button variant="ghost" size="sm" className="h-8 px-2"
+                      onClick={() => { setSelectedStaff(member); setIsEditDialogOpen(true); }}>
                       {t("staff.edit")}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedStaff(member);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
+                    <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:text-red-700"
+                      onClick={() => { setSelectedStaff(member); setIsDeleteDialogOpen(true); }}>
                       {t("staff.delete")}
                     </Button>
                   </div>
@@ -242,7 +235,7 @@ export function Staff() {
               </TableRow>
             )) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
+                <TableCell colSpan={6} className="text-center py-8">
                   {t("staff.noStaffFound")}
                 </TableCell>
               </TableRow>

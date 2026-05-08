@@ -145,7 +145,7 @@ export default function Register() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="name">Full Name</Label>
                   <Input id="name" placeholder="Amina Hassan" value={formData.name}
@@ -164,7 +164,7 @@ export default function Register() {
                   onChange={e => setFormData({ ...formData, email: e.target.value })} required className="h-11" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">

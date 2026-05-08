@@ -124,21 +124,21 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="w-full md:w-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Expenses</h1>
-          <p className="text-gray-600 mt-1 text-center md:text-left">Track your business expenses</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Expenses</h1>
+          <p className="text-gray-600 mt-0.5 text-sm">Track your business expenses</p>
         </div>
         <Button
+          size="sm"
           onClick={() => {
             resetForm();
             setEditingExpense(null);
             setShowAddModal(true);
           }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5 shrink-0"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Expense
+          <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Expense</span><span className="sm:hidden">Add</span>
         </Button>
       </div>
 
@@ -159,34 +159,34 @@ export default function Expenses() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl text-white">
-              <div className="flex items-center justify-between">
-                <div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl text-white">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm opacity-90">Total Expenses</p>
-                  <p className="text-3xl font-bold mt-2">TZS {totalExpenses.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl font-bold mt-1 truncate">TZS {totalExpenses.toLocaleString()}</p>
                 </div>
-                <DollarSign className="w-12 h-12 opacity-50" />
+                <DollarSign className="w-8 h-8 opacity-40 shrink-0" />
               </div>
             </div>
-            <div className="p-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl text-white">
-              <div className="flex items-center justify-between">
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl text-white">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm opacity-90">Total Transactions</p>
-                  <p className="text-3xl font-bold mt-2">{expenses.length}</p>
+                  <p className="text-xl sm:text-2xl font-bold mt-1">{expenses.length}</p>
                 </div>
-                <TrendingUp className="w-12 h-12 opacity-50" />
+                <TrendingUp className="w-8 h-8 opacity-40 shrink-0" />
               </div>
             </div>
-            <div className="p-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl text-white">
-              <div className="flex items-center justify-between">
-                <div>
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl text-white">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm opacity-90">Average Expense</p>
-                  <p className="text-3xl font-bold mt-2">
+                  <p className="text-xl sm:text-2xl font-bold mt-1 truncate">
                     TZS {expenses.length > 0 ? Math.round(totalExpenses / expenses.length).toLocaleString() : 0}
                   </p>
                 </div>
-                <DollarSign className="w-12 h-12 opacity-50" />
+                <DollarSign className="w-8 h-8 opacity-40 shrink-0" />
               </div>
             </div>
           </div>
@@ -205,25 +205,23 @@ export default function Expenses() {
           ) : (
             <div className="space-y-3">
               {expenses.map((expense) => (
-                <div key={expense._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex-1">
-                    <p className="font-semibold">{expense.description}</p>
-                    <p className="text-sm text-gray-600">
-                      {expense.category} • {new Date(expense.date).toLocaleDateString()}
+                <div key={expense._id} className="flex items-start sm:items-center justify-between gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{expense.description}</p>
+                    <p className="text-sm text-gray-600 mt-0.5">
+                      {expense.category} · {new Date(expense.date).toLocaleDateString()}
+                    </p>
+                    <p className="text-base font-bold text-red-600 mt-1 sm:hidden">
+                      −TZS {expense.amount?.toLocaleString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-xl font-bold text-red-600">-TZS {expense.amount?.toLocaleString()}</span>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(expense)}>
-                      <Edit className="w-4 h-4" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-base font-bold text-red-600 hidden sm:block">−TZS {expense.amount?.toLocaleString()}</span>
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(expense)} className="h-8 w-8 p-0">
+                      <Edit className="w-3.5 h-3.5" />
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-red-600"
-                      onClick={() => handleDelete(expense._id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
+                    <Button size="sm" variant="outline" className="text-red-600 h-8 w-8 p-0" onClick={() => handleDelete(expense._id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>

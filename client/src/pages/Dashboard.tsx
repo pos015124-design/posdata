@@ -208,12 +208,12 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="w-full md:w-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Dashboard</h1>
-          <p className="text-gray-600 mt-1 text-center md:text-left">Welcome back, {user?.email}!</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-0.5 text-sm truncate max-w-[220px] sm:max-w-none">Welcome back, {user?.email}!</p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex gap-2 shrink-0">
           {/* Notification toggle */}
           <Button
             variant="outline"
@@ -225,18 +225,18 @@ export default function Dashboard() {
               setNotificationsEnabled(v => !v);
             }}
             title={notificationsEnabled ? 'Mute order alerts' : 'Enable order alerts'}
-            className={notificationsEnabled ? 'text-blue-600 border-blue-300' : 'text-gray-400'}
+            className={`h-9 w-9 p-0 ${notificationsEnabled ? 'text-blue-600 border-blue-300' : 'text-gray-400'}`}
           >
             {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
           </Button>
           {storeUrl && (
-            <Button variant="outline" onClick={shareStore} className="flex items-center gap-2">
-              <Share2 className="w-4 h-4" />Share Store
+            <Button variant="outline" size="sm" onClick={shareStore} className="hidden sm:flex items-center gap-1.5 h-9">
+              <Share2 className="w-4 h-4" /><span className="hidden md:inline">Share</span>
             </Button>
           )}
-          <Button onClick={() => navigate('/pos')}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 flex items-center gap-2">
-            <Store className="w-4 h-4" />Go to POS
+          <Button size="sm" onClick={() => navigate('/pos')}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5">
+            <Store className="w-4 h-4" /><span className="hidden sm:inline">Go to POS</span><span className="sm:hidden">POS</span>
           </Button>
         </div>
       </div>
@@ -244,14 +244,14 @@ export default function Dashboard() {
       {/* Store Link Card */}
       {storeUrl && (
         <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2">
-                  <Store className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-bold text-gray-900">Your Online Store</h3>
+                  <Store className="w-5 h-5 text-blue-600 shrink-0" />
+                  <h3 className="text-base font-bold text-gray-900">Your Online Store</h3>
                   {stats.totalProducts > 0 && (
-                    <span className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
+                    <span className="px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 rounded-full shrink-0">
                       {stats.totalProducts} {stats.totalProducts === 1 ? 'Product' : 'Products'}
                     </span>
                   )}
@@ -259,13 +259,12 @@ export default function Dashboard() {
                 <p className="text-sm text-gray-600 mb-3">
                   Share this link with your customers to let them browse and buy your products
                 </p>
-                <div className="flex items-center gap-2 p-3 bg-white rounded-lg border">
-                  <code className="flex-1 text-sm text-blue-600 break-all">
+                <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border">
+                  <code className="flex-1 text-xs sm:text-sm text-blue-600 break-all line-clamp-1">
                     {storeUrl}
                   </code>
-                  <Button size="sm" onClick={copyStoreLink} className="flex items-center gap-2">
-                    <Copy className="w-4 h-4" />
-                    Copy
+                  <Button size="sm" onClick={copyStoreLink} className="shrink-0 h-8 gap-1.5">
+                    <Copy className="w-3.5 h-3.5" />Copy
                   </Button>
                 </div>
                 {stats.totalProducts === 0 && (
@@ -276,35 +275,35 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              <Button 
+              <Button
                 onClick={() => window.open(storeUrl, '_blank')}
-                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 gap-1.5 w-full sm:w-auto shrink-0"
+                size="sm"
               >
-                View Store
-                <ExternalLink className="w-4 h-4" />
+                View Store<ExternalLink className="w-4 h-4" />
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {statCards.map((stat, index) => (
           <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    {loading ? '...' : stat.value}
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-gray-600 truncate">{stat.title}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-1 truncate">
+                    {loading ? '…' : stat.value}
                   </p>
-                  <div className="flex items-center mt-2 text-sm text-green-600">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    <span>{loading ? 'Updating...' : 'Updated'}</span>
+                  <div className="flex items-center mt-1 text-xs text-green-600">
+                    <TrendingUp className="w-3 h-3 mr-1 shrink-0" />
+                    <span>{loading ? 'Updating…' : 'Updated'}</span>
                   </div>
                 </div>
-                <div className={`p-4 rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg`}>
-                  <stat.icon className="w-6 h-6 text-white" />
+                <div className={`p-2.5 sm:p-4 rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg shrink-0`}>
+                  <stat.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
               </div>
             </CardContent>

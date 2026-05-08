@@ -251,10 +251,10 @@ const BusinessManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Business Management</h1>
-          <p className="text-gray-600">Manage and approve business registrations</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Business Management</h1>
+          <p className="text-gray-600 text-sm mt-0.5">Manage and approve business registrations</p>
         </div>
       </div>
 
@@ -329,79 +329,64 @@ const BusinessManagement: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Business</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Revenue</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {businesses.map((business) => (
-                    <TableRow key={business._id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{business.name}</p>
-                          <p className="text-sm text-gray-600">{business.email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {business.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(business.status)}
-                      </TableCell>
-                      <TableCell>
-                        {formatCurrency(business.analytics?.revenue ?? 0)}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(business.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedBusiness(business);
-                              setShowDetails(true);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          
-                          {business.status === 'pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveBusiness(business._id)}
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  setSelectedBusiness(business);
-                                  setShowRejectDialog(true);
-                                }}
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <Table className="min-w-[520px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Business</TableHead>
+                      <TableHead className="hidden sm:table-cell">Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden md:table-cell">Revenue</TableHead>
+                      <TableHead className="hidden md:table-cell">Created</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {businesses.map((business) => (
+                      <TableRow key={business._id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{business.name}</p>
+                            <p className="text-xs text-gray-500 truncate max-w-[140px]">{business.email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant="outline">{business.category}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(business.status)}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {formatCurrency(business.analytics?.revenue ?? 0)}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {formatDate(business.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <Button size="sm" variant="outline" className="h-8 w-8 p-0"
+                              onClick={() => { setSelectedBusiness(business); setShowDetails(true); }}>
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                            {business.status === 'pending' && (
+                              <>
+                                <Button size="sm" className="h-8 w-8 p-0"
+                                  onClick={() => handleApproveBusiness(business._id)}>
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button size="sm" variant="destructive" className="h-8 w-8 p-0"
+                                  onClick={() => { setSelectedBusiness(business); setShowRejectDialog(true); }}>
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Pagination */}
               {pagination.pages > 1 && (
@@ -446,7 +431,7 @@ const BusinessManagement: React.FC = () => {
           
           {selectedBusiness && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Business Name</Label>
                   <p className="font-medium">{selectedBusiness.name}</p>
@@ -459,7 +444,7 @@ const BusinessManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Email</Label>
                   <p className="font-medium">{selectedBusiness.email}</p>
@@ -470,7 +455,7 @@ const BusinessManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Category</Label>
                   <p className="font-medium">{selectedBusiness.category}</p>

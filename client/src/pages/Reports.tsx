@@ -260,21 +260,19 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="w-full md:w-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Reports & Analytics</h1>
-          <p className="text-gray-600 mt-1 text-center md:text-left">Comprehensive insights into your business performance</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="pl-10 lg:pl-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Reports & Analytics</h1>
+          <p className="text-gray-600 mt-0.5 text-sm">Business performance insights</p>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2"
-            onClick={() => window.print()}
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 h-9 shrink-0"
+          onClick={() => window.print()}
+        >
+          <Download className="w-4 h-4" /><span className="hidden sm:inline">Export</span>
+        </Button>
       </div>
 
       {/* Period Filter */}
@@ -299,20 +297,20 @@ export default function Reports() {
       </Card>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {metricCards.map((metric, index) => (
           <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{metric.title}</p>
-                  <p className="text-3xl font-bold mt-2">{metric.value}</p>
-                  <p className={`text-sm mt-1 font-semibold ${metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">{metric.title}</p>
+                  <p className="text-base sm:text-2xl font-bold mt-1 truncate">{metric.value}</p>
+                  <p className={`text-xs mt-1 font-semibold ${metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
                     {metric.change}
                   </p>
                 </div>
-                <div className={`p-4 rounded-2xl bg-gradient-to-br ${metric.color} shadow-lg`}>
-                  <metric.icon className="w-6 h-6 text-white" />
+                <div className={`p-2.5 sm:p-4 rounded-2xl bg-gradient-to-br ${metric.color} shadow-lg shrink-0`}>
+                  <metric.icon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
               </div>
             </CardContent>
@@ -575,18 +573,18 @@ export default function Reports() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
               <p className="text-sm text-gray-600 font-medium">Total Revenue</p>
-              <p className="text-3xl font-bold text-green-700 mt-2">{formatTZS(totalRevenue)}</p>
+              <p className="text-xl sm:text-3xl font-bold text-green-700 mt-2 truncate">{formatTZS(totalRevenue)}</p>
             </div>
-            <div className="p-6 bg-gradient-to-br from-red-50 to-pink-50 rounded-lg border-2 border-red-200">
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-red-50 to-pink-50 rounded-lg border-2 border-red-200">
               <p className="text-sm text-gray-600 font-medium">Total Expenses</p>
-              <p className="text-3xl font-bold text-red-700 mt-2">{formatTZS(totalExpenses)}</p>
+              <p className="text-xl sm:text-3xl font-bold text-red-700 mt-2 truncate">{formatTZS(totalExpenses)}</p>
             </div>
-            <div className={`p-6 bg-gradient-to-br ${grossProfit >= 0 ? 'from-blue-50 to-cyan-50 border-blue-200' : 'from-red-50 to-pink-50 border-red-200'} rounded-lg border-2`}>
+            <div className={`p-4 sm:p-6 bg-gradient-to-br ${grossProfit >= 0 ? 'from-blue-50 to-cyan-50 border-blue-200' : 'from-red-50 to-pink-50 border-red-200'} rounded-lg border-2`}>
               <p className="text-sm text-gray-600 font-medium">Net Profit</p>
-              <p className={`text-3xl font-bold mt-2 ${grossProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+              <p className={`text-xl sm:text-3xl font-bold mt-2 truncate ${grossProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                 {formatTZS(grossProfit)}
               </p>
               <p className="text-sm text-gray-600 mt-1">Margin: {profitMargin}%</p>
@@ -602,13 +600,13 @@ export default function Reports() {
         </CardHeader>
         <CardContent>
           {filteredSales.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[400px]">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Items</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Payment</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 hidden sm:table-cell">Items</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 hidden sm:table-cell">Payment</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
                   </tr>
                 </thead>
@@ -616,9 +614,9 @@ export default function Reports() {
                   {filteredSales.slice(0, 10).map((sale: any) => (
                     <tr key={sale._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="py-3 px-4 text-sm text-gray-900">{formatDate(sale.date || sale.createdAt)}</td>
-                      <td className="py-3 px-4 text-sm text-gray-700">{sale.items?.length || 0} items</td>
-                      <td className="py-3 px-4 text-sm">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium capitalize">
+                      <td className="py-3 px-4 text-sm text-gray-700 hidden sm:table-cell">{sale.items?.length || 0} items</td>
+                      <td className="py-3 px-4 text-sm hidden sm:table-cell">
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium capitalize">
                           {sale.paymentMethod || 'Cash'}
                         </span>
                       </td>
