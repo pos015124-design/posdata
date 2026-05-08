@@ -41,15 +41,7 @@ function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () =
           </div>
 
           <div>
-            <h3 className="font-bold text-gray-900 mb-2">3. Sales Commission</h3>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="font-semibold text-green-900">5% per completed sale</p>
-              <p className="text-green-700 text-xs mt-1">BHABY GROUP LTD retains 5% of every transaction processed through the platform. This covers payment processing, platform maintenance, and customer support.</p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-bold text-gray-900 mb-2">4. Seller Obligations</h3>
+            <h3 className="font-bold text-gray-900 mb-2">3. Seller Obligations</h3>
             <ul className="space-y-1 text-xs text-gray-600 list-disc list-inside">
               <li>Provide accurate product descriptions and pricing</li>
               <li>Maintain sufficient stock for listed products</li>
@@ -60,7 +52,7 @@ function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () =
           </div>
 
           <div>
-            <h3 className="font-bold text-gray-900 mb-2">5. Account Suspension</h3>
+            <h3 className="font-bold text-gray-900 mb-2">4. Account Suspension</h3>
             <p className="text-xs text-gray-600">BHABY GROUP LTD reserves the right to suspend or terminate seller accounts for violations of these terms, fraudulent activity, or repeated customer complaints.</p>
           </div>
 
@@ -204,7 +196,6 @@ export default function Register() {
                 <p className="font-semibold text-gray-800 mb-1.5">Fee Structure</p>
                 <div className="flex justify-between"><span>Registration fee</span><span className="font-semibold text-gray-900">TZS 300,000</span></div>
                 <div className="flex justify-between"><span>Ads / Sponsorship</span><span className="font-semibold text-gray-900">TZS 5,000/mo</span></div>
-                <div className="flex justify-between"><span>Sales commission</span><span className="font-semibold text-gray-900">5% per sale</span></div>
               </div>
 
               {/* T&C checkbox */}

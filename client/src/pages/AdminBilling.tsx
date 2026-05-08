@@ -189,7 +189,7 @@ export default function AdminBilling() {
   const filtered = records.filter(r => {
     if (!search) return true;
     const q = search.toLowerCase();
-    const email = typeof r.userId === 'object' ? r.userId.email : '';
+    const email = r.userId && typeof r.userId === 'object' ? (r.userId.email || '') : '';
     return (
       email.toLowerCase().includes(q) ||
       (r.businessName || '').toLowerCase().includes(q) ||
@@ -198,8 +198,10 @@ export default function AdminBilling() {
     );
   });
 
-  const sellerEmail = (r: BillingRecord) =>
-    typeof r.userId === 'object' ? r.userId.email : String(r.userId);
+  const sellerEmail = (r: BillingRecord) => {
+    if (!r.userId) return 'Unknown seller';
+    return typeof r.userId === 'object' && r.userId !== null ? (r.userId.email || 'Unknown') : String(r.userId);
+  };
 
   return (
     <div className="space-y-6">
@@ -261,7 +263,6 @@ export default function AdminBilling() {
                 <option value="all">All types</option>
                 <option value="registration">Registration</option>
                 <option value="subscription">Subscription</option>
-                <option value="commission">Commission</option>
               </select>
             </div>
           </div>
