@@ -393,7 +393,7 @@ export default function Inventory() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <div className="pl-10 lg:pl-0">
+        <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h1>
           <p className="text-gray-600 mt-0.5 text-sm">Manage your products and stock</p>
         </div>
@@ -446,18 +446,18 @@ export default function Inventory() {
           {loading ? (
             <div className="text-center py-8">Loading products...</div>
           ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <table className="w-full min-w-[600px]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold">Product</th>
-                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Code</th>
-                    <th className="text-left py-3 px-4 font-semibold hidden md:table-cell">Barcode</th>
-                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Category</th>
-                    <th className="text-left py-3 px-4 font-semibold">Stock</th>
-                    <th className="text-left py-3 px-4 font-semibold">Price</th>
-                    <th className="text-center py-3 px-4 font-semibold hidden sm:table-cell">Store</th>
-                    <th className="text-left py-3 px-4 font-semibold">Actions</th>
+                    <th className="text-left py-3 px-3 font-semibold">Product</th>
+                    <th className="text-left py-3 px-3 font-semibold hidden sm:table-cell">Code</th>
+                    <th className="text-left py-3 px-3 font-semibold hidden md:table-cell">Barcode</th>
+                    <th className="text-left py-3 px-3 font-semibold hidden sm:table-cell">Category</th>
+                    <th className="text-left py-3 px-3 font-semibold">Stock</th>
+                    <th className="text-left py-3 px-3 font-semibold">Price</th>
+                    <th className="text-center py-3 px-3 font-semibold hidden sm:table-cell">Store</th>
+                    <th className="text-left py-3 px-3 font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -467,7 +467,7 @@ export default function Inventory() {
 
                     return (
                     <tr key={product._id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <div className="flex items-center gap-2">
                           {imageUrl ? (
                             <img
@@ -480,23 +480,25 @@ export default function Inventory() {
                               <Package className="w-4 h-4 text-blue-600" />
                             </div>
                           )}
-                          <span className="font-medium text-sm truncate max-w-[120px] sm:max-w-none">{product.name}</span>
+                          <span className="font-medium text-sm truncate max-w-[100px] sm:max-w-none">{product.name}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-600 text-sm hidden sm:table-cell">{product.code}</td>
-                      <td className="py-3 px-4 text-gray-600 font-mono text-xs hidden md:table-cell">{product.barcode}</td>
-                      <td className="py-3 px-4 hidden sm:table-cell">
+                      <td className="py-3 px-3 text-gray-600 text-sm hidden sm:table-cell">{product.code}</td>
+                      <td className="py-3 px-3 text-gray-600 font-mono text-xs hidden md:table-cell">{product.barcode}</td>
+                      <td className="py-3 px-3 hidden sm:table-cell">
                         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
                           {product.category || 'N/A'}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <span className={`font-semibold text-sm ${product.stock <= product.reorderPoint ? 'text-red-600' : 'text-green-600'}`}>
                           {product.stock}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-sm">TZS {product.price?.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-center hidden sm:table-cell">
+                      <td className="py-3 px-3 font-semibold text-sm">
+                        <span className="hidden sm:inline">TZS </span>{product.price?.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-3 text-center hidden sm:table-cell">
                         <button
                           type="button"
                           onClick={() => handleTogglePublish(product)}
@@ -510,7 +512,7 @@ export default function Inventory() {
                           {product.isPublished ? '✓ Live' : 'Draft'}
                         </button>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <div className="flex gap-1.5">
                           <Button size="sm" variant="outline" onClick={() => handleEdit(product)} className="h-8 w-8 p-0">
                             <Edit className="w-3.5 h-3.5" />

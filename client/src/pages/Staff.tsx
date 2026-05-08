@@ -176,7 +176,7 @@ export function Staff() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start gap-3">
-        <div className="pl-10 lg:pl-0">
+        <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("staff.title")}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {t("staff.subtitle")}

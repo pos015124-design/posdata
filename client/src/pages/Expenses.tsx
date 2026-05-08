@@ -125,7 +125,7 @@ export default function Expenses() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <div className="pl-10 lg:pl-0">
+        <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Expenses</h1>
           <p className="text-gray-600 mt-0.5 text-sm">Track your business expenses</p>
         </div>

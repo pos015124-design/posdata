@@ -252,7 +252,7 @@ const BusinessManagement: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="pl-10 lg:pl-0">
+        <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Business Management</h1>
           <p className="text-gray-600 text-sm mt-0.5">Manage and approve business registrations</p>
         </div>

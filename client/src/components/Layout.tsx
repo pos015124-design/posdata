@@ -83,7 +83,8 @@ export default function Layout({ children }: LayoutProps) {
       <aside className={`w-64 md:w-72 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed h-full shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="p-4 md:p-6">
+        {/* Header — padded top on mobile so X button doesn't overlap E-Shop */}
+        <div className="pt-14 lg:pt-0 px-4 pb-2 md:p-6">
           <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             E-Shop
           </h1>
@@ -124,8 +125,11 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 ml-0 lg:ml-72">
-        {/* Top spacer on mobile so content clears the hamburger button */}
-        <div className="pt-14 lg:pt-0 px-4 py-4 md:px-6 lg:px-8 pb-8">
+        {/*
+          Mobile: pt-3 (small top gap) + pl-14 clears the hamburger (left-3 + p-2 + icon ≈ 53px)
+          Desktop (lg+): normal padding, no hamburger to worry about
+        */}
+        <div className="pt-3 pl-14 pr-4 pb-8 lg:pt-6 lg:pl-8 lg:pr-8 md:pr-6">
           {children}
         </div>
       </main>

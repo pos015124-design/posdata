@@ -337,7 +337,7 @@ export default function Settings() {
     return (
       <div className="space-y-4 md:space-y-6">
         <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="pl-10 lg:pl-0">
+          <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Super Admin Settings</h1>
             <p className="text-sm text-gray-600 mt-0.5">Approve and manage users and businesses</p>
           </div>
@@ -380,7 +380,7 @@ export default function Settings() {
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div className="pl-10 lg:pl-0">
+        <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Settings</h1>
           <p className="text-sm text-gray-600 mt-0.5">Manage your account and preferences</p>
         </div>

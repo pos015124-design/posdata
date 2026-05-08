@@ -333,7 +333,7 @@ export default function AdminBilling() {
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div className="pl-10 lg:pl-0">
+        <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Receipt className="w-5 h-5 text-blue-600" />Billing Management
           </h1>

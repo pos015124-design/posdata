@@ -136,8 +136,8 @@ export default function POS() {
 
   return (
     <div className="space-y-3">
-      {/* Header row — clears hamburger on mobile */}
-      <div className="flex items-center justify-between pl-10 lg:pl-0">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Store className="w-5 h-5 text-blue-600" />Point of Sale
         </h1>
