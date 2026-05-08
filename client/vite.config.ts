@@ -13,10 +13,9 @@ export default defineConfig({
       strategies: "generateSW",
       injectRegister: "script",
       workbox: {
-        // Cache the shell and all static assets
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        // Never cache API calls — always go to network
-        navigateFallback: "/",
+        // Don't use navigateFallback — it requires '/' to be precached
+        // and causes 'non-precached-url' errors. Use NetworkFirst instead.
         navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//],
         runtimeCaching: [
           {
