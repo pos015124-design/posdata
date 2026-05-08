@@ -13,7 +13,7 @@ import { useSmartPolling } from '../hooks/useSmartPolling';
 import {
   DollarSign, CheckCircle, Clock, AlertCircle, Search,
   Filter, RefreshCw, X, Receipt, Building2, TrendingUp,
-  CreditCard, UserCheck, Percent, Eye, ChevronDown, ChevronUp
+  CreditCard, UserCheck, Eye, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 const BASE = import.meta.env.VITE_API_URL || '';
@@ -25,9 +25,8 @@ const authH = () => ({
 const fmt = (n: number) => `TZS ${Number(n || 0).toLocaleString()}`;
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  registration: { label: 'Registration',  color: 'bg-blue-100 text-blue-700 border-blue-200',   icon: UserCheck },
-  subscription:  { label: 'Monthly Ads',   color: 'bg-purple-100 text-purple-700 border-purple-200', icon: CreditCard },
-  commission:    { label: 'Commission 5%', color: 'bg-green-100 text-green-700 border-green-200',  icon: Percent }
+  registration: { label: 'Registration', color: 'bg-blue-100 text-blue-700 border-blue-200',   icon: UserCheck },
+  subscription:  { label: 'Monthly Ads',  color: 'bg-purple-100 text-purple-700 border-purple-200', icon: CreditCard }
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -112,8 +111,7 @@ export default function AdminBilling() {
       const unpaid     = recs.filter(r => r.status === 'unpaid').reduce((s, r) => s + r.amount, 0);
       const paid       = recs.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0);
       const waived     = recs.filter(r => r.status === 'waived').reduce((s, r) => s + r.amount, 0);
-      const commission = recs.filter(r => r.type === 'commission').reduce((s, r) => s + r.amount, 0);
-      setSummary({ totalUnpaid: json.data?.totalUnpaid ?? unpaid, totalPaid: paid, totalWaived: waived, totalCommission: commission });
+      setSummary({ totalUnpaid: json.data?.totalUnpaid ?? unpaid, totalPaid: paid, totalWaived: waived, totalCommission: 0 });
 
       return recs.length > 0;
     } catch (err: any) {
@@ -233,11 +231,11 @@ export default function AdminBilling() {
           sub="Awaiting payment" icon={AlertCircle} gradient="from-red-500 to-rose-600" />
         <StatCard label="Collected" value={fmt(summary.totalPaid)}
           sub="Confirmed payments" icon={CheckCircle} gradient="from-green-500 to-emerald-600" />
-        <StatCard label="Commission" value={fmt(summary.totalCommission)}
-          sub="5% of all sales" icon={Percent} gradient="from-blue-500 to-indigo-600" />
+        <StatCard label="Subscriptions" value={records.filter(r => r.type === 'subscription').length}
+          sub="Monthly ads invoices" icon={CreditCard} gradient="from-purple-500 to-violet-600" />
         <StatCard label="Total records" value={pagination.total}
           sub={`${records.filter(r => r.status === 'unpaid').length} unpaid`}
-          icon={TrendingUp} gradient="from-purple-500 to-violet-600" />
+          icon={TrendingUp} gradient="from-blue-500 to-indigo-600" />
       </div>
 
       {/* Filters */}

@@ -19,7 +19,7 @@ const PBZ_BANK       = "People's Bank of Zanzibar (PBZ)";
 const PBZ_ACCOUNT_NAME = 'BHABY GROUP LTD';
 const REGISTRATION_FEE = 300000;
 const SUBSCRIPTION_FEE = 5000;
-const COMMISSION_RATE  = 0.05; // 5%
+// Commission tracking removed — fees are registration + subscription only
 
 const requireSuperAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'super_admin') {
@@ -39,8 +39,7 @@ router.get('/info', (req, res) => {
       accountName:    PBZ_ACCOUNT_NAME,
       fees: {
         registration: { amount: REGISTRATION_FEE, currency: 'TZS', type: 'one-time' },
-        subscription: { amount: SUBSCRIPTION_FEE, currency: 'TZS', type: 'monthly' },
-        commission:   { rate: COMMISSION_RATE, percentage: '5%', type: 'per-sale' }
+        subscription: { amount: SUBSCRIPTION_FEE, currency: 'TZS', type: 'monthly' }
       },
       instructions: [
         `Transfer the exact amount to PBZ account ${PBZ_ACCOUNT} (${PBZ_ACCOUNT_NAME})`,
@@ -224,37 +223,9 @@ router.post('/create-registration', requireUser, requireSuperAdmin, async (req, 
   }
 });
 
-/* ── POST /api/billing/create-commission  (internal — called by saleService)
-   Auto-create a 5% commission record when a sale is completed */
-router.post('/create-commission', requireUser, async (req, res) => {
-  try {
-    const { saleId, saleInvoice, saleTotal, businessId, businessName } = req.body;
-    if (!saleId || !saleTotal) return res.status(400).json({ error: 'saleId and saleTotal required' });
-
-    const commissionAmount = Math.round(saleTotal * COMMISSION_RATE);
-    if (commissionAmount <= 0) return res.json({ success: true, message: 'Commission too small, skipped' });
-
-    const record = new SellerBilling({
-      userId: req.user.userId,
-      businessId,
-      businessName,
-      type: 'commission',
-      amount: commissionAmount,
-      saleId,
-      saleInvoice,
-      description: `5% commission on sale ${saleInvoice} (TZS ${saleTotal.toLocaleString()})`,
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-    });
-    await record.save();
-
-    res.status(201).json({ success: true, data: record });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+/* ── POST /api/billing/create-commission removed — commission fees not used */
 
 module.exports = router;
 module.exports.REGISTRATION_FEE = REGISTRATION_FEE;
 module.exports.SUBSCRIPTION_FEE = SUBSCRIPTION_FEE;
-module.exports.COMMISSION_RATE  = COMMISSION_RATE;
 module.exports.PBZ_ACCOUNT      = PBZ_ACCOUNT;

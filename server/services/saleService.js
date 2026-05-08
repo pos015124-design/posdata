@@ -300,29 +300,6 @@ class SaleService {
       }
     }
 
-    // Auto-create 5% commission billing record for this sale
-    try {
-      const SellerBilling = require('../models/SellerBilling');
-      const commissionAmount = Math.round(finalTotal * 0.05);
-      if (commissionAmount > 0 && userId) {
-        const biz = await Business.findOne({ userId: new mongoose.Types.ObjectId(String(userId)) }).select('_id name');
-        await SellerBilling.create({
-          userId: new mongoose.Types.ObjectId(String(userId)),
-          businessId: biz?._id,
-          businessName: biz?.name,
-          type: 'commission',
-          amount: commissionAmount,
-          saleId: sale._id,
-          saleInvoice: invoiceNumber,
-          description: `5% commission on ${invoiceNumber} (TZS ${finalTotal.toLocaleString()})`,
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        });
-      }
-    } catch (billingErr) {
-      console.error('[Billing] Commission creation failed:', billingErr.message);
-      // Non-critical
-    }
-
     return {
       success: true,
       sale,
