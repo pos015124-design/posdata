@@ -4,6 +4,7 @@ const ProductService = require('../services/productService');
 const { requireUser, checkPermission } = require('./middleware/auth');
 const {
   productValidation,
+  productUpdateValidation,
   mongoIdValidation,
   paginationValidation,
   handleValidationErrors
@@ -152,8 +153,8 @@ router.post('/', requireUser, productValidation, handleValidationErrors, async (
   }
 });
 
-// Update a product
-router.put('/:id', requireUser, mongoIdValidation('id'), productValidation, handleValidationErrors, async (req, res) => {
+// Update a product — uses partial validation (all fields optional for PATCH-style updates)
+router.put('/:id', requireUser, mongoIdValidation('id'), productUpdateValidation, handleValidationErrors, async (req, res) => {
   try {
     const product = await ProductService.updateProduct(req.params.id, req.body);
     res.json({ 

@@ -51,7 +51,7 @@ const paginationValidation = [
     .escape()
 ];
 
-// Product validation
+// Product validation (for CREATE — all required fields must be present)
 const productValidation = [
   body('name')
     .isLength({ min: 1, max: 200 })
@@ -100,6 +100,55 @@ const productValidation = [
     .withMessage('SKU can only contain letters, numbers, hyphens, and underscores')
     .isLength({ max: 50 })
     .withMessage('SKU must be less than 50 characters')
+];
+
+// Product update validation (for PUT/PATCH — all fields optional, only validate what's sent)
+const productUpdateValidation = [
+  body('name')
+    .optional()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Product name must be less than 200 characters')
+    .trim()
+    .escape(),
+  body('description')
+    .optional()
+    .isLength({ max: 1000 })
+    .withMessage('Description must be less than 1000 characters')
+    .trim()
+    .escape(),
+  body('price')
+    .optional()
+    .isFloat({ min: 0, max: 999999.99 })
+    .withMessage('Price must be a positive number less than 999,999.99'),
+  body('purchasePrice')
+    .optional()
+    .isFloat({ min: 0, max: 999999.99 })
+    .withMessage('Purchase price must be a positive number'),
+  body('stock')
+    .optional()
+    .isInt({ min: 0, max: 999999 })
+    .withMessage('Stock must be a non-negative integer'),
+  body('reorderPoint')
+    .optional()
+    .isInt({ min: 0, max: 999999 })
+    .withMessage('Reorder point must be a non-negative integer'),
+  body('category')
+    .optional()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Category must be less than 100 characters')
+    .trim(),
+  body('isPublished')
+    .optional()
+    .isBoolean()
+    .withMessage('isPublished must be a boolean'),
+  body('isFeatured')
+    .optional()
+    .isBoolean()
+    .withMessage('isFeatured must be a boolean'),
+  body('isSponsored')
+    .optional()
+    .isBoolean()
+    .withMessage('isSponsored must be a boolean')
 ];
 
 // Customer validation
@@ -224,6 +273,7 @@ module.exports = {
   mongoIdValidation,
   paginationValidation,
   productValidation,
+  productUpdateValidation,
   customerValidation,
   saleValidation,
   staffValidation,
