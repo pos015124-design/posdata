@@ -114,13 +114,19 @@ router.post('/my/submit-payment', requireUser, async (req, res) => {
 });
 
 /* ── GET /api/billing/all  (super admin)
-   View all seller billing records */
+   View all seller billing records with optional userId, date range filters */
 router.get('/all', requireUser, requireSuperAdmin, async (req, res) => {
   try {
-    const { status, type, page = 1, limit = 50 } = req.query;
+    const { status, type, userId, dateFrom, dateTo, page = 1, limit = 50 } = req.query;
     const query = {};
     if (status) query.status = status;
-    if (type) query.type = type;
+    if (type)   query.type   = type;
+    if (userId) query.userId = userId;
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo)   query.createdAt.$lte = new Date(new Date(dateTo).setHours(23, 59, 59, 999));
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [records, total] = await Promise.all([
@@ -133,9 +139,18 @@ router.get('/all', requireUser, requireSuperAdmin, async (req, res) => {
       SellerBilling.countDocuments(query)
     ]);
 
-    const totalUnpaid = await SellerBilling.aggregate([
-      { $match: { status: 'unpaid' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+    // Aggregate totals for the current filter set
+    const [totalsAgg] = await SellerBilling.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalUnpaid:  { $sum: { $cond: [{ $eq: ['$status', 'unpaid'] }, '$amount', 0] } },
+          totalPaid:    { $sum: { $cond: [{ $eq: ['$status', 'paid']   }, '$amount', 0] } },
+          totalWaived:  { $sum: { $cond: [{ $eq: ['$status', 'waived'] }, '$amount', 0] } },
+          totalAmount:  { $sum: '$amount' }
+        }
+      }
     ]);
 
     res.json({
@@ -143,7 +158,63 @@ router.get('/all', requireUser, requireSuperAdmin, async (req, res) => {
       data: {
         records,
         pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) },
-        totalUnpaid: totalUnpaid[0]?.total || 0
+        totals: totalsAgg || { totalUnpaid: 0, totalPaid: 0, totalWaived: 0, totalAmount: 0 }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ── GET /api/billing/summary  (super admin)
+   Per-seller summary: group by userId, show totals */
+router.get('/summary', requireUser, requireSuperAdmin, async (req, res) => {
+  try {
+    const summary = await SellerBilling.aggregate([
+      {
+        $group: {
+          _id: '$userId',
+          businessName: { $first: '$businessName' },
+          totalOwed:    { $sum: { $cond: [{ $eq: ['$status', 'unpaid'] }, '$amount', 0] } },
+          totalPaid:    { $sum: { $cond: [{ $eq: ['$status', 'paid']   }, '$amount', 0] } },
+          totalWaived:  { $sum: { $cond: [{ $eq: ['$status', 'waived'] }, '$amount', 0] } },
+          recordCount:  { $sum: 1 },
+          lastActivity: { $max: '$createdAt' }
+        }
+      },
+      { $sort: { totalOwed: -1 } }
+    ]);
+
+    // Populate user emails
+    const User = require('../models/User');
+    const userIds = summary.map(s => s._id).filter(Boolean);
+    const users = await User.find({ _id: { $in: userIds } }).select('email firstName lastName').lean();
+    const userMap = new Map(users.map(u => [String(u._id), u]));
+
+    const enriched = summary.map(s => ({
+      ...s,
+      user: userMap.get(String(s._id)) || null
+    }));
+
+    // Platform totals
+    const [platformTotals] = await SellerBilling.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalCollected: { $sum: { $cond: [{ $eq: ['$status', 'paid']   }, '$amount', 0] } },
+          totalOutstanding: { $sum: { $cond: [{ $eq: ['$status', 'unpaid'] }, '$amount', 0] } },
+          totalWaived:    { $sum: { $cond: [{ $eq: ['$status', 'waived'] }, '$amount', 0] } },
+          totalSellers:   { $addToSet: '$userId' }
+        }
+      },
+      { $project: { totalCollected: 1, totalOutstanding: 1, totalWaived: 1, sellerCount: { $size: '$totalSellers' } } }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        sellers: enriched,
+        platform: platformTotals || { totalCollected: 0, totalOutstanding: 0, totalWaived: 0, sellerCount: 0 }
       }
     });
   } catch (error) {
