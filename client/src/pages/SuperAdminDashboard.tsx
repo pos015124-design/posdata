@@ -173,7 +173,7 @@ const SuperAdminDashboard: React.FC = () => {
             sub={`+${stats.growth.newBusinessesThisMonth} this month`}
             icon={Store} gradient="from-blue-500 to-blue-600" />
           <StatCard label="Total users" value={stats.overview.totalUsers}
-            sub={`+${stats.growth.newUsersThisMonth} this month`}
+            sub={`+${stats.growth.newUsersThisMonth} this month · ${stats.overview.pendingUsers || 0} pending`}
             icon={Users} gradient="from-purple-500 to-purple-600" />
           <StatCard label="Total orders" value={stats.overview.totalOrders}
             sub={`+${stats.growth.ordersThisMonth} this month`}
@@ -244,30 +244,38 @@ const SuperAdminDashboard: React.FC = () => {
                   <CardTitle className="text-base flex items-center gap-2">
                     <Clock className="w-5 h-5 text-amber-500" />Pending approvals
                   </CardTitle>
-                  <CardDescription>{stats?.overview.pendingBusinesses || 0} businesses awaiting review</CardDescription>
+                  <CardDescription>
+                    {stats?.overview.pendingUsers || 0} seller{(stats?.overview.pendingUsers || 0) !== 1 ? 's' : ''} awaiting approval
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {stats?.recentBusinesses?.length ? (
+                  {stats?.pendingUsers?.length ? (
                     <div className="space-y-3">
-                      {stats.recentBusinesses.slice(0, 5).map((biz: any) => (
-                        <div key={biz._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      {stats.pendingUsers.slice(0, 5).map((u: any) => (
+                        <div key={u._id} className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
                           <div>
-                            <p className="font-semibold text-sm text-gray-900">{biz.name}</p>
-                            <p className="text-xs text-gray-500">{biz.email}</p>
-                            <Badge variant="secondary" className="mt-1 text-xs">{biz.category}</Badge>
+                            <p className="font-semibold text-sm text-gray-900">{u.email}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 capitalize">{u.role?.replace('_', ' ')} · Registered {new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
                           </div>
-                          <BusinessReviewModal business={biz} onAction={async (action, b) => {
-                            const endpoint = action === 'approve' ? `/api/business/${b._id}/approve` : `/api/business/${b._id}/reject`;
-                            await fetch(`${BASE}${endpoint}`, { method: 'POST', headers: authHeaders() });
-                            loadAnalytics();
-                          }} />
+                          <button
+                            onClick={async () => {
+                              await fetch(`${BASE}/api/auth/approve/${u._id}`, { method: 'PUT', headers: authHeaders() });
+                              loadAnalytics();
+                            }}
+                            className="text-xs font-bold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+                          >
+                            Approve
+                          </button>
                         </div>
                       ))}
+                      {(stats.pendingUsers.length > 5) && (
+                        <p className="text-xs text-gray-400 text-center">+{stats.pendingUsers.length - 5} more — see Users tab</p>
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-8 text-gray-400">
                       <CheckCircle className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                      <p className="text-sm">No pending businesses</p>
+                      <p className="text-sm">No pending approvals</p>
                     </div>
                   )}
                 </CardContent>

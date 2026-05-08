@@ -29,6 +29,7 @@ class PlatformService {
         totalOrders,
         totalRevenueAgg,
         recentBusinesses,
+        pendingUsers,
         topBusinesses,
         newBusinessesThisMonth,
         newUsersThisMonth,
@@ -50,6 +51,11 @@ class PlatformService {
           .sort({ createdAt: -1 })
           .limit(5)
           .select('name email category createdAt'),
+        // Pending users (isApproved: false) — what admin actually needs to action
+        User.find({ isApproved: false, role: { $ne: 'super_admin' } })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .select('email firstName lastName role createdAt'),
         // Top businesses by revenue — read from Sale aggregate per owner
         Business.find({ status: 'active' })
           .sort({ 'analytics.revenue': -1 })
@@ -80,6 +86,7 @@ class PlatformService {
           totalBusinesses,
           activeBusinesses,
           pendingBusinesses,
+          pendingUsers: pendingUsers.length,  // users awaiting approval
           totalUsers,
           totalOrders,
           totalRevenue: totalRevenueAgg[0]?.total || 0
@@ -91,6 +98,7 @@ class PlatformService {
           revenueThisMonth: revenueThisMonthAgg[0]?.total || 0
         },
         recentBusinesses,
+        pendingUsers,   // full list for the overview card
         topBusinesses
       };
 
