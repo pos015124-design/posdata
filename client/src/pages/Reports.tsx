@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { 
@@ -18,6 +18,7 @@ import * as analyticsApi from '../api/analytics';
 import * as expensesApi from '../api/expenses';
 import * as salesApi from '../api/sales';
 import * as productsApi from '../api/products';
+import { useSmartPolling } from '../hooks/useSmartPolling';
 
 export default function Reports() {
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'all'>('month');
@@ -29,27 +30,11 @@ export default function Reports() {
   const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchReportsData();
-    
-    // Listen for updates from other pages
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'product-updated' || e.key === 'sale-created') {
-        fetchReportsData(true); // silent refresh
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Poll every 5 minutes silently — no spinner on background refresh
-    const refreshInterval = setInterval(() => fetchReportsData(true), 300000);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(refreshInterval);
-    };
-  }, [selectedPeriod]);
+    // Re-fetch when period changes (user-triggered, show spinner)
+    fetchReportsData(false);
+  }, [selectedPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchReportsData = async (silent = false) => {
+  const fetchReportsData = useCallback(async (silent = false): Promise<boolean> => {
     try {
       if (!silent) setLoading(true);
       
@@ -120,17 +105,22 @@ export default function Reports() {
       console.log('Reports - Products fetched:', productsList.length);
       console.log('Reports - Sales fetched:', salesList.length);
       console.log('Reports - Expenses fetched:', expensesList.length);
+      return salesList.length > 0; // has data = treat as "new"
     } catch (error) {
       console.error('Failed to fetch reports data:', error);
-      // Set empty data to prevent blank screen
       setSalesData(null);
       setInventoryData(null);
       setExpensesData([]);
       setAllSales([]);
+      return false;
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod]);
+
+  // Smart polling: 60s base, backs off to 5min when data unchanged,
+  // pauses when tab hidden, refreshes immediately on tab focus
+  useSmartPolling(fetchReportsData, { baseInterval: 60_000, maxInterval: 300_000 });
 
   const formatTZS = (amount: number) => {
     return `TZS ${amount.toLocaleString()}`;

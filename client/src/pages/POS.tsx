@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -6,6 +6,7 @@ import { Store, ShoppingCart, Search, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import * as productsApi from '../api/products';
 import * as salesApi from '../api/sales';
+import { useSmartPolling } from '../hooks/useSmartPolling';
 
 const resolveProductImageUrl = (imageUrl?: string | null) => {
   if (!imageUrl) return '';
@@ -25,52 +26,30 @@ export default function POS() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  console.log('POS v2.0 - Using products API (not seller inventory)');
-
-  useEffect(() => {
-    fetchProducts();
-    
-    // Listen for product updates from inventory
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'product-updated') {
-        fetchProducts(true); // silent refresh
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Poll every 5 minutes silently — storage events handle instant updates
-    const refreshInterval = setInterval(() => fetchProducts(true), 300000);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(refreshInterval);
-    };
-  }, []);
-
-  const fetchProducts = async (silent = false) => {
+  const fetchProducts = useCallback(async (silent = false): Promise<boolean> => {
     try {
       if (!silent) setLoading(true);
       const response = await productsApi.getProducts();
-      // Handle different response structures
-      const productsList = Array.isArray(response?.products) 
-        ? response.products 
-        : Array.isArray(response?.data) 
-          ? response.data 
+      const productsList = Array.isArray(response?.products)
+        ? response.products
+        : Array.isArray(response?.data)
+          ? response.data
           : [];
+      const hasChanged = productsList.length !== products.length;
       setProducts(productsList);
+      return hasChanged;
     } catch (error) {
       console.error('Failed to fetch products:', error);
       setProducts([]);
-      toast({
-        title: 'Error',
-        description: 'Failed to load products',
-        variant: 'destructive',
-      });
+      return false;
     } finally {
       setLoading(false);
     }
-  };
+  }, [products.length]);
+
+  // Smart polling: 30s base, backs off to 5min when stock unchanged,
+  // pauses when tab hidden, refreshes immediately on tab focus
+  useSmartPolling(fetchProducts, { baseInterval: 30_000, maxInterval: 300_000 });
 
   const filteredProducts = products.filter(product => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

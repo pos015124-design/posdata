@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +21,7 @@ import * as customersApi from '../api/customers';
 import * as productsApi from '../api/products';
 import * as businessApi from '../api/business';
 import { useToast } from '../hooks/useToast';
+import { useSmartPolling } from '../hooks/useSmartPolling';
 
 /** Play a short notification beep using Web Audio API — no external files needed */
 function playOrderSound() {
@@ -65,36 +66,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.role === 'super_admin') {
       navigate('/super-admin', { replace: true });
-      return;
     }
+  }, [user?.role, navigate]);
 
-    fetchDashboardStats();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'product-updated' || e.key === 'sale-created' || e.key === 'customer-updated') {
-        fetchDashboardStats(true); // silent — no spinner
-      }
-    };
-    const handleSaleCreated = () => fetchDashboardStats(true);
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('sale-created', handleSaleCreated);
-
-    const handleVisibilityChange = () => { if (!document.hidden) fetchDashboardStats(true); };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Poll every 2 minutes silently — storage events handle instant updates
-    const refreshInterval = setInterval(() => fetchDashboardStats(true), 120000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('sale-created', handleSaleCreated);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(refreshInterval);
-    };
-  }, [navigate, user?.role]);
-
-  const fetchDashboardStats = async (silent = false) => {
+  const fetchDashboardStats = useCallback(async (silent = false): Promise<boolean> => {
     try {
       if (!silent) setLoading(true);
       const [salesRes, customersRes, productsRes] = await Promise.all([
@@ -111,6 +86,7 @@ export default function Dashboard() {
         : Array.isArray(customersRes?.data) ? customersRes.data : [];
 
       const newOrderCount = salesArray.length;
+      const hasNewData = prevOrderCount.current !== null && newOrderCount !== prevOrderCount.current;
 
       // 🔔 New order notification
       if (prevOrderCount.current !== null && newOrderCount > prevOrderCount.current && notificationsEnabled) {
@@ -120,7 +96,6 @@ export default function Dashboard() {
           title: `🛒 ${diff} new order${diff > 1 ? 's' : ''}!`,
           description: 'A customer just placed an order in your store.',
         });
-        // Browser notification if permission granted
         if (Notification.permission === 'granted') {
           new Notification(`E-Shop — ${diff} new order${diff > 1 ? 's' : ''}`, {
             body: 'A customer just placed an order in your store.',
@@ -145,12 +120,39 @@ export default function Dashboard() {
       } catch {
         if (user?.email) setBusinessSlug(user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-'));
       }
+
+      return hasNewData;
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
+      return false;
     } finally {
       setLoading(false);
     }
-  };
+  }, [notificationsEnabled, toast, user?.email]);
+
+  // Smart polling: 30s base, backs off to 5min when nothing changes,
+  // pauses when tab hidden, refreshes immediately on tab focus
+  const { refresh: manualRefresh } = useSmartPolling(fetchDashboardStats, {
+    baseInterval: 30_000,
+    maxInterval: 300_000,
+    enabled: user?.role !== 'super_admin'
+  });
+
+  // Instant refresh when a sale/product fires in another tab
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'sale-created' || e.key === 'product-updated' || e.key === 'customer-updated') {
+        manualRefresh(true);
+      }
+    };
+    const handleSaleCreated = () => manualRefresh(true);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('sale-created', handleSaleCreated);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('sale-created', handleSaleCreated);
+    };
+  }, [manualRefresh]);
 
   const copyStoreLink = () => {
     if (storeUrl) {
