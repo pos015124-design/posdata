@@ -2,10 +2,13 @@
  * WaitingApproval — Seller onboarding status page
  * Shows a clear progress timeline: Registered → Under Review → Approved → Active
  * Shown automatically when an approved=false seller tries to access the dashboard.
+ * Auto-polls /api/auth/me every 15 seconds — redirects to dashboard the moment
+ * the admin approves the account.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { CheckCircle, Clock, Circle, ShoppingBag, Mail, Phone, RefreshCw, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -18,29 +21,42 @@ interface Step {
 }
 
 const WaitingApproval: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
+  const { refreshUser, user } = useAuth();
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date>(new Date());
 
-  // Auto-check approval status every 30 seconds — if approved, page will
-  // re-render via PrivateRoute which reads user.isApproved from context
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLastChecked(new Date());
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleRefresh = async () => {
-    setChecking(true);
+  // Check approval status by fetching fresh user data from the server
+  const checkStatus = useCallback(async (silent = false) => {
+    if (!silent) setChecking(true);
     try {
-      // Reload the page — PrivateRoute will re-check isApproved from the
-      // stored user object. If admin approved, user needs to re-login to
-      // get a fresh token with isApproved:true.
-      window.location.reload();
+      const token = localStorage.getItem('accessToken') || '';
+      const res = await fetch(`${BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.user?.isApproved) {
+          // Update auth context — PrivateRoute will immediately redirect to dashboard
+          localStorage.setItem('user', JSON.stringify(data.user));
+          await refreshUser();
+          // No need to do anything else — PrivateRoute re-renders and routes to /dashboard
+        }
+      }
+      setLastChecked(new Date());
+    } catch {
+      // silent fail — don't disrupt the UI
     } finally {
-      setChecking(false);
+      if (!silent) setChecking(false);
     }
-  };
+  }, [refreshUser]);
+
+  // Auto-poll every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(() => checkStatus(true), 15_000);
+    return () => clearInterval(interval);
+  }, [checkStatus]);
+
+  const handleRefresh = () => checkStatus(false);
 
   const steps: Step[] = [
     {
@@ -199,7 +215,7 @@ const WaitingApproval: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          Last checked: {lastChecked.toLocaleTimeString()} · Auto-refreshes every 30 seconds
+          Last checked: {lastChecked.toLocaleTimeString()} · Auto-checks every 15 seconds
         </p>
       </div>
     </div>

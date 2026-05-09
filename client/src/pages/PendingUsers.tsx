@@ -21,7 +21,12 @@ interface ManagedUser {
 }
 
 const BASE = import.meta.env.VITE_API_URL || '';
-const authH = () => ({ Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`, 'Content-Type': 'application/json' });
+
+// Only include Content-Type when sending a body — avoids header stripping on bodyless DELETE
+const authH = (withBody = false) => ({
+  Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
+  ...(withBody ? { 'Content-Type': 'application/json' } : {})
+});
 
 const roleBadge = (role: string) => {
   const map: Record<string, string> = {
@@ -56,39 +61,67 @@ const PendingUsers: React.FC = () => {
   useEffect(() => { fetchUsers(); }, []);
 
   const api = async (path: string, method = 'PUT', body?: object) => {
-    const res = await fetch(`${BASE}${path}`, { method, headers: authH(), body: body ? JSON.stringify(body) : undefined });
+    const hasBody = body !== undefined;
+    const res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: authH(hasBody),
+      body: hasBody ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok && res.status === 401) {
+      throw new Error('Unauthorized — please log out and log back in');
+    }
     return res.json();
   };
 
   const approve = async (id: string) => {
-    const d = await api(`/api/auth/approve/${id}`);
-    toast({ title: d.success ? 'Approved' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-    if (d.success) fetchUsers();
+    try {
+      const d = await api(`/api/auth/approve/${id}`);
+      toast({ title: d.success ? 'Approved ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   const approveAll = async () => {
-    const d = await api('/api/auth/approve-all-pending');
-    toast({ title: d.success ? 'Done' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-    if (d.success) fetchUsers();
+    try {
+      const d = await api('/api/auth/approve-all-pending');
+      toast({ title: d.success ? 'Done ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   const activate = async (id: string) => {
-    const d = await api(`/api/auth/activate/${id}`);
-    toast({ title: d.success ? 'Activated' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-    if (d.success) fetchUsers();
+    try {
+      const d = await api(`/api/auth/activate/${id}`);
+      toast({ title: d.success ? 'Activated ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   const suspend = async (id: string) => {
-    const d = await api(`/api/auth/suspend/${id}`, 'PUT', { reason: suspendReason || 'Suspended by admin' });
-    toast({ title: d.success ? 'Suspended' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-    if (d.success) { fetchUsers(); setSuspendTarget(null); setSuspendReason(''); }
+    try {
+      const d = await api(`/api/auth/suspend/${id}`, 'PUT', { reason: suspendReason || 'Suspended by admin' });
+      toast({ title: d.success ? 'Suspended' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) { fetchUsers(); setSuspendTarget(null); setSuspendReason(''); }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   const deleteUser = async (id: string, email: string) => {
     if (!confirm(`Permanently delete ${email}? This cannot be undone.`)) return;
-    const d = await api(`/api/auth/users/${id}`, 'DELETE');
-    toast({ title: d.success ? 'Deleted' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-    if (d.success) fetchUsers();
+    try {
+      const d = await api(`/api/auth/users/${id}`, 'DELETE');
+      toast({ title: d.success ? 'Deleted ✓' : 'Error', description: d.message || d.success ? 'User deleted' : 'Failed', variant: d.success ? 'default' : 'destructive' });
+      if (d.success) fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   const filtered = users.filter(u => {
