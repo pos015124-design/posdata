@@ -15,9 +15,11 @@ import {
   DollarSign,
   BarChart3,
   ShoppingBag,
-  Building2
+  Building2,
+  Download
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { useInstallPrompt } from './InstallPWA';
 
 interface LayoutProps {
   children: ReactNode;
@@ -28,6 +30,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { available: canInstall, trigger: triggerInstall } = useInstallPrompt();
 
   const isSuperAdmin = user?.role === 'super_admin';
   const menuItems = isSuperAdmin
@@ -111,7 +114,17 @@ export default function Layout({ children }: LayoutProps) {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4">
+        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 space-y-2">
+          {/* Install app button — only shown when browser install prompt is available */}
+          {canInstall && (
+            <button
+              onClick={triggerInstall}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
+            >
+              <Download className="w-4 h-4 shrink-0" />
+              <span className="truncate">Install App</span>
+            </button>
+          )}
           <Button
             onClick={handleLogout}
             variant="outline"

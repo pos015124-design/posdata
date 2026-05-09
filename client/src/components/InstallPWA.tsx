@@ -1,48 +1,107 @@
 /**
- * InstallPWA — shows a "Install E-Shop" banner when the browser fires
- * the beforeinstallprompt event (Chrome/Edge/Android).
- * On iOS Safari it shows manual instructions since iOS doesn't support
- * the prompt API.
+ * InstallPWA
+ *
+ * Shows a prominent install prompt so users know they can add E-Shop
+ * to their home screen. Works on:
+ *   - Android Chrome/Edge: uses the beforeinstallprompt API
+ *   - iOS Safari: shows step-by-step instructions (no API available)
+ *
+ * Behaviour:
+ *   - Waits 5 s after mount before showing (avoids interrupting page load)
+ *   - "Not now" → hides for this session only
+ *   - "Don't ask again" → sets localStorage flag, never shows again
+ *   - Already installed (standalone mode) → never shows
+ *
+ * Also exports `useInstallPrompt` so the sidebar can show a persistent
+ * "Install app" button for users who dismissed the sheet.
  */
-import { useState, useEffect } from 'react';
-import { Download, X, Share, Plus } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Download, X, Share, Plus, Smartphone, ArrowDown } from 'lucide-react';
 
-export default function InstallPWA() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showBanner, setShowBanner] = useState(false);
-  const [showIOS, setShowIOS] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+// ── shared state so sidebar can read the prompt ──────────────────────────────
+let _deferredPrompt: any = null;
+let _promptListeners: Array<() => void> = [];
+
+function notifyListeners() {
+  _promptListeners.forEach(fn => fn());
+}
+
+export function useInstallPrompt() {
+  const [available, setAvailable] = useState(!!_deferredPrompt);
 
   useEffect(() => {
-    // Don't show if already installed (running in standalone mode)
-    if (window.matchMedia('(display-mode: standalone)').matches) return;
-    // Don't show if user dismissed it this session
-    if (sessionStorage.getItem('pwa-dismissed')) return;
+    const update = () => setAvailable(!!_deferredPrompt);
+    _promptListeners.push(update);
+    return () => { _promptListeners = _promptListeners.filter(fn => fn !== update); };
+  }, []);
 
-    // Detect iOS Safari
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const trigger = useCallback(async () => {
+    if (!_deferredPrompt) return;
+    _deferredPrompt.prompt();
+    const { outcome } = await _deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      _deferredPrompt = null;
+      notifyListeners();
+    }
+  }, []);
+
+  return { available, trigger };
+}
+
+// ── main component ────────────────────────────────────────────────────────────
+export default function InstallPWA() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [show, setShow]       = useState<'android' | 'ios' | null>(null);
+  const [visible, setVisible] = useState(false); // controls slide-in animation
+
+  useEffect(() => {
+    // Already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    // User said "don't ask again"
+    if (localStorage.getItem('pwa-never')) return;
+
+    const isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isSafari  = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+
     if (isIOS && isSafari) {
-      // Show iOS instructions after 3 seconds
-      const t = setTimeout(() => setShowIOS(true), 3000);
+      // iOS: show instructions after 5 s if not dismissed this session
+      if (sessionStorage.getItem('pwa-dismissed')) return;
+      const t = setTimeout(() => { setShow('ios'); setTimeout(() => setVisible(true), 50); }, 5000);
       return () => clearTimeout(t);
     }
 
-    // Chrome/Edge/Android: listen for the install prompt
+    // Android/Chrome/Edge: capture the prompt event
     const handler = (e: Event) => {
       e.preventDefault();
+      _deferredPrompt = e;
+      notifyListeners();
       setDeferredPrompt(e);
-      setShowBanner(true);
+      if (!sessionStorage.getItem('pwa-dismissed')) {
+        // Show after 5 s
+        setTimeout(() => { setShow('android'); setTimeout(() => setVisible(true), 50); }, 5000);
+      }
     };
     window.addEventListener('beforeinstallprompt', handler);
+
+    // Hide banner once installed
+    window.addEventListener('appinstalled', () => {
+      _deferredPrompt = null;
+      notifyListeners();
+      setShow(null);
+    });
+
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const dismiss = () => {
-    setShowBanner(false);
-    setShowIOS(false);
-    setDismissed(true);
-    sessionStorage.setItem('pwa-dismissed', '1');
+  const dismiss = (permanent = false) => {
+    setVisible(false);
+    setTimeout(() => setShow(null), 300);
+    if (permanent) {
+      localStorage.setItem('pwa-never', '1');
+    } else {
+      sessionStorage.setItem('pwa-dismissed', '1');
+    }
   };
 
   const install = async () => {
@@ -50,68 +109,188 @@ export default function InstallPWA() {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
-      setShowBanner(false);
+      _deferredPrompt = null;
+      notifyListeners();
       setDeferredPrompt(null);
+      setShow(null);
     }
   };
 
-  if (dismissed) return null;
+  if (!show) return null;
 
-  // Android/Chrome install banner
-  if (showBanner) {
+  // ── Android / Chrome install sheet ────────────────────────────────────────
+  if (show === 'android') {
     return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 max-w-sm mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 p-4 flex items-center gap-3 animate-in slide-in-from-bottom-4 duration-300">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shrink-0 shadow">
-            <span className="text-white font-black text-lg">E</span>
+      <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+        {/* Backdrop */}
+        <div
+          className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => dismiss(false)}
+        />
+
+        {/* Sheet */}
+        <div className={`relative w-full sm:max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl transition-transform duration-300 ${
+          visible ? 'translate-y-0' : 'translate-y-full sm:translate-y-4 sm:opacity-0'
+        }`}>
+          {/* Handle bar */}
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-10 h-1 bg-gray-300 rounded-full" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-900 text-sm">Install E-Shop</p>
-            <p className="text-xs text-gray-500">Add to home screen for the best experience</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          <div className="px-6 pt-4 pb-6">
+            {/* App identity */}
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shrink-0">
+                <span className="text-white font-black text-2xl">E</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Install E-Shop</h2>
+                <p className="text-sm text-gray-500">BHABY GROUP LTD</p>
+              </div>
+              <button
+                onClick={() => dismiss(false)}
+                className="ml-auto p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Benefits */}
+            <div className="space-y-2.5 mb-6">
+              {[
+                { icon: Smartphone, text: 'Works offline — manage your store anywhere' },
+                { icon: ArrowDown,  text: 'Faster than the browser — opens instantly' },
+                { icon: Download,   text: 'No app store needed — installs in seconds' },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-3 text-sm text-gray-600">
+                  <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-blue-600" />
+                  </div>
+                  {text}
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
             <button
               onClick={install}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200 active:scale-95"
             >
-              <Download className="w-3.5 h-3.5" />Install
+              <Download className="w-5 h-5" />
+              Install App
             </button>
-            <button onClick={dismiss} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="w-4 h-4" />
-            </button>
+
+            <div className="flex gap-3 mt-3">
+              <button
+                onClick={() => dismiss(false)}
+                className="flex-1 h-10 text-sm text-gray-500 hover:text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                Not now
+              </button>
+              <button
+                onClick={() => dismiss(true)}
+                className="flex-1 h-10 text-sm text-gray-400 hover:text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                Don't ask again
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // iOS Safari instructions
-  if (showIOS) {
+  // ── iOS Safari instructions sheet ─────────────────────────────────────────
+  if (show === 'ios') {
     return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 max-w-sm mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl border border-blue-100 p-4 animate-in slide-in-from-bottom-4 duration-300">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow">
-                <span className="text-white font-black">E</span>
+      <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+        {/* Backdrop */}
+        <div
+          className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => dismiss(false)}
+        />
+
+        {/* Sheet */}
+        <div className={`relative w-full sm:max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl transition-transform duration-300 ${
+          visible ? 'translate-y-0' : 'translate-y-full'
+        }`}>
+          {/* Handle */}
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+          </div>
+
+          <div className="px-6 pt-4 pb-8">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shrink-0">
+                <span className="text-white font-black text-xl">E</span>
               </div>
               <div>
-                <p className="font-bold text-gray-900 text-sm">Install E-Shop</p>
-                <p className="text-xs text-gray-500">Add to your home screen</p>
+                <h2 className="text-base font-extrabold text-gray-900">Add E-Shop to Home Screen</h2>
+                <p className="text-xs text-gray-500">Get the full app experience on iOS</p>
+              </div>
+              <button
+                onClick={() => dismiss(false)}
+                className="ml-auto p-2 text-gray-400 hover:text-gray-600 rounded-xl"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-3 mb-6">
+              <div className="flex items-start gap-3 bg-blue-50 rounded-2xl p-3.5">
+                <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                    Tap <Share className="w-4 h-4 text-blue-600 inline" /> Share
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">The share icon is in Safari's bottom toolbar</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 bg-blue-50 rounded-2xl p-3.5">
+                <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                    Tap <Plus className="w-4 h-4 text-blue-600 inline" /> Add to Home Screen
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Scroll down in the share sheet to find it</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 bg-green-50 rounded-2xl p-3.5">
+                <div className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Tap Add</p>
+                  <p className="text-xs text-gray-500 mt-0.5">E-Shop will appear on your home screen</p>
+                </div>
               </div>
             </div>
-            <button onClick={dismiss} className="p-1 text-gray-400 hover:text-gray-600">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-2 text-xs text-gray-600">
-            <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-              <Share className="w-4 h-4 text-blue-500 shrink-0" />
-              <span>Tap the <strong>Share</strong> button in Safari's toolbar</span>
+
+            {/* Arrow pointing down toward Safari toolbar */}
+            <div className="flex flex-col items-center gap-1 mb-5 sm:hidden">
+              <p className="text-xs text-gray-400 font-medium">Share button is down here</p>
+              <div className="flex flex-col items-center gap-0.5 text-blue-500">
+                <div className="w-0.5 h-4 bg-blue-400 rounded-full" />
+                <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-blue-400" />
+              </div>
             </div>
-            <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-              <Plus className="w-4 h-4 text-blue-500 shrink-0" />
-              <span>Tap <strong>"Add to Home Screen"</strong></span>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => dismiss(false)}
+                className="flex-1 h-11 text-sm text-gray-500 font-medium rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                Not now
+              </button>
+              <button
+                onClick={() => dismiss(true)}
+                className="flex-1 h-11 text-sm text-gray-400 font-medium rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                Don't ask again
+              </button>
             </div>
           </div>
         </div>
