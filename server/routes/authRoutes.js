@@ -347,31 +347,31 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-router.get('/me', requireUser, async (req, res) => {
+// GET /api/auth/me — returns fresh user data from DB.
+// Uses a token-only check (no approval gate) so unapproved users can poll
+// their own status from the WaitingApproval screen.
+router.get('/me', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+
   try {
-    const user = await User.findById(req.user.userId).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    console.log('User data from /me endpoint:', {
-      email: user.email,
-      role: user.role,
-      permissions: user.permissions,
-      isApproved: user.isApproved
-    });
-    
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
     return res.status(200).json({
       user: {
         email: user.email,
         role: user.role,
         permissions: user.permissions,
-        isApproved: user.isApproved
+        isApproved: user.isApproved,
+        isSuspended: user.isSuspended || false
       }
     });
   } catch (error) {
-    console.error('Error fetching user:', error);
-    return res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching user /me:', error);
+    return res.status(403).json({ message: 'Invalid token' });
   }
 });
 

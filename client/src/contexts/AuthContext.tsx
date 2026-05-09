@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { login as apiLogin, register as apiRegister, getCurrentUser } from "@/api/auth";
 
 type Permissions = {
@@ -40,6 +40,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userStr = localStorage.getItem("user");
     return userStr ? JSON.parse(userStr) : null;
   });
+
+  // On mount: if a token exists, fetch fresh user data from the server so we
+  // never start with a stale isApproved/isSuspended value from localStorage.
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    getCurrentUser()
+      .then(response => {
+        if (response?.user) {
+          localStorage.setItem("user", JSON.stringify(response.user));
+          setUser(response.user);
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {
+        // Token expired or invalid — clear session
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        setIsAuthenticated(false);
+        setUser(null);
+      });
+  }, []); // runs once on mount
 
   const login = async (email: string, password: string) => {
     try {
