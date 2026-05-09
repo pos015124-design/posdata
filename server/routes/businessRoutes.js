@@ -130,6 +130,52 @@ router.get('/my-business', requireUser, async (req, res) => {
 });
 
 /**
+ * POST /api/business/link-my-business
+ * Self-service repair: find an orphaned business by email and link it to the
+ * current user's userId. Useful when a business was created before userId was set.
+ */
+router.post('/link-my-business', requireUser, async (req, res) => {
+  try {
+    const Business = require('../models/Business');
+    const User = require('../models/User');
+
+    // Already linked?
+    const already = await Business.findOne({ userId: req.user.userId });
+    if (already) {
+      return res.json({ success: true, message: 'Business already linked', data: already });
+    }
+
+    // Find by email (the most reliable fallback)
+    const user = await User.findById(req.user.userId);
+    const business = await Business.findOne({ email: user.email });
+
+    if (!business) {
+      return res.status(404).json({
+        error: 'No business found',
+        message: 'No business record found matching your email address.'
+      });
+    }
+
+    // Link it
+    business.userId = user._id;
+    if (user.isApproved && business.status === 'pending') {
+      business.status = 'active';
+      business.isPublic = true;
+    }
+    await business.save();
+
+    await User.findByIdAndUpdate(user._id, { businessId: business._id });
+
+    logger.info('Business self-linked', { businessId: business._id, userId: user._id });
+
+    res.json({ success: true, message: 'Business linked successfully', data: business });
+  } catch (error) {
+    logger.error('Failed to link business', { error: error.message, userId: req.user.userId });
+    res.status(500).json({ error: 'Link failed', message: error.message });
+  }
+});
+
+/**
  * POST /api/business/my-business
  * Create business profile for current user
  */
@@ -138,18 +184,32 @@ router.post('/my-business', requireUser, async (req, res) => {
     const Business = require('../models/Business');
     const User = require('../models/User');
     const { name, slug, email, phone, address, category, description, isPublic } = req.body;
-    
-    // Check if user already has a business
-    const existingBusiness = await Business.findOne({ userId: req.user.userId });
-    
-    if (existingBusiness) {
+
+    // Check if user already has a business linked by userId
+    const existingByUserId = await Business.findOne({ userId: req.user.userId });
+    if (existingByUserId) {
       return res.status(400).json({
         error: 'Business already exists',
         message: 'You already have a business profile. Use PUT to update it.',
-        businessId: existingBusiness._id
+        businessId: existingByUserId._id
       });
     }
-    
+
+    // Also check if a business exists with the same email (orphaned record — link it)
+    const userEmail = email || req.user.email;
+    const existingByEmail = await Business.findOne({ email: userEmail, userId: { $exists: false } })
+      || await Business.findOne({ email: userEmail, userId: null });
+    if (existingByEmail) {
+      existingByEmail.userId = req.user.userId;
+      await existingByEmail.save();
+      await User.findByIdAndUpdate(req.user.userId, { businessId: existingByEmail._id });
+      return res.json({
+        success: true,
+        message: 'Business profile linked successfully',
+        data: existingByEmail
+      });
+    }
+
     // Generate slug if not provided
     let businessSlug = slug;
     if (!businessSlug && name) {
@@ -160,14 +220,14 @@ router.post('/my-business', requireUser, async (req, res) => {
         .replace(/-+/g, '-')
         .trim();
     }
-    
+
     if (!businessSlug) {
       return res.status(400).json({
         error: 'Slug required',
         message: 'Please provide a store slug or business name'
       });
     }
-    
+
     // Check if slug is unique
     const slugExists = await Business.findOne({ slug: businessSlug });
     if (slugExists) {
@@ -176,7 +236,7 @@ router.post('/my-business', requireUser, async (req, res) => {
         message: 'This store URL is already in use. Please choose a different one.'
       });
     }
-    
+
     const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({
@@ -185,62 +245,45 @@ router.post('/my-business', requireUser, async (req, res) => {
       });
     }
 
-    // Ensure tenantId exists before creating business
-    let tenantId = user.tenantId;
-    if (!tenantId) {
-      const tenant = await TenantService.createTenant({
-        name: name || `${req.user.email}'s Store`,
-        domain: businessSlug,
-        adminEmail: email || req.user.email,
-        plan: 'basic'
-      });
-      tenantId = tenant.tenantId;
-      user.tenantId = tenantId;
-      await user.save();
-    }
-
-    // Create business
+    // Create business — no TenantService needed for simple seller accounts
     const business = new Business({
-      tenantId,
       name: name || `${req.user.email}'s Store`,
       slug: businessSlug,
-      email: email || req.user.email,
+      email: userEmail,
       phone: phone || '',
       address: address || {},
       category: category || 'retail',
       description: description || '',
-      userId: user._id,          // ObjectId — matches product.userId type
-      status: 'active', // Auto-activate for now
+      userId: user._id,
+      status: 'active',
       isPublic: isPublic !== undefined ? isPublic : true,
       analytics: { views: 0, orders: 0, revenue: 0 }
     });
-    
+
     await business.save();
-    
+
     // Link user to business
-    await User.findByIdAndUpdate(req.user.userId, {
-      businessId: business._id
-    });
-    
+    await User.findByIdAndUpdate(req.user.userId, { businessId: business._id });
+
     logger.info('Business created', {
       businessId: business._id,
       userId: req.user.userId,
       slug: business.slug,
       name: business.name
     });
-    
+
     res.status(201).json({
       success: true,
       message: 'Business created successfully',
       data: business
     });
-    
+
   } catch (error) {
     logger.error('Failed to create business', {
       error: error.message,
       userId: req.user.userId
     });
-    
+
     res.status(400).json({
       error: 'Failed to create business',
       message: error.message

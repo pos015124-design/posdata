@@ -86,29 +86,26 @@ export default function Settings() {
     try {
       setLoading(true);
       
-      // Load business settings from business API
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/business/my-business`;
-      
-      const businessResponse = await fetch(apiUrl, {
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+
+      const businessResponse = await fetch(`${baseUrl}/api/business/my-business`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      // Check if response is JSON
+
       const contentType = businessResponse.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         console.warn('Business API returned non-JSON response, using defaults');
-        return; // Use defaults
+        return;
       }
-      
+
       if (businessResponse.ok) {
         const businessData = await businessResponse.json();
         const business = businessData.data;
-        
+
         setBusinessSettings({
           name: business.name || '',
           slug: business.slug || '',
-          // address is stored as an object {street,city,...} — flatten to a display string
           address: business.address
             ? typeof business.address === 'object'
               ? [business.address.street, business.address.city, business.address.state, business.address.country]
@@ -119,18 +116,46 @@ export default function Settings() {
           email: business.email || '',
           taxId: business.taxId || '',
           isPublic: business.isPublic || false,
-          status: business.status || 'pending'
+          // If user is approved but business still shows pending, treat as active
+          status: (business.status === 'pending' && user?.isApproved) ? 'active' : (business.status || 'pending')
         });
       } else if (businessResponse.status === 404) {
-        // Business doesn't exist yet - that's okay, user can create one
-        console.log('No business found, user can create one');
+        // Business not linked to this user — try auto-linking by email
+        console.log('Business not found by userId, attempting auto-link...');
+        try {
+          const linkRes = await fetch(`${baseUrl}/api/business/link-my-business`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+          });
+          if (linkRes.ok) {
+            const linkData = await linkRes.json();
+            const business = linkData.data;
+            setBusinessSettings({
+              name: business.name || '',
+              slug: business.slug || '',
+              address: business.address
+                ? typeof business.address === 'object'
+                  ? [business.address.street, business.address.city, business.address.state, business.address.country]
+                      .filter(Boolean).join(', ')
+                  : business.address
+                : '',
+              phone: business.phone || '',
+              email: business.email || '',
+              taxId: business.taxId || '',
+              isPublic: business.isPublic || false,
+              status: (business.status === 'pending' && user?.isApproved) ? 'active' : (business.status || 'pending')
+            });
+            console.log('Business auto-linked successfully');
+          }
+        } catch (linkErr) {
+          console.log('Auto-link failed, user may need to create a business profile');
+        }
       } else {
         console.error('Failed to load business:', businessResponse.status);
       }
-      
+
     } catch (error) {
       console.error('Failed to load settings:', error);
-      // Use defaults if API fails
     } finally {
       setLoading(false);
     }
@@ -622,21 +647,34 @@ export default function Settings() {
                         <h4 className="font-semibold">Store Status</h4>
                         <p className="text-sm text-gray-600">Current status of your business</p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        businessSettings.status === 'active' 
-                          ? 'bg-green-100 text-green-800'
-                          : businessSettings.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {businessSettings.status === 'active' ? '✅ Active' : 
-                         businessSettings.status === 'pending' ? '⏳ Pending Approval' : 
-                         businessSettings.status || 'Inactive'}
-                      </span>
+                      {(() => {
+                        // If user is approved, treat business as active regardless of DB value
+                        const effectiveStatus = (businessSettings.status === 'pending' && user?.isApproved)
+                          ? 'active'
+                          : businessSettings.status;
+                        return (
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                            effectiveStatus === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : effectiveStatus === 'suspended'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {effectiveStatus === 'active' ? '✅ Active'
+                              : effectiveStatus === 'suspended' ? '🚫 Suspended'
+                              : '⏳ Pending Approval'}
+                          </span>
+                        );
+                      })()}
                     </div>
-                    {businessSettings.status === 'pending' && (
+                    {businessSettings.status === 'pending' && !user?.isApproved && (
                       <p className="text-xs text-yellow-600 mt-2">
-                        ⏳ Your business is awaiting admin approval
+                        ⏳ Your business is awaiting admin approval. You'll receive an email once approved.
+                      </p>
+                    )}
+                    {businessSettings.status === 'pending' && user?.isApproved && (
+                      <p className="text-xs text-green-600 mt-2">
+                        ✅ Your account is approved and active.
                       </p>
                     )}
                   </div>
