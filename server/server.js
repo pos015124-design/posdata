@@ -283,6 +283,7 @@ app.use('/api/products/import', importRoutes);
 app.use('/api/seller-inventory', sellerInventoryRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/billing', require('./routes/billingRoutes'));
+app.use('/api/suppliers', require('./routes/supplierRoutes'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

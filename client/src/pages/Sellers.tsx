@@ -1,548 +1,654 @@
-import { useState, useEffect } from 'react';
+/**
+ * Suppliers — My Suppliers & Stock-In Ledger
+ * Replaces the old "Vendor profiles" screen with a real supplier management tool.
+ *
+ * Features:
+ *  - Add / edit / delete supplier profiles (name, contact, phone, email, payment terms)
+ *  - Record stock deliveries (stock-in) against a supplier
+ *  - Each stock-in updates product inventory counts and purchase prices automatically
+ *  - View full delivery history per supplier with running totals (spent / owed)
+ */
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Store, Search, TrendingUp, DollarSign, Package, Edit, Eye, Trash2, UserPlus, X } from 'lucide-react';
+import { Label } from '../components/ui/label';
+import {
+  Truck, Search, Plus, Edit, Trash2, X, ChevronDown, ChevronUp,
+  Package, DollarSign, RefreshCw, ClipboardList, CheckCircle, Clock, AlertCircle
+} from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import { useSmartPolling } from '../hooks/useSmartPolling';
+import * as suppliersApi from '../api/suppliers';
+import * as productsApi from '../api/products';
 
-interface Seller {
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface StockInItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+}
+
+interface StockIn {
+  _id: string;
+  date: string;
+  referenceNo?: string;
+  notes?: string;
+  items: StockInItem[];
+  totalCost: number;
+  paymentStatus: 'unpaid' | 'partial' | 'paid';
+  amountPaid: number;
+  createdAt: string;
+}
+
+interface Supplier {
   _id: string;
   name: string;
-  email: string;
+  contactName?: string;
   phone?: string;
-  status: 'active' | 'pending' | 'suspended';
-  totalSales?: number;
-  products?: number;
-  createdAt?: string;
+  email?: string;
+  address?: string;
+  paymentTerms?: string;
+  notes?: string;
+  isActive: boolean;
+  totalSpent: number;
+  totalOwed: number;
+  stockIns?: StockIn[];
 }
+
+interface Product { _id: string; name: string; price: number; purchasePrice: number; stock: number; }
+
+const fmt = (n: number) => `TZS ${Number(n || 0).toLocaleString()}`;
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+const PAYMENT_STATUS: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  unpaid:  { label: 'Unpaid',   color: 'bg-red-100 text-red-700 border-red-200',     icon: AlertCircle },
+  partial: { label: 'Partial',  color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
+  paid:    { label: 'Paid',     color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle }
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function Sellers() {
   const { toast } = useToast();
-  const baseUrl = import.meta.env.VITE_API_URL || '';
-  const [sellers, setSellers] = useState<Seller[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
-  const [newSeller, setNewSeller] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    status: 'active' as 'active' | 'pending' | 'suspended'
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [suppliers, setSuppliers]   = useState<Supplier[]>([]);
+  const [products, setProducts]     = useState<Product[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [search, setSearch]         = useState('');
+  const [expanded, setExpanded]     = useState<string | null>(null);
+
+  // Supplier form modal
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [editingSupplier, setEditingSupplier]     = useState<Supplier | null>(null);
+  const [supplierForm, setSupplierForm] = useState({
+    name: '', contactName: '', phone: '', email: '',
+    address: '', paymentTerms: '', notes: ''
   });
+  const [savingSupplier, setSavingSupplier] = useState(false);
 
-  useEffect(() => {
-    fetchSellers();
-  }, []);
+  // Stock-in modal
+  const [showStockInModal, setShowStockInModal]   = useState(false);
+  const [stockInSupplier, setStockInSupplier]     = useState<Supplier | null>(null);
+  const [stockInForm, setStockInForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    referenceNo: '', notes: '',
+    paymentStatus: 'unpaid' as 'unpaid' | 'partial' | 'paid',
+    amountPaid: ''
+  });
+  const [stockInItems, setStockInItems] = useState<Array<{
+    productId: string; productName: string; quantity: string; unitCost: string;
+  }>>([{ productId: '', productName: '', quantity: '', unitCost: '' }]);
+  const [savingStockIn, setSavingStockIn] = useState(false);
 
-  const fetchSellers = async () => {
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async (silent = false): Promise<boolean> => {
+    if (!silent) setLoading(true);
     try {
-      setLoading(true);
-      const response = await fetch(`${baseUrl}/api/sellers`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-      
-      // Check if response is JSON before parsing
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Server returned non-JSON response:', contentType);
-        const text = await response.text();
-        console.error('Response body:', text.substring(0, 200));
-        throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
-      }
-      
-      if (response.ok) {
-        const data = await response.json();
-        const sellersList = data.sellers || [];
-        // Map backend data to frontend format
-        const mappedSellers = sellersList.map((s: any) => ({
-          _id: s._id,
-          name: s.businessName || s.name,
-          email: s.contactEmail || s.email,
-          phone: s.contactPhone || s.phone,
-          status: s.status,
-          totalSales: s.metrics?.totalSales || 0,
-          products: s.metrics?.totalProducts || 0,
-          createdAt: s.createdAt
-        }));
-        setSellers(mappedSellers);
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: 'Error',
-          description: errorData.error || errorData.message || 'Failed to load sellers',
-          variant: 'destructive',
-        });
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch sellers:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to load sellers. Please refresh the page.',
-        variant: 'destructive',
-      });
+      const [suppRes, prodRes] = await Promise.all([
+        suppliersApi.getSuppliers(),
+        productsApi.getProducts()
+      ]);
+      const prev = suppliers.length;
+      setSuppliers(suppRes.suppliers || []);
+      setProducts(
+        (prodRes.products || []).map((p: any) => ({
+          _id: p._id, name: p.name, price: p.price,
+          purchasePrice: p.purchasePrice, stock: p.stock
+        }))
+      );
+      return (suppRes.suppliers || []).length !== prev;
+    } catch (err: any) {
+      if (!silent) toast({ title: 'Failed to load suppliers', description: err.message, variant: 'destructive' });
+      return false;
     } finally {
       setLoading(false);
     }
+  }, [suppliers.length, toast]);
+
+  useSmartPolling(fetchAll, { baseInterval: 60_000, maxInterval: 300_000 });
+
+  // ── Supplier CRUD ──────────────────────────────────────────────────────────
+  const openAddSupplier = () => {
+    setEditingSupplier(null);
+    setSupplierForm({ name: '', contactName: '', phone: '', email: '', address: '', paymentTerms: '', notes: '' });
+    setShowSupplierModal(true);
   };
 
-  const handleAddSeller = async () => {
-    if (!newSeller.name || !newSeller.email) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields',
-      });
-      return;
-    }
-
-    try {
-      // If editing, update existing seller
-      if (selectedSeller) {
-        const response = await fetch(`${baseUrl}/api/sellers/${selectedSeller._id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          },
-          body: JSON.stringify(newSeller)
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          toast({
-            title: 'Success',
-            description: 'Seller updated successfully',
-          });
-          setShowAddModal(false);
-          setSelectedSeller(null);
-          setNewSeller({ name: '', email: '', phone: '', status: 'active' });
-          fetchSellers();
-        } else {
-          // Safely parse error response
-          let errorMessage = 'Failed to update seller';
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch (e) {
-            errorMessage = response.statusText || errorMessage;
-          }
-          toast({
-            title: 'Error',
-            description: errorMessage,
-            variant: 'destructive',
-          });
-        }
-      } else {
-        // Create new seller
-        const response = await fetch(`${baseUrl}/api/sellers`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-          },
-          body: JSON.stringify(newSeller)
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          toast({
-            title: 'Success',
-            description: 'Seller added successfully',
-          });
-          setShowAddModal(false);
-          setSelectedSeller(null);
-          setNewSeller({ name: '', email: '', phone: '', status: 'active' });
-          fetchSellers();
-        } else {
-          // Safely parse error response
-          let errorMessage = 'Failed to add seller';
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch (e) {
-            // If JSON parsing fails, use status text
-            errorMessage = response.statusText || errorMessage;
-          }
-          toast({
-            title: 'Error',
-            description: errorMessage,
-            variant: 'destructive',
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to save seller:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save seller',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleViewDetails = (seller: Seller) => {
-    setSelectedSeller(seller);
-    setShowDetailsModal(true);
-  };
-
-  const handleEditSeller = (seller: Seller) => {
-    setSelectedSeller(seller);
-    setNewSeller({
-      name: seller.name,
-      email: seller.email,
-      phone: seller.phone || '',
-      status: seller.status
+  const openEditSupplier = (s: Supplier) => {
+    setEditingSupplier(s);
+    setSupplierForm({
+      name: s.name, contactName: s.contactName || '', phone: s.phone || '',
+      email: s.email || '', address: s.address || '',
+      paymentTerms: s.paymentTerms || '', notes: s.notes || ''
     });
-    setShowAddModal(true);
+    setShowSupplierModal(true);
   };
 
-  const handleDeleteSeller = async (sellerId: string) => {
-    if (!confirm('Are you sure you want to delete this seller?')) {
-      return;
+  const saveSupplier = async () => {
+    if (!supplierForm.name.trim()) {
+      toast({ title: 'Name required', variant: 'destructive' }); return;
     }
-
+    setSavingSupplier(true);
     try {
-      const response = await fetch(`${baseUrl}/api/sellers/${sellerId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
-      });
-
-      if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Seller deleted successfully',
-        });
-        fetchSellers();
+      if (editingSupplier) {
+        await suppliersApi.updateSupplier(editingSupplier._id, supplierForm);
+        toast({ title: 'Supplier updated' });
       } else {
-        // For demo purposes, remove from local state
-        setSellers(sellers.filter(s => s._id !== sellerId));
-        toast({
-          title: 'Success',
-          description: 'Seller deleted successfully',
-        });
+        await suppliersApi.createSupplier(supplierForm);
+        toast({ title: 'Supplier added' });
       }
-    } catch (error) {
-      console.error('Failed to delete seller:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete seller',
-      });
+      setShowSupplierModal(false);
+      fetchAll(true);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally { setSavingSupplier(false); }
+  };
+
+  const deleteSupplier = async (s: Supplier) => {
+    if (!confirm(`Delete "${s.name}"? All delivery history will be lost.`)) return;
+    try {
+      await suppliersApi.deleteSupplier(s._id);
+      toast({ title: 'Supplier deleted' });
+      fetchAll(true);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-700';
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'suspended': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
+  // ── Stock-in ───────────────────────────────────────────────────────────────
+  const openStockIn = (s: Supplier) => {
+    setStockInSupplier(s);
+    setStockInForm({
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: '', notes: '', paymentStatus: 'unpaid', amountPaid: ''
+    });
+    setStockInItems([{ productId: '', productName: '', quantity: '', unitCost: '' }]);
+    setShowStockInModal(true);
   };
 
-  const filteredSellers = sellers.filter(seller =>
-    seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    seller.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const addStockInRow = () =>
+    setStockInItems(prev => [...prev, { productId: '', productName: '', quantity: '', unitCost: '' }]);
+
+  const removeStockInRow = (idx: number) =>
+    setStockInItems(prev => prev.filter((_, i) => i !== idx));
+
+  const updateStockInRow = (idx: number, field: string, value: string) => {
+    setStockInItems(prev => prev.map((row, i) => {
+      if (i !== idx) return row;
+      const updated = { ...row, [field]: value };
+      // Auto-fill unit cost from product's purchase price
+      if (field === 'productId') {
+        const prod = products.find(p => p._id === value);
+        if (prod) {
+          updated.productName = prod.name;
+          updated.unitCost = String(prod.purchasePrice || '');
+        }
+      }
+      return updated;
+    }));
+  };
+
+  const saveStockIn = async () => {
+    if (!stockInSupplier) return;
+    const validItems = stockInItems.filter(r => r.productId && r.quantity && r.unitCost);
+    if (validItems.length === 0) {
+      toast({ title: 'Add at least one product', variant: 'destructive' }); return;
+    }
+    setSavingStockIn(true);
+    try {
+      const payload = {
+        ...stockInForm,
+        amountPaid: Number(stockInForm.amountPaid) || 0,
+        items: validItems.map(r => ({
+          productId: r.productId,
+          productName: r.productName,
+          quantity: Number(r.quantity),
+          unitCost: Number(r.unitCost)
+        }))
+      };
+      const res = await suppliersApi.recordStockIn(stockInSupplier._id, payload);
+      toast({ title: 'Stock-in recorded ✓', description: res.message });
+      setShowStockInModal(false);
+      fetchAll(true);
+      // Notify inventory page
+      localStorage.setItem('product-updated', Date.now().toString());
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally { setSavingStockIn(false); }
+  };
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const filtered = suppliers.filter(s =>
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    (s.contactName || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.phone || '').includes(search)
   );
 
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading sellers...</p>
-        </div>
-      </div>
-    );
-  }
+  const stockInTotal = stockInItems.reduce((sum, r) => {
+    const qty = Number(r.quantity) || 0;
+    const cost = Number(r.unitCost) || 0;
+    return sum + qty * cost;
+  }, 0);
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="w-full md:w-auto max-w-2xl">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center md:text-left">Vendor profiles</h1>
-          <p className="text-gray-600 mt-2 text-center md:text-left text-sm leading-relaxed">
-            Record supplier or consignment contacts for your account. Profiles are saved under{' '}
-            <strong>your</strong> login—they do not create separate staff users. Use roles elsewhere if someone needs their
-            own sign-in.
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Truck className="w-5 h-5 text-blue-600" />My Suppliers
+          </h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            Track your stock suppliers, record deliveries, and monitor what you owe
           </p>
         </div>
-        <Button 
-          onClick={() => setShowAddModal(true)}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 w-full md:w-auto"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Add vendor profile
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button size="sm" variant="outline" onClick={() => fetchAll(false)} className="h-9 gap-1.5">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button size="sm" onClick={openAddSupplier}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5">
+            <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Supplier</span><span className="sm:hidden">Add</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Search Bar */}
-      <Card className="border-0 shadow-lg">
+      {/* Summary cards */}
+      {suppliers.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Suppliers</p>
+              <p className="text-2xl font-extrabold text-gray-900 mt-1">{suppliers.length}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Spent</p>
+              <p className="text-lg font-extrabold text-gray-900 mt-1 truncate">
+                {fmt(suppliers.reduce((s, x) => s + x.totalSpent, 0))}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm col-span-2 sm:col-span-1">
+            <CardContent className="p-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Outstanding</p>
+              <p className="text-lg font-extrabold text-red-600 mt-1 truncate">
+                {fmt(suppliers.reduce((s, x) => s + x.totalOwed, 0))}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Search */}
+      <Card className="border-0 shadow-sm">
         <CardContent className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input
-              type="text"
-              placeholder="Search sellers by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input placeholder="Search by name, contact, or phone…"
+              value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
           </div>
         </CardContent>
       </Card>
 
-      {/* Sellers Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredSellers.map((seller) => (
-          <Card key={seller._id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                    <Store className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">{seller.name}</CardTitle>
-                    <p className="text-sm text-gray-600">{seller.email}</p>
-                  </div>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(seller.status)}`}>
-                  {seller.status}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <DollarSign className="w-5 h-5 mx-auto text-green-600 mb-1" />
-                  <p className="text-lg font-bold text-green-600">TZS {(seller.totalSales || 0).toLocaleString()}</p>
-                  <p className="text-xs text-gray-600">Total Sales</p>
-                </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <Package className="w-5 h-5 mx-auto text-blue-600 mb-1" />
-                  <p className="text-lg font-bold text-blue-600">{seller.products || 0}</p>
-                  <p className="text-xs text-gray-600">Products</p>
-                </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <TrendingUp className="w-5 h-5 mx-auto text-purple-600 mb-1" />
-                  <p className="text-lg font-bold text-purple-600">+15%</p>
-                  <p className="text-xs text-gray-600">Growth</p>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <Button 
-                  onClick={() => handleViewDetails(seller)}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  View Details
-                </Button>
-                <Button 
-                  onClick={() => handleEditSeller(seller)}
-                  variant="outline"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-                <Button 
-                  onClick={() => handleDeleteSeller(seller._id)}
-                  variant="outline"
-                  className="text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredSellers.length === 0 && (
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-12 text-center">
-            <Store className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-600 text-lg">No sellers found</p>
-            <p className="text-gray-500 text-sm mt-2">Try adjusting your search or add a new seller</p>
+      {/* Supplier list */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1,2,3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-16 text-center text-gray-400">
+            <Truck className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="font-medium text-gray-600">No suppliers yet</p>
+            <p className="text-sm mt-1">Add your first supplier to start tracking stock deliveries</p>
+            <Button size="sm" onClick={openAddSupplier} className="mt-4 gap-1.5">
+              <Plus className="w-4 h-4" />Add Supplier
+            </Button>
           </CardContent>
         </Card>
-      )}
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(supplier => {
+            const isExpanded = expanded === supplier._id;
+            return (
+              <Card key={supplier._id} className="border-0 shadow-sm">
+                {/* Supplier row */}
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-start gap-3">
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
+                      <span className="text-white font-bold text-sm">{supplier.name.charAt(0).toUpperCase()}</span>
+                    </div>
 
-      {/* Add/Edit Seller Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{selectedSeller ? 'Edit vendor profile' : 'Add vendor profile'}</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setSelectedSeller(null);
-                    setNewSeller({ name: '', email: '', phone: '', status: 'active' });
-                  }}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                <Input
-                  value={newSeller.name}
-                  onChange={(e) => setNewSeller({ ...newSeller, name: e.target.value })}
-                  placeholder="Enter seller name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <Input
-                  type="email"
-                  value={newSeller.email}
-                  onChange={(e) => setNewSeller({ ...newSeller, email: e.target.value })}
-                  placeholder="Enter email address"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <Input
-                  value={newSeller.phone}
-                  onChange={(e) => setNewSeller({ ...newSeller, phone: e.target.value })}
-                  placeholder="Enter phone number"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={newSeller.status}
-                  onChange={(e) => setNewSeller({ ...newSeller, status: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="suspended">Suspended</option>
-                </select>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={handleAddSeller}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  {selectedSeller ? 'Save changes' : 'Save profile'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setSelectedSeller(null);
-                    setNewSeller({ name: '', email: '', phone: '', status: 'active' });
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900">{supplier.name}</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-500">
+                        {supplier.contactName && <span>{supplier.contactName}</span>}
+                        {supplier.phone && <span>{supplier.phone}</span>}
+                        {supplier.paymentTerms && <span className="text-blue-600">{supplier.paymentTerms}</span>}
+                      </div>
+                    </div>
+
+                    {/* Totals */}
+                    <div className="flex gap-4 text-right shrink-0">
+                      <div>
+                        <p className="text-xs text-gray-400">Spent</p>
+                        <p className="font-bold text-sm text-gray-900">{fmt(supplier.totalSpent)}</p>
+                      </div>
+                      {supplier.totalOwed > 0 && (
+                        <div>
+                          <p className="text-xs text-gray-400">Owed</p>
+                          <p className="font-bold text-sm text-red-600">{fmt(supplier.totalOwed)}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button size="sm" onClick={() => openStockIn(supplier)}
+                        className="h-8 bg-green-600 hover:bg-green-700 text-white gap-1 text-xs px-2">
+                        <Package className="w-3.5 h-3.5" />Stock In
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openEditSupplier(supplier)} className="h-8 w-8 p-0">
+                        <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteSupplier(supplier)}
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                      <button onClick={() => setExpanded(isExpanded ? null : supplier._id)}
+                        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded: delivery history */}
+                  {isExpanded && (
+                    <div className="mt-4 border-t border-gray-100 pt-4">
+                      <SupplierHistory supplierId={supplier._id} />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      {/* View Details Modal */}
-      {showDetailsModal && selectedSeller && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Vendor profile</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowDetailsModal(false);
-                    setSelectedSeller(null);
-                  }}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+      {/* ── Add/Edit Supplier Modal ── */}
+      {showSupplierModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="font-bold text-gray-900">{editingSupplier ? 'Edit Supplier' : 'Add Supplier'}</h3>
+              <button onClick={() => setShowSupplierModal(false)} className="p-1 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <Label>Supplier / Business Name *</Label>
+                <Input value={supplierForm.name} onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Kariakoo Wholesalers" className="mt-1" />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                  <Store className="w-8 h-8 text-white" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Contact Person</Label>
+                  <Input value={supplierForm.contactName} onChange={e => setSupplierForm(f => ({ ...f, contactName: e.target.value }))}
+                    placeholder="Name" className="mt-1" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">{selectedSeller.name}</h3>
-                  <p className="text-gray-600">{selectedSeller.email}</p>
-                  {selectedSeller.phone && <p className="text-gray-600">{selectedSeller.phone}</p>}
+                  <Label>Phone</Label>
+                  <Input value={supplierForm.phone} onChange={e => setSupplierForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="+255 7XX XXX XXX" className="mt-1" />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Status</p>
-                  <span className={`inline-block mt-1 px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(selectedSeller.status)}`}>
-                    {selectedSeller.status}
-                  </span>
-                </div>
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Sales</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-1">TZS {(selectedSeller.totalSales || 0).toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Products</p>
-                  <p className="text-2xl font-bold text-purple-600 mt-1">{selectedSeller.products || 0}</p>
-                </div>
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Growth Rate</p>
-                  <p className="text-2xl font-bold text-orange-600 mt-1">+15%</p>
-                </div>
+              <div>
+                <Label>Email</Label>
+                <Input type="email" value={supplierForm.email} onChange={e => setSupplierForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="supplier@example.com" className="mt-1" />
               </div>
-
-              {selectedSeller.createdAt && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Joined Date</p>
-                  <p className="text-lg font-semibold text-gray-900 mt-1">
-                    {new Date(selectedSeller.createdAt).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={() => {
-                    setShowDetailsModal(false);
-                    handleEditSeller(selectedSeller);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit profile
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowDetailsModal(false);
-                    setSelectedSeller(null);
-                  }}
-                >
-                  Close
+              <div>
+                <Label>Address</Label>
+                <Input value={supplierForm.address} onChange={e => setSupplierForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="Street, City" className="mt-1" />
+              </div>
+              <div>
+                <Label>Payment Terms</Label>
+                <Input value={supplierForm.paymentTerms} onChange={e => setSupplierForm(f => ({ ...f, paymentTerms: e.target.value }))}
+                  placeholder="e.g. Cash on delivery, 30 days credit" className="mt-1" />
+              </div>
+              <div>
+                <Label>Notes</Label>
+                <Input value={supplierForm.notes} onChange={e => setSupplierForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Any additional notes" className="mt-1" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowSupplierModal(false)}>Cancel</Button>
+                <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                  disabled={savingSupplier} onClick={saveSupplier}>
+                  {savingSupplier ? 'Saving…' : editingSupplier ? 'Save Changes' : 'Add Supplier'}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* ── Stock-In Modal ── */}
+      {showStockInModal && stockInSupplier && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-10">
+              <div>
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-green-600" />Record Stock Delivery
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Supplier: {stockInSupplier.name}</p>
+              </div>
+              <button onClick={() => setShowStockInModal(false)} className="p-1 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Delivery meta */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Delivery Date</Label>
+                  <Input type="date" value={stockInForm.date}
+                    onChange={e => setStockInForm(f => ({ ...f, date: e.target.value }))} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Reference / Invoice No.</Label>
+                  <Input value={stockInForm.referenceNo}
+                    onChange={e => setStockInForm(f => ({ ...f, referenceNo: e.target.value }))}
+                    placeholder="e.g. INV-2024-001" className="mt-1" />
+                </div>
+              </div>
+
+              {/* Items */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Products Received</Label>
+                  <Button size="sm" variant="outline" onClick={addStockInRow} className="h-7 gap-1 text-xs">
+                    <Plus className="w-3 h-3" />Add row
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {/* Header */}
+                  <div className="hidden sm:grid grid-cols-[1fr_80px_100px_32px] gap-2 text-xs text-gray-400 font-medium px-1">
+                    <span>Product</span><span>Qty</span><span>Unit Cost (TZS)</span><span />
+                  </div>
+
+                  {stockInItems.map((row, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_70px_90px_32px] gap-2 items-center">
+                      <select
+                        value={row.productId}
+                        onChange={e => updateStockInRow(idx, 'productId', e.target.value)}
+                        className="h-9 px-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
+                      >
+                        <option value="">Select product…</option>
+                        {products.map(p => (
+                          <option key={p._id} value={p._id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <Input type="number" min="1" placeholder="Qty"
+                        value={row.quantity} onChange={e => updateStockInRow(idx, 'quantity', e.target.value)}
+                        className="h-9 text-sm" />
+                      <Input type="number" min="0" placeholder="Cost"
+                        value={row.unitCost} onChange={e => updateStockInRow(idx, 'unitCost', e.target.value)}
+                        className="h-9 text-sm" />
+                      <button onClick={() => removeStockInRow(idx)} disabled={stockInItems.length === 1}
+                        className="h-9 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 disabled:opacity-30">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Running total */}
+                <div className="flex justify-end mt-3">
+                  <div className="bg-gray-50 rounded-xl px-4 py-2 text-sm">
+                    <span className="text-gray-500">Delivery total: </span>
+                    <span className="font-extrabold text-gray-900">{fmt(stockInTotal)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Payment Status</Label>
+                  <select value={stockInForm.paymentStatus}
+                    onChange={e => setStockInForm(f => ({ ...f, paymentStatus: e.target.value as any }))}
+                    className="mt-1 w-full h-9 px-3 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="unpaid">Unpaid</option>
+                    <option value="partial">Partial payment</option>
+                    <option value="paid">Fully paid</option>
+                  </select>
+                </div>
+                {stockInForm.paymentStatus !== 'unpaid' && (
+                  <div>
+                    <Label>Amount Paid (TZS)</Label>
+                    <Input type="number" min="0" value={stockInForm.amountPaid}
+                      onChange={e => setStockInForm(f => ({ ...f, amountPaid: e.target.value }))}
+                      placeholder="0" className="mt-1" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>Notes</Label>
+                <Input value={stockInForm.notes}
+                  onChange={e => setStockInForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Any notes about this delivery" className="mt-1" />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowStockInModal(false)}>Cancel</Button>
+                <Button className="flex-1 bg-green-600 hover:bg-green-700" disabled={savingStockIn} onClick={saveStockIn}>
+                  {savingStockIn ? 'Saving…' : 'Record Delivery'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ── SupplierHistory sub-component ─────────────────────────────────────────────
+// Loads full supplier data (with stockIns) on demand when expanded
+
+function SupplierHistory({ supplierId }: { supplierId: string }) {
+  const [data, setData] = useState<Supplier | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    suppliersApi.getSupplier(supplierId)
+      .then(res => setData(res.supplier))
+      .catch(err => toast({ title: 'Failed to load history', description: err.message, variant: 'destructive' }))
+      .finally(() => setLoading(false));
+  }, [supplierId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) return <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />;
+  if (!data?.stockIns?.length) return (
+    <div className="text-center py-6 text-gray-400 text-sm">
+      <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-30" />
+      No deliveries recorded yet
+    </div>
+  );
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+        Delivery History ({data.stockIns.length})
+      </p>
+      {[...data.stockIns].reverse().map(si => {
+        const cfg = PAYMENT_STATUS[si.paymentStatus] || PAYMENT_STATUS.unpaid;
+        const Icon = cfg.icon;
+        return (
+          <div key={si._id} className="bg-gray-50 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{fmtDate(si.date)}</p>
+                {si.referenceNo && <p className="text-xs text-gray-400 font-mono">{si.referenceNo}</p>}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${cfg.color}`}>
+                  <Icon className="w-3 h-3" />{cfg.label}
+                </span>
+                <p className="font-extrabold text-sm text-gray-900">{fmt(si.totalCost)}</p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {si.items.map((item, i) => (
+                <div key={i} className="flex justify-between text-xs text-gray-600">
+                  <span className="truncate max-w-[60%]">{item.productName}</span>
+                  <span>{item.quantity} × {fmt(item.unitCost)} = <strong>{fmt(item.totalCost)}</strong></span>
+                </div>
+              ))}
+            </div>
+            {si.notes && <p className="text-xs text-gray-400 italic">{si.notes}</p>}
+          </div>
+        );
+      })}
     </div>
   );
 }

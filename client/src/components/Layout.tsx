@@ -49,7 +49,7 @@ export default function Layout({ children }: LayoutProps) {
         { icon: FileText, label: 'Orders', path: '/orders' },
         { icon: DollarSign, label: 'Expenses', path: '/expenses' },
         { icon: BarChart3, label: 'Reports', path: '/reports' },
-        { icon: Store, label: 'Sellers', path: '/sellers' },
+        { icon: Store, label: 'Suppliers', path: '/sellers' },
         { icon: Settings, label: 'Settings', path: '/settings' },
       ];
 
