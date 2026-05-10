@@ -5,8 +5,9 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
-import { Store, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -46,11 +47,7 @@ export default function Login() {
       <Card className="relative w-full max-w-md shadow-2xl border-0">
         <CardHeader className="space-y-3 text-center pb-6">
           <div className="flex justify-center">
-            <img
-              src="/eshoplogo.jpeg"
-              alt="E-Shop Bhaby Group"
-              className="h-16 w-auto object-contain"
-            />
+            <Logo className="h-14" />
           </div>
           <CardDescription className="text-base">
             Sign in to your multi-vendor account

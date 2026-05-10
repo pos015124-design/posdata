@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Store, Search, ExternalLink, ShoppingBag, MapPin, Package, ArrowRight, Sparkles } from 'lucide-react';
 import { Input } from '../components/ui/input';
+import Logo from '../components/Logo';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -113,6 +114,9 @@ export default function StoreDirectory() {
       <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white">
         <div className="max-w-7xl mx-auto px-4 py-14 md:py-20">
           <div className="text-center max-w-2xl mx-auto">
+            <div className="flex justify-center mb-5">
+              <Logo variant="white" className="h-12" />
+            </div>
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-5">
               <Sparkles className="w-4 h-4" />
               {stores.length > 0

@@ -7,6 +7,7 @@ import { Label } from '../components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import Logo from '../components/Logo';
 
 function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () => void }) {
   return (
@@ -134,11 +135,7 @@ export default function Register() {
         <Card className="relative w-full max-w-lg shadow-2xl border-0">
           <CardHeader className="space-y-3 text-center pb-4">
             <div className="flex justify-center">
-              <img
-                src="/eshoplogo.jpeg"
-                alt="E-Shop Bhaby Group"
-                className="h-14 w-auto object-contain"
-              />
+              <Logo className="h-12" />
             </div>
             <div>
               <CardDescription>Create your seller account and start selling today</CardDescription>

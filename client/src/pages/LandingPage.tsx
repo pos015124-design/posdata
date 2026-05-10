@@ -14,6 +14,7 @@ import {
   Smartphone,
   BarChart3
 } from 'lucide-react';
+import Logo from '../components/Logo';
 
 interface Feature {
   icon: React.ReactNode;
@@ -119,13 +120,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow">
-                <ShoppingBag className="w-5 h-5 text-white" />
-              </div>
-              <div className="ml-2">
-                <span className="text-lg font-extrabold text-gray-900">E-Shop</span>
-                <p className="text-xs text-gray-400 leading-none">by BHABY GROUP LTD</p>
-              </div>
+              <Logo className="h-10" />
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
@@ -325,13 +320,7 @@ const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
             <div className="flex items-center mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5 text-white" />
-              </div>
-              <div className="ml-2">
-                <span className="text-lg font-bold text-white">E-Shop</span>
-                <p className="text-xs text-gray-400 leading-none">by BHABY GROUP LTD</p>
-              </div>
+              <Logo variant="white" className="h-10" />
             </div>
             <p className="text-gray-400">
               The complete e-commerce platform for modern businesses.

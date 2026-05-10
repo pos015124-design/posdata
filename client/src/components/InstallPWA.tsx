@@ -17,6 +17,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Download, X, Share, Plus, Smartphone, ArrowDown } from 'lucide-react';
+import Logo from './Logo';
 
 // ── shared state so sidebar can read the prompt ──────────────────────────────
 let _deferredPrompt: any = null;
@@ -140,9 +141,7 @@ export default function InstallPWA() {
           <div className="px-6 pt-4 pb-6">
             {/* App identity */}
             <div className="flex items-center gap-4 mb-5">
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-gray-100 p-1">
-                <img src="/eshoplogo.jpeg" alt="E-Shop" className="w-full h-full object-contain rounded-xl" />
-              </div>
+              <Logo variant="icon" className="shrink-0" />
               <div>
                 <h2 className="text-lg font-extrabold text-gray-900">Install E-Shop</h2>
                 <p className="text-sm text-gray-500">BHABY GROUP LTD</p>
@@ -222,9 +221,7 @@ export default function InstallPWA() {
 
           <div className="px-6 pt-4 pb-8">
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-gray-100 p-1">
-                <img src="/eshoplogo.jpeg" alt="E-Shop" className="w-full h-full object-contain rounded-xl" />
-              </div>
+              <Logo variant="icon" className="shrink-0" />
               <div>
                 <h2 className="text-base font-extrabold text-gray-900">Add E-Shop to Home Screen</h2>
                 <p className="text-xs text-gray-500">Get the full app experience on iOS</p>

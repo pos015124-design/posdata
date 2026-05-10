@@ -6,6 +6,7 @@ import {
   SlidersHorizontal, Sparkles, Store as StoreIcon, Tag
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import Logo from '../components/Logo';
 import { Input } from '../components/ui/input';
 import { useToast } from '../hooks/useToast';
 
@@ -299,14 +300,8 @@ export default function Store() {
       {/* ── Navbar ── */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-base font-bold text-gray-900 leading-none">E-Shop</p>
-              <p className="text-xs text-gray-400 leading-none">Marketplace</p>
-            </div>
+          <Link to="/" className="flex items-center shrink-0">
+            <Logo className="h-10" />
           </Link>
 
           {/* Search bar */}

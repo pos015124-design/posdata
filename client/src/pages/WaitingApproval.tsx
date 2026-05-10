@@ -9,6 +9,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { CheckCircle, Clock, Circle, Mail, Phone, RefreshCw, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import Logo from '@/components/Logo';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -96,11 +97,7 @@ const WaitingApproval: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-5">
-            <img
-              src="/eshoplogo.jpeg"
-              alt="E-Shop Bhaby Group"
-              className="h-16 w-auto object-contain"
-            />
+            <Logo className="h-14" />
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900">Application Under Review</h1>
           <p className="text-gray-500 mt-2 text-sm">

@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { useToast } from '../hooks/useToast';
 import type { MarketplaceCartLine } from './Store';
+import Logo from '../components/Logo';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -442,7 +443,7 @@ export default function IndividualStore() {
                 />
               ) : (
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">E-Shop</span>
+                  <Logo variant="icon" />
                 </div>
               )}
               <div>
@@ -633,9 +634,9 @@ export default function IndividualStore() {
       {/* Footer */}
       <footer className="bg-white border-t mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
-          <p className="mb-2">
-            <strong>{business.name}</strong> - Powered by E-Shop
-          </p>
+          <div className="flex justify-center mb-3">
+            <Logo className="h-8" />
+          </div>
           <p className="text-sm">
             Share this store: <button onClick={shareStore} className="text-blue-600 hover:underline inline-flex items-center gap-1">
               {window.location.href} <ExternalLink className="w-3 h-3" />

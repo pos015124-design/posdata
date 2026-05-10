@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useInstallPrompt } from './InstallPWA';
+import Logo from './Logo';
 
 interface LayoutProps {
   children: ReactNode;
@@ -88,13 +89,8 @@ export default function Layout({ children }: LayoutProps) {
       }`}>
         {/* Header — padded top on mobile so X button doesn't overlap logo */}
         <div className="pt-14 lg:pt-0 px-4 pb-2 md:p-6">
-          <img
-            src="/eshoplogo.jpeg"
-            alt="E-Shop Bhaby Group"
-            className="h-10 w-auto object-contain"
-            style={{ filter: 'brightness(0) invert(1)' }}
-          />
-          <p className="text-xs md:text-sm text-gray-300 mt-1 truncate">{user?.email}</p>
+          <Logo variant="white" className="h-10" />
+          <p className="text-xs md:text-sm text-gray-300 mt-2 truncate">{user?.email}</p>
         </div>
 
         <nav className="mt-4 md:mt-6 px-2 md:px-3 space-y-1 md:space-y-2">
