@@ -219,14 +219,16 @@ const SuperAdminDashboard: React.FC = () => {
 
       {/* ── Tabs ── */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="businesses">Businesses</TabsTrigger>
-          <TabsTrigger value="pending-users">Users</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="flex-wrap h-auto gap-1 w-full sm:w-fit">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+            <TabsTrigger value="businesses" className="text-xs sm:text-sm">Businesses</TabsTrigger>
+            <TabsTrigger value="pending-users" className="text-xs sm:text-sm">Users</TabsTrigger>
+            <TabsTrigger value="billing" className="text-xs sm:text-sm">Billing</TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs sm:text-sm">Settings</TabsTrigger>
+            <TabsTrigger value="system" className="text-xs sm:text-sm">System</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ── Overview tab ── */}
         <TabsContent value="overview" className="space-y-4">

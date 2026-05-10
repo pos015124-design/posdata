@@ -95,14 +95,14 @@ export default function SellerBilling() {
         <Card className="border-0 shadow-sm bg-gradient-to-br from-red-50 to-orange-50 border-red-200">
           <CardContent className="p-5">
             <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Outstanding Balance</p>
-            <p className="text-3xl font-extrabold text-red-700">TZS {(data?.summary?.totalOwed || 0).toLocaleString()}</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-red-700 truncate">TZS {(data?.summary?.totalOwed || 0).toLocaleString()}</p>
             <p className="text-xs text-red-500 mt-1">{unpaid.length} unpaid item{unpaid.length !== 1 ? 's' : ''}</p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-emerald-50">
           <CardContent className="p-5">
             <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">Total Paid</p>
-            <p className="text-3xl font-extrabold text-green-700">TZS {(data?.summary?.totalPaid || 0).toLocaleString()}</p>
+            <p className="text-2xl sm:text-3xl font-extrabold text-green-700 truncate">TZS {(data?.summary?.totalPaid || 0).toLocaleString()}</p>
             <p className="text-xs text-green-500 mt-1">{paid.length} payment{paid.length !== 1 ? 's' : ''} confirmed</p>
           </CardContent>
         </Card>
@@ -168,7 +168,7 @@ export default function SellerBilling() {
                 const cfg = statusConfig[r.status] || statusConfig.unpaid;
                 const Icon = cfg.icon;
                 return (
-                  <div key={r._id} className={`flex flex-wrap items-center gap-3 p-4 rounded-xl border ${r.status === 'unpaid' ? 'border-red-200 bg-red-50/30' : 'border-gray-100 bg-white'}`}>
+                  <div key={r._id} className={`flex flex-wrap items-start gap-3 p-4 rounded-xl border ${r.status === 'unpaid' ? 'border-red-200 bg-red-50/30' : 'border-gray-100 bg-white'}`}>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-gray-900">{typeLabel[r.type] || r.type}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{r.description}</p>
@@ -181,18 +181,18 @@ export default function SellerBilling() {
                         <p className="text-xs text-green-600 mt-0.5">Confirmed: {new Date(r.paidAt).toLocaleDateString('en-GB')}</p>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-extrabold text-gray-900">TZS {r.amount.toLocaleString()}</p>
+                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                      <p className="font-extrabold text-gray-900 text-sm">TZS {r.amount.toLocaleString()}</p>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.color}`}>
+                        <Icon className="w-3 h-3" />{cfg.label}
+                      </span>
+                      {r.status === 'unpaid' && (
+                        <Button size="sm" onClick={() => setShowPayModal(r)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1">
+                          <CreditCard className="w-3.5 h-3.5" />I've Paid
+                        </Button>
+                      )}
                     </div>
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.color}`}>
-                      <Icon className="w-3 h-3" />{cfg.label}
-                    </span>
-                    {r.status === 'unpaid' && (
-                      <Button size="sm" onClick={() => setShowPayModal(r)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1">
-                        <CreditCard className="w-3.5 h-3.5" />I've Paid
-                      </Button>
-                    )}
                   </div>
                 );
               })}

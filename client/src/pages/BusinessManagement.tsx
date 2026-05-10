@@ -421,7 +421,7 @@ const BusinessManagement: React.FC = () => {
 
       {/* Business Details Dialog */}
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Business Details</DialogTitle>
             <DialogDescription>
@@ -513,7 +513,7 @@ const BusinessManagement: React.FC = () => {
 
       {/* Reject Business Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
           <DialogHeader>
             <DialogTitle>Reject Business</DialogTitle>
             <DialogDescription>
