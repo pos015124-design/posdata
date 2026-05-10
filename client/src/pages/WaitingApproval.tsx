@@ -6,7 +6,7 @@
  * the admin approves the account.
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { CheckCircle, Clock, Circle, ShoppingBag, Mail, Phone, RefreshCw, LogOut } from 'lucide-react';
+import { CheckCircle, Clock, Circle, Mail, Phone, RefreshCw, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -95,10 +95,13 @@ const WaitingApproval: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg">
-            <ShoppingBag className="w-10 h-10 text-white" />
+          <div className="flex justify-center mb-5">
+            <img
+              src="/eshoplogo.jpeg"
+              alt="E-Shop Bhaby Group"
+              className="h-16 w-auto object-contain"
+            />
           </div>
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">BHABY GROUP LTD</p>
           <h1 className="text-2xl font-extrabold text-gray-900">Application Under Review</h1>
           <p className="text-gray-500 mt-2 text-sm">
             Your seller account is being reviewed. We'll notify you by email once it's approved.

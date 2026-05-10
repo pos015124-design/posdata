@@ -86,11 +86,14 @@ export default function Layout({ children }: LayoutProps) {
       <aside className={`w-64 md:w-72 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed h-full shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        {/* Header — padded top on mobile so X button doesn't overlap E-Shop */}
+        {/* Header — padded top on mobile so X button doesn't overlap logo */}
         <div className="pt-14 lg:pt-0 px-4 pb-2 md:p-6">
-          <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            E-Shop
-          </h1>
+          <img
+            src="/eshoplogo.jpeg"
+            alt="E-Shop Bhaby Group"
+            className="h-10 w-auto object-contain"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
           <p className="text-xs md:text-sm text-gray-300 mt-1 truncate">{user?.email}</p>
         </div>
 

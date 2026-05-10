@@ -140,8 +140,8 @@ export default function InstallPWA() {
           <div className="px-6 pt-4 pb-6">
             {/* App identity */}
             <div className="flex items-center gap-4 mb-5">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-                <span className="text-white font-black text-2xl">E</span>
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-gray-100 p-1">
+                <img src="/eshoplogo.jpeg" alt="E-Shop" className="w-full h-full object-contain rounded-xl" />
               </div>
               <div>
                 <h2 className="text-lg font-extrabold text-gray-900">Install E-Shop</h2>
@@ -222,8 +222,8 @@ export default function InstallPWA() {
 
           <div className="px-6 pt-4 pb-8">
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-                <span className="text-white font-black text-xl">E</span>
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg shrink-0 border border-gray-100 p-1">
+                <img src="/eshoplogo.jpeg" alt="E-Shop" className="w-full h-full object-contain rounded-xl" />
               </div>
               <div>
                 <h2 className="text-base font-extrabold text-gray-900">Add E-Shop to Home Screen</h2>

@@ -5,7 +5,7 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
-import { Store, Loader2, Eye, EyeOff, CheckCircle, X, ShoppingBag } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 
 function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () => void }) {
@@ -133,12 +133,14 @@ export default function Register() {
 
         <Card className="relative w-full max-w-lg shadow-2xl border-0">
           <CardHeader className="space-y-3 text-center pb-4">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <ShoppingBag className="w-8 h-8 text-white" />
+            <div className="flex justify-center">
+              <img
+                src="/eshoplogo.jpeg"
+                alt="E-Shop Bhaby Group"
+                className="h-14 w-auto object-contain"
+              />
             </div>
             <div>
-              <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">BHABY GROUP LTD</p>
-              <CardTitle className="text-2xl font-extrabold text-gray-900 mt-1">Join E-Shop</CardTitle>
               <CardDescription>Create your seller account and start selling today</CardDescription>
             </div>
           </CardHeader>

@@ -45,12 +45,13 @@ export default function Login() {
       
       <Card className="relative w-full max-w-md shadow-2xl border-0">
         <CardHeader className="space-y-3 text-center pb-6">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <Store className="w-8 h-8 text-white" />
+          <div className="flex justify-center">
+            <img
+              src="/eshoplogo.jpeg"
+              alt="E-Shop Bhaby Group"
+              className="h-16 w-auto object-contain"
+            />
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            E-Shop
-          </CardTitle>
           <CardDescription className="text-base">
             Sign in to your multi-vendor account
           </CardDescription>
