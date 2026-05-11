@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import Logo from '../components/Logo';
@@ -15,7 +15,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,15 +23,19 @@ export default function Login() {
 
     try {
       await login(email, password);
+      // Don't navigate manually — PublicRoute detects the user is now set
+      // and redirects to /dashboard automatically. Manual navigate() here
+      // causes a race with the AuthContext mount effect and produces a blank page
+      // for unapproved users (PrivateRoute shows WaitingApproval, but the
+      // explicit navigate fires first and creates a redirect loop).
       toast({
-        title: 'Success',
-        description: 'Logged in successfully!',
+        title: 'Welcome back!',
+        description: 'Logged in successfully.',
       });
-      navigate('/dashboard');
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Invalid credentials',
+        description: error.response?.data?.message || error.message || 'Invalid credentials',
         variant: 'destructive',
       });
     } finally {

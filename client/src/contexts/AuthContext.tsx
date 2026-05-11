@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // On mount: if a token exists, fetch fresh user data from the server so we
   // never start with a stale isApproved/isSuspended value from localStorage.
+  // Only clears the session on a definitive auth failure (401/403), not on
+  // network errors — avoids wiping a valid session due to a slow connection.
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -55,13 +57,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(true);
         }
       })
-      .catch(() => {
-        // Token expired or invalid — clear session
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
-        setIsAuthenticated(false);
-        setUser(null);
+      .catch((error: any) => {
+        // Only clear session on explicit auth errors, not network timeouts
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("user");
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+        // Otherwise keep the existing localStorage user — stale data is better
+        // than a blank screen on a slow connection
       });
   }, []); // runs once on mount
 
