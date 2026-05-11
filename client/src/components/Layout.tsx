@@ -84,16 +84,17 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`w-64 md:w-72 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed h-full shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 ${
+      <aside className={`w-64 md:w-72 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed h-screen shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Header — padded top on mobile so X button doesn't overlap logo */}
-        <div className="pt-14 lg:pt-0 px-4 pb-2 md:p-6">
+        <div className="pt-14 lg:pt-0 px-4 pb-2 md:p-6 shrink-0">
           <Logo variant="white" className="h-10" />
           <p className="text-xs md:text-sm text-gray-300 mt-2 truncate">{user?.email}</p>
         </div>
 
-        <nav className="mt-4 md:mt-6 px-2 md:px-3 space-y-1 md:space-y-2">
+        {/* Nav — scrolls internally if items overflow, never expands sidebar */}
+        <nav className="flex-1 overflow-y-auto mt-2 px-2 md:px-3 space-y-1 md:space-y-2 pb-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -113,7 +114,8 @@ export default function Layout({ children }: LayoutProps) {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 space-y-2">
+        {/* Footer — always pinned to bottom */}
+        <div className="shrink-0 p-3 md:p-4 space-y-2 border-t border-white/10">
           {/* Install app button — only shown when browser install prompt is available */}
           {canInstall && (
             <button

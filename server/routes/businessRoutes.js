@@ -158,6 +158,9 @@ router.post('/link-my-business', requireUser, async (req, res) => {
 
     // Link it
     business.userId = user._id;
+    if (!business.tenantId || business.tenantId === '') {
+      business.tenantId = 'default';
+    }
     if (user.isApproved && business.status === 'pending') {
       business.status = 'active';
       business.isPublic = true;
@@ -247,6 +250,7 @@ router.post('/my-business', requireUser, async (req, res) => {
 
     // Create business — no TenantService needed for simple seller accounts
     const business = new Business({
+      tenantId: 'default',   // backfill — avoids required validation error
       name: name || `${req.user.email}'s Store`,
       slug: businessSlug,
       email: userEmail,
@@ -586,29 +590,60 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', requireUser, async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
-    
-    // Remove sensitive fields that shouldn't be updated via this endpoint
+    const Business = require('../models/Business');
+    const User = require('../models/User');
+    const updateData = { ...req.body };
+
+    // Remove fields that must not be changed via this endpoint
     delete updateData.tenantId;
     delete updateData.status;
     delete updateData.verified;
     delete updateData.analytics;
-    
-    const business = await BusinessService.updateBusinessProfile(id, updateData, req.user.userId);
-    
+    delete updateData.userId;
+
+    // Find the business
+    const business = await Business.findById(id);
+    if (!business) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+
+    // Permission check: owner or super_admin
+    const user = await User.findById(req.user.userId);
+    const isOwner = business.userId && business.userId.toString() === req.user.userId;
+    const isAdmin = user?.role === 'super_admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Insufficient permissions to update this business' });
+    }
+
+    // Ensure tenantId is set (backfill for old records)
+    if (!business.tenantId || business.tenantId === '') {
+      business.tenantId = 'default';
+    }
+
+    // Apply updates
+    Object.assign(business, updateData);
+    await business.save();
+
+    logger.info('Business profile updated', {
+      businessId: id,
+      userId: req.user.userId,
+      updatedFields: Object.keys(updateData)
+    });
+
     res.json({
       success: true,
       message: 'Business profile updated successfully',
       data: business
     });
-    
+
   } catch (error) {
     logger.error('Business profile update failed', {
       error: error.message,
       businessId: req.params.id,
       userId: req.user.userId
     });
-    
+
     res.status(400).json({
       error: 'Update failed',
       message: error.message

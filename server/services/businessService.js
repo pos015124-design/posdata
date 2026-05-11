@@ -147,6 +147,9 @@ class BusinessService {
       // Update business status
       business.status = 'active';
       business.isPublic = true;
+      if (!business.tenantId || business.tenantId === '') {
+        business.tenantId = 'default';
+      }
       await business.save();
       
       // Approve business owner

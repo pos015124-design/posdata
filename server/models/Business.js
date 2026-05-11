@@ -39,10 +39,12 @@ const socialMediaSchema = new mongoose.Schema({
 }, { _id: false });
 
 const businessSchema = new mongoose.Schema({
-  // Link to tenant
+  // Link to tenant — optional for sellers who registered via the simple flow
+  // (not the full BusinessService.registerBusiness path). Defaults to a
+  // placeholder so Mongoose validation never blocks saves.
   tenantId: {
     type: String,
-    required: true,
+    default: 'default',
     index: true
   },
 
