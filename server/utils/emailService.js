@@ -208,6 +208,83 @@ const sendOrderConfirmationToBuyer = async ({ buyerEmail, buyerName, invoices, i
   });
 };
 
+/* ══════════════════════════════════════════════════════════════════
+   DELIVERY EMAILS (Middleman model)
+══════════════════════════════════════════════════════════════════ */
+
+/**
+ * 5. Order confirmed — notify buyer that BHABY GROUP LTD received their order
+ */
+const sendOrderConfirmedToBuyer = async ({ buyerEmail, buyerName, invoiceNumber, items, total }) => {
+  if (!buyerEmail) return;
+  const itemRows = (items || []).map(i =>
+    row(i.productName || i.name, `${i.quantity} × TZS ${(i.price || 0).toLocaleString()}`)
+  ).join('');
+  return sendEmail({
+    to: buyerEmail,
+    subject: `Order confirmed — ${invoiceNumber} 🎉`,
+    html: wrap('Order Confirmed', `
+      ${h2(`Thank you, ${buyerName || 'Customer'}!`)}
+      ${p(`Your order <strong>${invoiceNumber}</strong> has been received and is being processed by BHABY GROUP LTD.`)}
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:16px 0;">
+        ${itemRows}
+        ${row('Total', `<strong style="color:#2563eb;">TZS ${(total || 0).toLocaleString()}</strong>`)}
+      </table>
+      ${p('We will notify you when a rider is assigned and your order is on its way.')}
+      ${btn('Track your order', `${FRONTEND}/store`)}
+    `),
+    text: `Order ${invoiceNumber} confirmed. Total: TZS ${(total || 0).toLocaleString()}. We will notify you when a rider is assigned.`
+  });
+};
+
+/**
+ * 6. Rider assigned — notify buyer that a rider is coming
+ */
+const sendRiderAssignedToBuyer = async ({ buyerEmail, buyerName, invoiceNumber, riderName, riderPhone, total }) => {
+  if (!buyerEmail) return;
+  return sendEmail({
+    to: buyerEmail,
+    subject: `Your order is on its way — ${invoiceNumber} 🚴`,
+    html: wrap('Rider Assigned', `
+      ${h2(`Great news, ${buyerName || 'Customer'}!`)}
+      ${p(`A rider has been assigned to deliver your order <strong>${invoiceNumber}</strong>.`)}
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:16px 0;">
+        ${row('Rider', `<strong>${riderName}</strong>`)}
+        ${row('Rider Phone', `<a href="tel:${riderPhone}" style="color:#2563eb;">${riderPhone}</a>`)}
+        ${row('Order Total', `TZS ${(total || 0).toLocaleString()}`)}
+      </table>
+      ${p('The rider will contact you before delivery. Please ensure someone is available to receive the order.')}
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin:16px 0;">
+        <p style="margin:0;color:#92400e;font-size:13px;"><strong>⚠ Note:</strong> Only accept delivery from BHABY GROUP LTD riders. Do not pay anyone who is not our official rider.</p>
+      </div>
+    `),
+    text: `Rider ${riderName} (${riderPhone}) has been assigned to deliver your order ${invoiceNumber}.`
+  });
+};
+
+/**
+ * 7. Order delivered — notify buyer that delivery is complete
+ */
+const sendOrderDeliveredToBuyer = async ({ buyerEmail, buyerName, invoiceNumber, total }) => {
+  if (!buyerEmail) return;
+  return sendEmail({
+    to: buyerEmail,
+    subject: `Order delivered — ${invoiceNumber} ✅`,
+    html: wrap('Order Delivered', `
+      ${h2(`Your order has been delivered!`)}
+      ${p(`Hi ${buyerName || 'Customer'}, your order <strong>${invoiceNumber}</strong> has been successfully delivered.`)}
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:16px 0;">
+        ${row('Invoice', `<strong>${invoiceNumber}</strong>`)}
+        ${row('Total Paid', `TZS ${(total || 0).toLocaleString()}`)}
+        ${row('Status', '<span style="color:#16a34a;font-weight:700;">✅ Delivered</span>')}
+      </table>
+      ${p('Thank you for shopping with E-Shop by BHABY GROUP LTD. We hope you enjoy your purchase!')}
+      ${btn('Shop again', `${FRONTEND}/store`)}
+    `),
+    text: `Your order ${invoiceNumber} has been delivered. Thank you for shopping with E-Shop by BHABY GROUP LTD.`
+  });
+};
+
 /* ── legacy exports kept for backward compat ─────────────────────── */
 const sendVerificationEmail  = async (email, token) => sendEmail({ to: email, subject: 'Verify your email', html: wrap('Verify Email', `${p('Click below to verify your email.')}${btn('Verify Email', `${FRONTEND}/verify?token=${token}`)}`), text: `Verify: ${FRONTEND}/verify?token=${token}` });
 const sendPasswordResetEmail = async (email, token) => sendEmail({ to: email, subject: 'Reset your password', html: wrap('Password Reset', `${p('Click below to reset your password. Link expires in 1 hour.')}${btn('Reset Password', `${FRONTEND}/reset-password?token=${token}`)}`), text: `Reset: ${FRONTEND}/reset-password?token=${token}` });
@@ -222,5 +299,9 @@ module.exports = {
   sendNewSellerRegistrationToAdmin,
   sendSellerApprovalEmail,
   sendNewOrderToSeller,
-  sendOrderConfirmationToBuyer
+  sendOrderConfirmationToBuyer,
+  // Delivery / middleman model
+  sendOrderConfirmedToBuyer,
+  sendRiderAssignedToBuyer,
+  sendOrderDeliveredToBuyer,
 };

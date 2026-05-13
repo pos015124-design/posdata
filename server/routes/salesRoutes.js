@@ -13,36 +13,49 @@ router.get('/', requireUser, async (req, res) => {
   try {
     const result = await SaleService.getAllSales({}, {}, req.user.userId);
     
-    // Format sales for frontend — include all fields the Orders page needs
-    const sales = result.data.map(sale => ({
-      _id: sale._id,
-      invoiceNumber: sale.invoiceNumber,
-      items: sale.items.map(item => ({
-        productId: item.productId,
-        name: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        total: item.total
-      })),
-      subtotal: sale.subtotal,
-      tax: sale.tax,
-      discount: sale.discount,
-      total: sale.total,
-      paymentMethod: sale.paymentMethod,
-      amountPaid: sale.amountPaid,
-      change: sale.change,
-      status: sale.status || 'completed',
-      source: sale.source || 'pos',
-      // Customer info from storefront orders
-      customerName: sale.customerName || '',
-      customerEmail: sale.customerEmail || '',
-      customerPhone: sale.customerPhone || '',
-      customerAddress: sale.customerAddress || '',
-      customerCity: sale.customerCity || '',
-      notes: sale.notes || '',
-      createdAt: sale.createdAt,
-      updatedAt: sale.updatedAt
-    }));
+    // Format sales for frontend.
+    // MIDDLEMAN MODEL: For storefront orders, customer contact details are
+    // NEVER sent to the seller. Only BHABY GROUP LTD (super_admin) can see
+    // buyer information. Sellers only see what to prepare and the order total.
+    const isSuperAdmin = req.user.role === 'super_admin';
+
+    const sales = result.data.map(sale => {
+      const isStorefront = (sale.source || 'pos') === 'storefront';
+
+      return {
+        _id: sale._id,
+        invoiceNumber: sale.invoiceNumber,
+        items: sale.items.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          name: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total
+        })),
+        subtotal: sale.subtotal,
+        tax: sale.tax,
+        discount: sale.discount,
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        amountPaid: sale.amountPaid,
+        change: sale.change,
+        status: sale.status || 'completed',
+        source: sale.source || 'pos',
+        notes: sale.notes || '',
+        createdAt: sale.createdAt,
+        updatedAt: sale.updatedAt,
+        // Customer info: only visible to super_admin.
+        // Sellers see nothing for storefront orders — BHABY GROUP LTD is the middleman.
+        customerName:    (isSuperAdmin || !isStorefront) ? (sale.customerName    || '') : '',
+        customerEmail:   (isSuperAdmin || !isStorefront) ? (sale.customerEmail   || '') : '',
+        customerPhone:   (isSuperAdmin || !isStorefront) ? (sale.customerPhone   || '') : '',
+        customerAddress: (isSuperAdmin || !isStorefront) ? (sale.customerAddress || '') : '',
+        customerCity:    (isSuperAdmin || !isStorefront) ? (sale.customerCity    || '') : '',
+        // Flag so the frontend knows this is a managed order
+        isManagedOrder: isStorefront && !isSuperAdmin,
+      };
+    });
     
     console.log(`[Sales API] Returning ${sales.length} sales for user ${req.user.userId}`);
     

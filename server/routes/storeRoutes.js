@@ -9,6 +9,10 @@ const StoreService = require('../services/storeService');
 const SaleService = require('../services/saleService');
 const { logger } = require('../config/logger');
 const rateLimit = require('express-rate-limit');
+const {
+  sendOrderConfirmedToBuyer,
+  sendNewOrderToSeller,
+} = require('../utils/emailService');
 
 // Stricter rate limit for checkout — prevents order spam / inventory abuse
 const checkoutLimiter = rateLimit({
@@ -45,6 +49,36 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
       })),
       invoiceNumbers: result.sales.map(s => s.invoiceNumber)
     });
+
+    // ── Post-response: fire emails without blocking the buyer ────────────────
+    // 1. Confirm order to buyer (if email provided)
+    if (customer?.email) {
+      const allItems = result.sales.flatMap(s => s.items || []);
+      const grandTotal = result.sales.reduce((sum, s) => sum + (s.total || 0), 0);
+      const invoiceNumbers = result.sales.map(s => s.invoiceNumber).filter(Boolean);
+      sendOrderConfirmedToBuyer({
+        buyerEmail:    customer.email,
+        buyerName:     customer.name,
+        invoiceNumber: invoiceNumbers.join(', '),
+        items:         allItems,
+        total:         grandTotal
+      }).catch(e => logger.error('Failed to send order confirmation to buyer', { error: e.message }));
+    }
+
+    // 2. Notify each seller of their new order (customer details included for seller)
+    for (const sale of result.sales) {
+      if (sale.sellerEmail) {
+        sendNewOrderToSeller({
+          sellerEmail:   sale.sellerEmail,
+          sellerName:    sale.sellerName,
+          invoiceNumber: sale.invoiceNumber,
+          items:         sale.items || [],
+          total:         sale.total,
+          customer:      { name: customer?.name, phone: customer?.phone, city: customer?.city }
+        }).catch(e => logger.error('Failed to send new order email to seller', { error: e.message, invoice: sale.invoiceNumber }));
+      }
+    }
+
   } catch (error) {
     logger.error('Public checkout failed', { error: error.message });
     res.status(400).json({

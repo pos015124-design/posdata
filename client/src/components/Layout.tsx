@@ -16,7 +16,8 @@ import {
   BarChart3,
   ShoppingBag,
   Building2,
-  Download
+  Download,
+  Truck
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useInstallPrompt } from './InstallPWA';
@@ -40,6 +41,7 @@ export default function Layout({ children }: LayoutProps) {
         { icon: Store, label: 'Businesses', path: '/business-management' },
         { icon: ShoppingBag, label: 'Marketplace', path: '/store' },
         { icon: Building2, label: 'All stores', path: '/stores' },
+        { icon: Truck, label: 'Delivery', path: '/delivery' },
         { icon: Settings, label: 'Settings', path: '/settings' },
       ]
     : [
@@ -47,7 +49,7 @@ export default function Layout({ children }: LayoutProps) {
         { icon: ShoppingCart, label: 'POS', path: '/pos' },
         { icon: Package, label: 'Inventory', path: '/inventory' },
         { icon: Users, label: 'Customers', path: '/customers' },
-        { icon: FileText, label: 'Orders', path: '/orders' },
+        { icon: FileText, label: 'Fulfillment', path: '/orders' },
         { icon: DollarSign, label: 'Expenses', path: '/expenses' },
         { icon: BarChart3, label: 'Reports', path: '/reports' },
         { icon: Store, label: 'Suppliers', path: '/sellers' },

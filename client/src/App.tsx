@@ -23,6 +23,7 @@ import Checkout from './pages/Checkout';
 import LandingPage from './pages/LandingPage';
 import WaitingApproval from './pages/WaitingApproval';
 import SellerBilling from './pages/SellerBilling';
+import DeliveryManagement from './pages/DeliveryManagement';
 import InstallPWA from './components/InstallPWA';
 import { Toaster } from './components/ui/toaster';
 
@@ -82,6 +83,7 @@ function App() {
             <Route path="/business-management" element={<PrivateRoute><BusinessManagement /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
             <Route path="/billing" element={<PrivateRoute><SellerBilling /></PrivateRoute>} />
+            <Route path="/delivery" element={<PrivateRoute><DeliveryManagement /></PrivateRoute>} />
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" />} />
