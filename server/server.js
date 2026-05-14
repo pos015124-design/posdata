@@ -245,6 +245,28 @@ app.use('/uploads', (req, res, next) => {
 // API Routes
 app.use(basicRoutes);
 app.use('/api/auth', authRoutes);
+
+// ── TWA / Digital Asset Links ─────────────────────────────────────────────────
+// Required for Trusted Web Activity (Play Store) domain verification.
+// Android verifies this file on every TWA launch to confirm the app owns the domain.
+// The SHA-256 fingerprint below must match your release keystore.
+// Replace YOUR_SHA256_FINGERPRINT_HERE after running:
+//   keytool -list -v -keystore eshop-release.keystore -alias eshop
+// See PLAYSTORE_CHECKLIST.md for full instructions.
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.json([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: {
+      namespace: 'android_app',
+      package_name: 'co.tz.bhabygroup.eshop',
+      sha256_cert_fingerprints: [
+        process.env.TWA_SHA256_FINGERPRINT || 'YOUR_SHA256_FINGERPRINT_HERE'
+      ]
+    }
+  }]);
+});
 app.use('/api/products', productRoutes);
 app.use('/api/customers', customerRoutes);
 // app.use('/api/customer-payments', customerPaymentRoutes);
