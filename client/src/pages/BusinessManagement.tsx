@@ -1,28 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { 
-  Search, 
-  Filter, 
-  CheckCircle, 
-  XCircle, 
-  Eye,
-  MoreHorizontal,
-  Calendar,
-  Store,
-  Mail,
-  Phone,
-  MapPin
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Search, CheckCircle, XCircle, Eye, RefreshCw,
+  Store, Mail, Phone, MapPin, BarChart3, Calendar,
+  Shield, AlertCircle, Clock, X, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Business {
   _id: string;
@@ -40,510 +30,519 @@ interface Business {
     zipCode?: string;
     country?: string;
   };
-  /** analytics may be absent on older records created before the field was added */
-  analytics?: {
-    views: number;
-    orders: number;
-    revenue: number;
-  };
+  analytics?: { views: number; orders: number; revenue: number };
   createdAt: string;
   updatedAt: string;
 }
 
-interface BusinessListResponse {
-  businesses: Business[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
+const BASE = import.meta.env.VITE_API_URL || '';
+const authH = () => ({
+  Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`,
+  'Content-Type': 'application/json'
+});
+
+const fmt     = (n: number) => `TZS ${Number(n ?? 0).toLocaleString()}`;
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+// ── Status config ─────────────────────────────────────────────────────────────
+
+const STATUS: Record<string, { label: string; color: string; dot: string; icon: React.ElementType }> = {
+  pending:   { label: 'Pending',   color: 'bg-amber-100 text-amber-700 border-amber-200',  dot: 'bg-amber-500',  icon: Clock },
+  active:    { label: 'Active',    color: 'bg-green-100 text-green-700 border-green-200',  dot: 'bg-green-500',  icon: CheckCircle },
+  inactive:  { label: 'Inactive',  color: 'bg-gray-100 text-gray-600 border-gray-200',     dot: 'bg-gray-400',   icon: AlertCircle },
+  suspended: { label: 'Suspended', color: 'bg-red-100 text-red-700 border-red-200',        dot: 'bg-red-500',    icon: XCircle },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS[status] || STATUS.inactive;
+  const Icon = cfg.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.color}`}>
+      <Icon className="w-3 h-3" />{cfg.label}
+    </span>
+  );
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const CATEGORIES = [
+  'retail','restaurant','services','electronics','clothing',
+  'health','beauty','automotive','home-garden','sports',
+  'books','toys','jewelry','grocery','other'
+];
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 const BusinessManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  
-  // Filters and search
-  const [searchTerm, setSearchTerm] = useState('');
+
+  const [businesses, setBusinesses]   = useState<Business[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 0
-  });
+  const [page, setPage]               = useState(1);
+  const [pagination, setPagination]   = useState({ page: 1, limit: 20, total: 0, pages: 0 });
 
-  const categories = [
-    'retail', 'restaurant', 'services', 'electronics', 'clothing',
-    'health', 'beauty', 'automotive', 'home-garden', 'sports',
-    'books', 'toys', 'jewelry', 'grocery', 'other'
-  ];
+  // Detail modal
+  const [selected, setSelected]       = useState<Business | null>(null);
+  const [showDetail, setShowDetail]   = useState(false);
 
-  useEffect(() => {
-    if (user?.role === 'super_admin') {
-      fetchBusinesses();
-    }
-  }, [user, currentPage, statusFilter, categoryFilter, searchTerm]);
+  // Reject modal
+  const [rejectTarget, setRejectTarget] = useState<Business | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting]       = useState(false);
 
+  // Approve loading
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchBusinesses = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: '20',
-        ...(statusFilter !== 'all' && { status: statusFilter }),
-        ...(categoryFilter !== 'all' && { category: categoryFilter }),
-        ...(searchTerm && { search: searchTerm })
-      });
+      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      if (statusFilter !== 'all')   params.set('status', statusFilter);
+      if (categoryFilter !== 'all') params.set('category', categoryFilter);
+      if (search)                   params.set('search', search);
 
-      const response = await fetch(`${BASE_URL}/api/business/all?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data: { data: BusinessListResponse } = await response.json();
-        setBusinesses(data.data.businesses);
-        setPagination(data.data.pagination);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to fetch businesses",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Network error occurred",
-        variant: "destructive"
-      });
+      const res  = await fetch(`${BASE}/api/business/all?${params}`, { headers: authH() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+      setBusinesses(json.data?.businesses || []);
+      setPagination(json.data?.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
+    } catch (err: any) {
+      toast({ title: 'Failed to load businesses', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApproveBusiness = async (businessId: string) => {
-    try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const response = await fetch(`${BASE_URL}/api/business/${businessId}/approve`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  useEffect(() => {
+    if (user?.role === 'super_admin') fetchBusinesses();
+  }, [user, page, statusFilter, categoryFilter, search]);
 
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Business approved successfully"
-        });
-        fetchBusinesses();
-      } else {
-        const data = await response.json();
-        toast({
-          title: "Error",
-          description: data.message || "Failed to approve business",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Network error occurred",
-        variant: "destructive"
-      });
+  // ── Approve ────────────────────────────────────────────────────────────────
+  const approve = async (biz: Business) => {
+    setApprovingId(biz._id);
+    try {
+      const res  = await fetch(`${BASE}/api/business/${biz._id}/approve`, { method: 'POST', headers: authH() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || 'Failed');
+      toast({ title: `${biz.name} approved` });
+      fetchBusinesses();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setApprovingId(null);
     }
   };
 
-  const handleRejectBusiness = async () => {
-    if (!selectedBusiness || !rejectReason.trim()) {
-      toast({
-        title: "Error",
-        description: "Please provide a rejection reason",
-        variant: "destructive"
-      });
-      return;
+  // ── Reject ─────────────────────────────────────────────────────────────────
+  const reject = async () => {
+    if (!rejectTarget || !rejectReason.trim()) {
+      toast({ title: 'Rejection reason required', variant: 'destructive' }); return;
     }
-
+    setRejecting(true);
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const response = await fetch(`${BASE_URL}/api/business/${selectedBusiness._id}/reject`, {
-        method: 'POST',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+      const res  = await fetch(`${BASE}/api/business/${rejectTarget._id}/reject`, {
+        method: 'POST', headers: authH(),
         body: JSON.stringify({ reason: rejectReason })
       });
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Business rejected successfully"
-        });
-        setShowRejectDialog(false);
-        setRejectReason('');
-        setSelectedBusiness(null);
-        fetchBusinesses();
-      } else {
-        const data = await response.json();
-        toast({
-          title: "Error",
-          description: data.message || "Failed to reject business",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Network error occurred",
-        variant: "destructive"
-      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || 'Failed');
+      toast({ title: `${rejectTarget.name} rejected` });
+      setRejectTarget(null);
+      setRejectReason('');
+      fetchBusinesses();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setRejecting(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      pending: 'secondary',
-      active: 'default',
-      inactive: 'outline',
-      suspended: 'destructive'
-    } as const;
-
-    return (
-      <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `TZS ${Number(amount ?? 0).toLocaleString()}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // ── Counts ─────────────────────────────────────────────────────────────────
+  const pendingCount = businesses.filter(b => b.status === 'pending').length;
 
   if (user?.role !== 'super_admin') {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-red-600">Access denied. Super admin privileges required.</p>
+        <div className="text-center">
+          <Shield className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <p className="text-red-600 font-semibold">Access denied — super admin only</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
+    <div className="space-y-5">
+
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Business Management</h1>
-          <p className="text-gray-600 text-sm mt-0.5">Manage and approve business registrations</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Store className="w-5 h-5 text-blue-600" />Business Management
+          </h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {pagination.total} registered · {pendingCount} pending approval
+          </p>
         </div>
+        <Button size="sm" variant="outline" onClick={fetchBusinesses} disabled={loading} className="gap-1.5">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+        </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search businesses..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* ── Filters ── */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-4 space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Search by name or email…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              className="pl-9 h-10"
+            />
+          </div>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Status + Category + Clear — all on one row, wraps on small screens */}
+          <div className="flex flex-wrap gap-2">
+            {/* Status filter pills */}
+            {(['all', 'pending', 'active', 'inactive', 'suspended'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => { setStatusFilter(s); setPage(1); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${
+                  statusFilter === s
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {s === 'all' ? `All (${pagination.total})` : s}
+              </button>
+            ))}
 
-            <Button variant="outline" onClick={() => {
-              setSearchTerm('');
-              setStatusFilter('all');
-              setCategoryFilter('all');
-              setCurrentPage(1);
-            }}>
-              Clear Filters
-            </Button>
+            {/* Category select */}
+            <select
+              value={categoryFilter}
+              onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 border border-gray-200 rounded-full text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600"
+            >
+              <option value="all">All categories</option>
+              {CATEGORIES.map(c => (
+                <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+              ))}
+            </select>
+
+            {/* Clear */}
+            {(search || statusFilter !== 'all' || categoryFilter !== 'all') && (
+              <button
+                onClick={() => { setSearch(''); setStatusFilter('all'); setCategoryFilter('all'); setPage(1); }}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 flex items-center gap-1 transition-colors"
+              >
+                <X className="w-3 h-3" />Clear
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Business Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Businesses ({pagination.total})</CardTitle>
-          <CardDescription>
-            Showing {businesses.length} of {pagination.total} businesses
-          </CardDescription>
+      {/* ── Business list ── */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-0">
+          <CardTitle className="text-base font-bold flex items-center justify-between">
+            <span>Businesses</span>
+            <span className="text-sm font-normal text-gray-400">
+              {businesses.length} of {pagination.total}
+            </span>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : businesses.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <Store className="w-14 h-14 mx-auto mb-3 opacity-30" />
+              <p className="font-medium text-gray-600">No businesses found</p>
+              <p className="text-sm mt-1">Try adjusting your filters</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <Table className="min-w-[520px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Business</TableHead>
-                      <TableHead className="hidden sm:table-cell">Category</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="hidden md:table-cell">Revenue</TableHead>
-                      <TableHead className="hidden md:table-cell">Created</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {businesses.map((business) => (
-                      <TableRow key={business._id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{business.name}</p>
-                            <p className="text-xs text-gray-500 truncate max-w-[140px]">{business.email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <Badge variant="outline">{business.category}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(business.status)}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {formatCurrency(business.analytics?.revenue ?? 0)}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {formatDate(business.createdAt)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <Button size="sm" variant="outline" className="h-8 w-8 p-0"
-                              onClick={() => { setSelectedBusiness(business); setShowDetails(true); }}>
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            {business.status === 'pending' && (
-                              <>
-                                <Button size="sm" className="h-8 w-8 p-0"
-                                  onClick={() => handleApproveBusiness(business._id)}>
-                                  <CheckCircle className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button size="sm" variant="destructive" className="h-8 w-8 p-0"
-                                  onClick={() => { setSelectedBusiness(business); setShowRejectDialog(true); }}>
-                                  <XCircle className="w-3.5 h-3.5" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+            <div className="space-y-2">
+              {businesses.map(biz => {
+                const cfg = STATUS[biz.status] || STATUS.inactive;
+                return (
+                  <div
+                    key={biz._id}
+                    className={`rounded-xl border p-4 transition-all ${
+                      biz.status === 'pending'
+                        ? 'border-amber-200 bg-amber-50/30'
+                        : biz.status === 'suspended'
+                        ? 'border-red-200 bg-red-50/20'
+                        : 'border-gray-100 bg-white hover:border-blue-200'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start gap-3">
+                      {/* Avatar */}
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
+                        <span className="text-white font-bold text-sm">
+                          {biz.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
 
-              {/* Pagination */}
-              {pagination.pages > 1 && (
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">
-                    Page {pagination.page} of {pagination.pages}
-                  </p>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(prev => prev - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === pagination.pages}
-                      onClick={() => setCurrentPage(prev => prev + 1)}
-                    >
-                      Next
-                    </Button>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-bold text-gray-900 text-sm">{biz.name}</p>
+                          <StatusBadge status={biz.status} />
+                          <span className="text-xs text-gray-400 capitalize bg-gray-100 px-2 py-0.5 rounded-full">
+                            {biz.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 truncate">
+                          <Mail className="w-3 h-3 shrink-0" />{biz.email}
+                        </p>
+                        <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
+                          <span className="flex items-center gap-1">
+                            <BarChart3 className="w-3 h-3" />
+                            {biz.analytics?.orders ?? 0} orders · {fmt(biz.analytics?.revenue ?? 0)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {fmtDate(biz.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => { setSelected(biz); setShowDetail(true); }}
+                          title="View details"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
+                        {biz.status === 'pending' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => approve(biz)}
+                              disabled={approvingId === biz._id}
+                              title="Approve"
+                            >
+                              {approvingId === biz._id
+                                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                : <CheckCircle className="w-3.5 h-3.5" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-8 w-8 p-0 bg-red-600 hover:bg-red-700 text-white"
+                              onClick={() => { setRejectTarget(biz); setRejectReason(''); }}
+                              title="Reject"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination.pages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm text-gray-500">
+                Page {pagination.page} of {pagination.pages}
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={page === 1}
+                  onClick={() => setPage(p => p - 1)}>
+                  Previous
+                </Button>
+                <Button size="sm" variant="outline" disabled={page === pagination.pages}
+                  onClick={() => setPage(p => p + 1)}>
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Business Details Dialog */}
-      <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Business Details</DialogTitle>
-            <DialogDescription>
-              Detailed information about {selectedBusiness?.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedBusiness && (
-            <div className="space-y-6">
+      {/* ── Detail modal ── */}
+      {showDetail && selected && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowDetail(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="font-bold text-gray-900">{selected.name}</h2>
+                <StatusBadge status={selected.status} />
+              </div>
+              <button
+                onClick={() => setShowDetail(false)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Contact */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Business Name</Label>
-                  <p className="font-medium">{selectedBusiness.name}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</p>
+                  <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-gray-400" />{selected.email}
+                  </p>
                 </div>
                 <div>
-                  <Label>Status</Label>
-                  <div className="mt-1">
-                    {getStatusBadge(selectedBusiness.status)}
-                  </div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</p>
+                  <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-gray-400" />{selected.phone || '—'}
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Category + Type */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Email</Label>
-                  <p className="font-medium">{selectedBusiness.email}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Category</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{selected.category}</p>
                 </div>
                 <div>
-                  <Label>Phone</Label>
-                  <p className="font-medium">{selectedBusiness.phone || 'Not provided'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Category</Label>
-                  <p className="font-medium">{selectedBusiness.category}</p>
-                </div>
-                <div>
-                  <Label>Business Type</Label>
-                  <p className="font-medium">{selectedBusiness.businessType}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Type</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{selected.businessType}</p>
                 </div>
               </div>
 
-              {selectedBusiness.address && (
+              {/* Address */}
+              {selected.address && Object.values(selected.address).some(Boolean) && (
                 <div>
-                  <Label>Address</Label>
-                  <p className="font-medium">
-                    {[
-                      selectedBusiness.address.street,
-                      selectedBusiness.address.city,
-                      selectedBusiness.address.state,
-                      selectedBusiness.address.zipCode,
-                      selectedBusiness.address.country
-                    ].filter(Boolean).join(', ')}
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Address</p>
+                  <p className="text-sm font-medium text-gray-900 flex items-start gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                    {[selected.address.street, selected.address.city, selected.address.state, selected.address.country]
+                      .filter(Boolean).join(', ')}
                   </p>
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label>Views</Label>
-                  <p className="font-medium">{selectedBusiness.analytics?.views ?? 0}</p>
-                </div>
-                <div>
-                  <Label>Orders</Label>
-                  <p className="font-medium">{selectedBusiness.analytics?.orders ?? 0}</p>
-                </div>
-                <div>
-                  <Label>Revenue</Label>
-                  <p className="font-medium">{formatCurrency(selectedBusiness.analytics?.revenue ?? 0)}</p>
-                </div>
+              {/* Analytics */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Views',   value: selected.analytics?.views ?? 0 },
+                  { label: 'Orders',  value: selected.analytics?.orders ?? 0 },
+                  { label: 'Revenue', value: fmt(selected.analytics?.revenue ?? 0) },
+                ].map(stat => (
+                  <div key={stat.label} className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{stat.label}</p>
+                    <p className="font-extrabold text-gray-900 text-sm mt-1">{stat.value}</p>
+                  </div>
+                ))}
               </div>
 
+              {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Created</Label>
-                  <p className="font-medium">{formatDate(selectedBusiness.createdAt)}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Registered</p>
+                  <p className="text-sm font-medium text-gray-900">{fmtDate(selected.createdAt)}</p>
                 </div>
                 <div>
-                  <Label>Last Updated</Label>
-                  <p className="font-medium">{formatDate(selectedBusiness.updatedAt)}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Last updated</p>
+                  <p className="text-sm font-medium text-gray-900">{fmtDate(selected.updatedAt)}</p>
                 </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
-      {/* Reject Business Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reject Business</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting {selectedBusiness?.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="reason">Rejection Reason</Label>
-              <Textarea
-                id="reason"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Please explain why this business is being rejected..."
-                rows={4}
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleRejectBusiness}>
-                Reject Business
-              </Button>
+              {/* Approve / Reject from modal */}
+              {selected.status === 'pending' && (
+                <div className="flex gap-3 pt-2 border-t border-gray-100">
+                  <Button
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                    onClick={() => { approve(selected); setShowDetail(false); }}
+                    disabled={approvingId === selected._id}
+                  >
+                    <CheckCircle className="w-4 h-4" />Approve
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50 gap-1.5"
+                    onClick={() => { setRejectTarget(selected); setShowDetail(false); setRejectReason(''); }}
+                  >
+                    <XCircle className="w-4 h-4" />Reject
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
+
+      {/* ── Reject modal ── */}
+      {rejectTarget && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setRejectTarget(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="font-bold text-gray-900">Reject Business</h2>
+              <button onClick={() => setRejectTarget(null)} className="p-2 rounded-full hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Rejecting <strong>{rejectTarget.name}</strong>. Please provide a reason.
+              </p>
+              <div>
+                <Label htmlFor="rejectReason">Reason <span className="text-red-500">*</span></Label>
+                <Textarea
+                  id="rejectReason"
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  placeholder="e.g. Incomplete information, duplicate registration…"
+                  rows={3}
+                  className="mt-1.5"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setRejectTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                  onClick={reject}
+                  disabled={rejecting || !rejectReason.trim()}
+                >
+                  {rejecting ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Reject'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

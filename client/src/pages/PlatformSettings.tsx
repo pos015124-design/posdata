@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -106,50 +106,78 @@ const PlatformSettings: React.FC = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Platform Settings</CardTitle>
-        <CardDescription>Configure platform-wide settings and preferences</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-lg mx-auto">
-          <div>
-            <label className="block mb-1 font-medium">Platform Name</label>
-            <Input
-              name="platformName"
-              value={settings.platformName}
-              onChange={handleChange}
-              disabled={loading}
-              required
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Support Email</label>
-            <Input
-              name="supportEmail"
-              type="email"
-              value={settings.supportEmail}
-              onChange={handleChange}
-              disabled={loading}
-              required
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Allow New Signups</span>
-            <Switch
-              checked={settings.allowNewSignups}
-              onCheckedChange={(checked) =>
-                setSettings((prev) => ({ ...prev, allowNewSignups: checked }))
-              }
-              disabled={loading}
-            />
-          </div>
-          <Button type="submit" disabled={loading || saving} className="w-full">
-            {saving ? 'Saving...' : 'Save Settings'}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">Platform Settings</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Configure platform-wide settings and preferences</p>
+      </div>
+
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-5 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Platform Name
+              </label>
+              <Input
+                name="platformName"
+                value={settings.platformName}
+                onChange={handleChange}
+                disabled={loading}
+                placeholder="E-Shop — BHABY GROUP LTD"
+                required
+                className="h-11"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Support Email
+              </label>
+              <Input
+                name="supportEmail"
+                type="email"
+                value={settings.supportEmail}
+                onChange={handleChange}
+                disabled={loading}
+                placeholder="info@bhabygroup.co.tz"
+                required
+                className="h-11"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Allow New Signups</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  When off, new seller registrations are blocked
+                </p>
+              </div>
+              <Switch
+                checked={settings.allowNewSignups}
+                onCheckedChange={(checked) =>
+                  setSettings((prev) => ({ ...prev, allowNewSignups: checked }))
+                }
+                disabled={loading}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading || saving}
+              className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving…
+                </span>
+              ) : 'Save Settings'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
