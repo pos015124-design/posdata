@@ -140,11 +140,39 @@ const sendSellerApprovalEmail = async ({ sellerEmail, sellerName, businessName }
 
 /**
  * 3. New order received — notify seller
+ *
+ * isStorefront: true  → BHABY GROUP LTD middleman model.
+ *   Customer contact details are NEVER shown to the seller.
+ *   Seller only sees what items to prepare and the invoice total.
+ *
+ * isStorefront: false (default) → POS sale.
+ *   Seller served the customer in person, so customer info is shown.
  */
-const sendNewOrderToSeller = async ({ sellerEmail, sellerName, invoiceNumber, items, total, customer }) => {
+const sendNewOrderToSeller = async ({ sellerEmail, sellerName, invoiceNumber, items, total, customer, isStorefront = false }) => {
   const itemRows = (items || []).map(i =>
     row(i.productName || i.name, `${i.quantity} × TZS ${(i.price || 0).toLocaleString()} = TZS ${((i.price || 0) * (i.quantity || 0)).toLocaleString()}`)
   ).join('');
+
+  // For storefront orders: replace customer table with a managed-delivery notice.
+  // For POS orders: show customer name, phone, city as before.
+  const customerSection = isStorefront
+    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin:16px 0;">
+        <p style="margin:0 0 4px;color:#1e40af;font-size:13px;font-weight:700;">📦 Managed by BHABY GROUP LTD</p>
+        <p style="margin:0;color:#1d4ed8;font-size:13px;">
+          Please prepare the items listed above. Our team will contact you to arrange collection.
+          Customer details are confidential and handled by BHABY GROUP LTD.
+        </p>
+       </div>`
+    : `<p style="margin:0 0 4px;color:#6b7280;font-size:13px;font-weight:600;">Customer</p>
+       <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:0 0 16px;">
+         ${row('Name', customer?.name || '—')}
+         ${row('Phone', customer?.phone || '—')}
+         ${customer?.city ? row('City', customer.city) : ''}
+       </table>`;
+
+  const textCustomer = isStorefront
+    ? 'Delivery managed by BHABY GROUP LTD — prepare items for collection.'
+    : `from ${customer?.name || 'customer'}`;
 
   return sendEmail({
     to: sellerEmail,
@@ -157,15 +185,10 @@ const sendNewOrderToSeller = async ({ sellerEmail, sellerName, invoiceNumber, it
         ${itemRows}
         ${row('Total', `<strong style="color:#2563eb;">TZS ${(total || 0).toLocaleString()}</strong>`)}
       </table>
-      <p style="margin:0 0 4px;color:#6b7280;font-size:13px;font-weight:600;">Customer</p>
-      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:0 0 16px;">
-        ${row('Name', customer?.name || '—')}
-        ${row('Phone', customer?.phone || '—')}
-        ${customer?.city ? row('City', customer.city) : ''}
-      </table>
-      ${btn('View Order in Dashboard', `${FRONTEND}/orders`)}
+      ${customerSection}
+      ${btn('View in Dashboard', `${FRONTEND}/orders`)}
     `),
-    text: `New order ${invoiceNumber} — TZS ${(total || 0).toLocaleString()} from ${customer?.name || 'customer'}. View at ${FRONTEND}/orders`
+    text: `New order ${invoiceNumber} — TZS ${(total || 0).toLocaleString()} ${textCustomer}. View at ${FRONTEND}/orders`
   });
 };
 

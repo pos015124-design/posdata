@@ -65,7 +65,10 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
       }).catch(e => logger.error('Failed to send order confirmation to buyer', { error: e.message }));
     }
 
-    // 2. Notify each seller of their new order (customer details included for seller)
+    // 2. Notify each seller of their new order.
+    // MIDDLEMAN MODEL: For storefront orders, customer contact details are
+    // NOT included in the seller email. Sellers only see what to prepare.
+    // BHABY GROUP LTD handles all customer communication.
     for (const sale of result.sales) {
       if (sale.sellerEmail) {
         sendNewOrderToSeller({
@@ -74,7 +77,8 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
           invoiceNumber: sale.invoiceNumber,
           items:         sale.items || [],
           total:         sale.total,
-          customer:      { name: customer?.name, phone: customer?.phone, city: customer?.city }
+          isStorefront:  true,   // strips customer contact from email
+          customer:      null    // never passed for storefront orders
         }).catch(e => logger.error('Failed to send new order email to seller', { error: e.message, invoice: sale.invoiceNumber }));
       }
     }
