@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Store, Search, ExternalLink, ShoppingBag, MapPin, Package, ArrowRight, Sparkles } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import Logo from '../components/Logo';
+import { useAuth } from '../contexts/AuthContext';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -88,6 +89,8 @@ function StoreCard({ store }: { store: StoreInfo }) {
 }
 
 export default function StoreDirectory() {
+  const { user } = useAuth();
+  const isInsideLayout = !!user;
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -110,32 +113,37 @@ export default function StoreDirectory() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero */}
+      {/* Hero — compact when inside Layout (no Logo, less padding) */}
       <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-14 md:py-20">
+        <div className={`max-w-7xl mx-auto px-4 ${isInsideLayout ? 'py-8' : 'py-14 md:py-20'}`}>
           <div className="text-center max-w-2xl mx-auto">
-            <div className="flex justify-center mb-5">
-              <Logo variant="white" className="h-12" />
-            </div>
+            {/* Only show Logo when viewed as a guest (no sidebar) */}
+            {!isInsideLayout && (
+              <div className="flex justify-center mb-5">
+                <Logo variant="white" className="h-12" />
+              </div>
+            )}
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-5">
               <Sparkles className="w-4 h-4" />
               {stores.length > 0
                 ? `${stores.length} verified sellers · ${totalProducts.toLocaleString()} products`
                 : 'Verified local sellers'}
             </div>
-            <h1 className="text-3xl md:text-5xl font-extrabold mb-4 leading-tight">
+            <h1 className={`font-extrabold mb-4 leading-tight ${isInsideLayout ? 'text-2xl md:text-3xl' : 'text-3xl md:text-5xl'}`}>
               Shop local.<br />Support real businesses.
             </h1>
-            <p className="text-white/80 text-base md:text-lg mb-8 max-w-xl mx-auto">
-              Every store on E-Shop is a real Tanzanian business. Browse, compare, and buy directly from the people behind the products.
-            </p>
+            {!isInsideLayout && (
+              <p className="text-white/80 text-base md:text-lg mb-8 max-w-xl mx-auto">
+                Every store on E-Shop is a real Tanzanian business. Browse, compare, and buy directly from the people behind the products.
+              </p>
+            )}
             <div className="max-w-lg mx-auto relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
                 placeholder="Search stores by name or category…"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="pl-12 h-13 text-base bg-white text-gray-900 rounded-xl shadow-lg border-0 h-12"
+                className="pl-12 text-base bg-white text-gray-900 rounded-xl shadow-lg border-0 h-12"
               />
             </div>
           </div>

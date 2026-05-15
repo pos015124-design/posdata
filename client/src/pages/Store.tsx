@@ -9,6 +9,7 @@ import { Button } from '../components/ui/button';
 import Logo from '../components/Logo';
 import { Input } from '../components/ui/input';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface MarketplaceCartLine {
   _id: string;
@@ -195,6 +196,12 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: (p: Product)
 
 /* ─── Main component ──────────────────────────────────────────────── */
 export default function Store() {
+  const { user } = useAuth();
+  // When a logged-in user views the store, they're already inside Layout
+  // which provides the sidebar. Hide the store's own navbar to avoid
+  // double-header and the cramped/zoomed-out look on mobile.
+  const isInsideLayout = !!user;
+
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, pages: 0 });
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -297,37 +304,111 @@ export default function Store() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ── Navbar ── */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Link to="/" className="flex items-center shrink-0">
-            <Logo className="h-10" />
-          </Link>
-
-          {/* Search bar */}
-          <div className="flex-1 relative max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              ref={searchRef}
-              placeholder="Search products, stores, categories…"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-9 h-10 bg-gray-50 border-gray-200 focus:bg-white"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <Link to="/stores" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
-              <Building2 className="w-4 h-4" />Stores
+      {/* ── Navbar — only shown to guests (logged-in users have the sidebar) ── */}
+      {!isInsideLayout && (
+        <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+            <Link to="/" className="flex items-center shrink-0">
+              <Logo className="h-10" />
             </Link>
+
+            {/* Search bar */}
+            <div className="flex-1 relative max-w-xl">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                ref={searchRef}
+                placeholder="Search products, stores, categories…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-9 h-10 bg-gray-50 border-gray-200 focus:bg-white"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Link to="/stores" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
+                <Building2 className="w-4 h-4" />Stores
+              </Link>
+              <button
+                onClick={() => setCartOpen(true)}
+                className="relative flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span className="hidden sm:inline">Cart</span>
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* ── Hero ── */}
+      <div className={`bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white ${isInsideLayout ? 'rounded-2xl mx-0 mb-0' : ''}`}>
+        <div className={`max-w-7xl mx-auto px-4 ${isInsideLayout ? 'py-8' : 'py-12 md:py-16'}`}>
+          <div className="max-w-2xl">
+            {pagination.total > 0 && (
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-4">
+                <Sparkles className="w-4 h-4" />
+                {pagination.total.toLocaleString()} products from local sellers
+              </div>
+            )}
+            <h1 className={`font-extrabold mb-3 leading-tight ${isInsideLayout ? 'text-2xl md:text-3xl' : 'text-3xl md:text-4xl'}`}>
+              Tanzania's local marketplace —<br className="hidden sm:block" />everything in one place
+            </h1>
+            <p className="text-white/80 text-sm mb-5">
+              Discover unique products from verified local businesses. Fast delivery, secure checkout, real sellers.
+            </p>
+            <div className="flex gap-3 flex-wrap">
+              <Link to="/stores">
+                <Button variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2">
+                  <Building2 className="w-4 h-4" />Browse stores
+                </Button>
+              </Link>
+              {/* Cart button in hero — only for guests (logged-in users use sidebar) */}
+              {!isInsideLayout && cartCount > 0 && (
+                <Button
+                  onClick={() => setCartOpen(true)}
+                  className="bg-white text-blue-700 hover:bg-white/90 gap-2 font-semibold"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Cart ({cartCount})
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Search bar — shown inside Layout (replaces navbar search) ── */}
+      {isInsideLayout && (
+        <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                ref={searchRef}
+                placeholder="Search products, stores, categories…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-9 h-10 bg-gray-50 border-gray-200 focus:bg-white"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
             <button
               onClick={() => setCartOpen(true)}
-              className="relative flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+              className="relative flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0"
             >
               <ShoppingCart className="w-4 h-4" />
               <span className="hidden sm:inline">Cart</span>
@@ -339,38 +420,11 @@ export default function Store() {
             </button>
           </div>
         </div>
-      </header>
-
-      {/* ── Hero ── */}
-      <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
-          <div className="max-w-2xl">
-            {pagination.total > 0 && (
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-4">
-                <Sparkles className="w-4 h-4" />
-                {pagination.total.toLocaleString()} products from local sellers
-              </div>
-            )}
-            <h1 className="text-3xl md:text-4xl font-extrabold mb-3 leading-tight">
-              Tanzania's local marketplace —<br />everything in one place
-            </h1>
-            <p className="text-white/80 text-base mb-6">
-              Discover unique products from verified local businesses. Fast delivery, secure checkout, real sellers.
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              <Link to="/stores">
-                <Button variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2">
-                  <Building2 className="w-4 h-4" />Browse stores
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* ── Category pills ── */}
       {categories.length > 0 && (
-        <div className="bg-white border-b border-gray-100 sticky top-[61px] z-20">
+        <div className={`bg-white border-b border-gray-100 sticky z-20 ${isInsideLayout ? 'top-[61px]' : 'top-[61px]'}`}>
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
               <button
