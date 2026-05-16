@@ -112,32 +112,34 @@ export default function StoreDirectory() {
   const totalProducts = stores.reduce((s, st) => s + st.productCount, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    // When inside Layout, don't add min-h-screen or bg — Layout already provides it.
+    // Remove max-w-7xl constraints so content fills the full available column.
+    <div className={isInsideLayout ? '' : 'min-h-screen bg-gray-50'}>
       {/* Hero — compact when inside Layout (no Logo, less padding) */}
-      <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white">
-        <div className={`max-w-7xl mx-auto px-4 ${isInsideLayout ? 'py-8' : 'py-14 md:py-20'}`}>
-          <div className="text-center max-w-2xl mx-auto">
+      <div className={`bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white ${isInsideLayout ? 'rounded-2xl mb-6' : ''}`}>
+        <div className={`px-5 sm:px-8 ${isInsideLayout ? 'py-8' : 'py-14 md:py-20 max-w-7xl mx-auto'}`}>
+          <div className={`${isInsideLayout ? '' : 'text-center max-w-2xl mx-auto'}`}>
             {/* Only show Logo when viewed as a guest (no sidebar) */}
             {!isInsideLayout && (
               <div className="flex justify-center mb-5">
                 <Logo variant="white" className="h-12" />
               </div>
             )}
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-5">
+            <div className={`inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-4 ${isInsideLayout ? '' : 'mb-5'}`}>
               <Sparkles className="w-4 h-4" />
               {stores.length > 0
                 ? `${stores.length} verified sellers · ${totalProducts.toLocaleString()} products`
                 : 'Verified local sellers'}
             </div>
-            <h1 className={`font-extrabold mb-4 leading-tight ${isInsideLayout ? 'text-2xl md:text-3xl' : 'text-3xl md:text-5xl'}`}>
-              Shop local.<br />Support real businesses.
+            <h1 className={`font-extrabold mb-3 leading-tight ${isInsideLayout ? 'text-2xl' : 'text-3xl md:text-5xl mb-4'}`}>
+              {isInsideLayout ? 'All Stores' : <>Shop local.<br />Support real businesses.</>}
             </h1>
             {!isInsideLayout && (
               <p className="text-white/80 text-base md:text-lg mb-8 max-w-xl mx-auto">
                 Every store on E-Shop is a real Tanzanian business. Browse, compare, and buy directly from the people behind the products.
               </p>
             )}
-            <div className="max-w-lg mx-auto relative">
+            <div className={`relative ${isInsideLayout ? 'max-w-md' : 'max-w-lg mx-auto'}`}>
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
                 placeholder="Search stores by name or category…"
@@ -150,20 +152,22 @@ export default function StoreDirectory() {
         </div>
       </div>
 
-      {/* Trust bar */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500 font-medium">
-          <span className="flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5 text-blue-500" />Verified sellers only</span>
-          <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-green-500" />Local Tanzanian businesses</span>
-          <span className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-purple-500" />Real products, real prices</span>
+      {/* Trust bar — guests only */}
+      {!isInsideLayout && (
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500 font-medium">
+            <span className="flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5 text-blue-500" />Verified sellers only</span>
+            <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-green-500" />Local Tanzanian businesses</span>
+            <span className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-purple-500" />Real products, real prices</span>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Stores grid */}
-      <div className="max-w-7xl mx-auto px-4 py-10">
+      {/* Stores grid — full width inside Layout, max-w-7xl for guests */}
+      <div className={`py-6 ${isInsideLayout ? '' : 'max-w-7xl mx-auto px-4 py-10'}`}>
         {/* Results count */}
         {!loading && (
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <p className="text-sm text-gray-500">
               {searchTerm
                 ? <><span className="font-semibold text-gray-900">{filtered.length}</span> stores match "<span className="font-semibold">{searchTerm}</span>"</>
@@ -206,17 +210,19 @@ export default function StoreDirectory() {
         )}
       </div>
 
-      {/* CTA footer */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white mt-8">
-        <div className="max-w-7xl mx-auto px-4 py-10 text-center">
-          <h2 className="text-xl font-bold mb-2">Want to sell on E-Shop?</h2>
-          <p className="text-white/80 text-sm mb-5">Join hundreds of local sellers reaching customers across Tanzania.</p>
-          <Link to="/register"
-            className="inline-flex items-center gap-2 bg-white text-blue-600 font-bold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors text-sm">
-            Open your store <ArrowRight className="w-4 h-4" />
-          </Link>
+      {/* CTA footer — guests only */}
+      {!isInsideLayout && (
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white mt-8">
+          <div className="max-w-7xl mx-auto px-4 py-10 text-center">
+            <h2 className="text-xl font-bold mb-2">Want to sell on E-Shop?</h2>
+            <p className="text-white/80 text-sm mb-5">Join hundreds of local sellers reaching customers across Tanzania.</p>
+            <Link to="/register"
+              className="inline-flex items-center gap-2 bg-white text-blue-600 font-bold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors text-sm">
+              Open your store <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

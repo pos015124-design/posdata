@@ -303,7 +303,7 @@ export default function Store() {
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={isInsideLayout ? '' : 'min-h-screen bg-gray-50'}>
       {/* ── Navbar — only shown to guests (logged-in users have the sidebar) ── */}
       {!isInsideLayout && (
         <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
@@ -351,8 +351,8 @@ export default function Store() {
       )}
 
       {/* ── Hero ── */}
-      <div className={`bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white ${isInsideLayout ? 'rounded-2xl mx-0 mb-0' : ''}`}>
-        <div className={`max-w-7xl mx-auto px-4 ${isInsideLayout ? 'py-8' : 'py-12 md:py-16'}`}>
+      <div className={`bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white ${isInsideLayout ? 'rounded-2xl mb-0' : ''}`}>
+        <div className={`px-5 sm:px-8 ${isInsideLayout ? 'py-8' : 'max-w-7xl mx-auto px-4 py-12 md:py-16'}`}>
           <div className="max-w-2xl">
             {pagination.total > 0 && (
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-4">
@@ -390,7 +390,7 @@ export default function Store() {
       {/* ── Search bar — shown inside Layout (replaces navbar search) ── */}
       {isInsideLayout && (
         <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="px-0 py-3 flex items-center gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -424,8 +424,8 @@ export default function Store() {
 
       {/* ── Category pills ── */}
       {categories.length > 0 && (
-        <div className={`bg-white border-b border-gray-100 sticky z-20 ${isInsideLayout ? 'top-[61px]' : 'top-[61px]'}`}>
-          <div className="max-w-7xl mx-auto px-4">
+        <div className="bg-white border-b border-gray-100 sticky top-[61px] z-20">
+          <div className={isInsideLayout ? '' : 'max-w-7xl mx-auto px-4'}>
             <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
               <button
                 onClick={() => setSelectedCategory('')}
@@ -448,7 +448,7 @@ export default function Store() {
       )}
 
       {/* ── Main content ── */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className={`py-6 ${isInsideLayout ? '' : 'max-w-7xl mx-auto px-4 py-8'}`}>
         {loadError && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 shrink-0" />{loadError}

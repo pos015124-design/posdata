@@ -142,10 +142,10 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <main className="flex-1 ml-0 lg:ml-72">
         {/*
-          Mobile: pt-3 (small top gap) + pl-14 clears the hamburger (left-3 + p-2 + icon ≈ 53px)
-          Desktop (lg+): normal padding, no hamburger to worry about
+          Mobile: pt-3 + pl-14 clears the hamburger button
+          Desktop (lg+): pt-6, symmetric px-6 — fills the full column width
         */}
-        <div className="pt-3 pl-14 pr-4 pb-8 lg:pt-6 lg:pl-8 lg:pr-8 md:pr-6">
+        <div className="pt-3 pl-14 pr-4 pb-8 lg:pt-6 lg:px-6">
           {children}
         </div>
       </main>
