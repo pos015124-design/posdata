@@ -174,6 +174,31 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: false
+    sourcemap: false,
+    // Split vendor libraries into separate cached chunks.
+    // When app code changes, vendor chunks stay cached in the browser.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React core — changes almost never
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Radix UI primitives — large, changes rarely
+          'vendor-radix': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-select',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-alert-dialog',
+          ],
+          // Charts — heavy, only used on Reports/Dashboard
+          'vendor-charts': ['recharts'],
+          // Icons — large icon set
+          'vendor-icons': ['lucide-react'],
+        }
+      }
+    }
   }
 })

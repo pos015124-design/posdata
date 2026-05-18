@@ -3,6 +3,12 @@ const router = express.Router();
 const { logger } = require("../config/logger");
 const { requireUser } = require("./middleware/auth");
 
+// Lightweight ping — used by uptime monitors to keep Render awake.
+// Returns in <1ms, no DB query, no auth required.
+router.get("/ping", (req, res) => {
+  res.json({ ok: true, t: Date.now() });
+});
+
 // Home route
 router.get("/", (req, res) => {
   res.json({
