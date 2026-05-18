@@ -121,31 +121,51 @@ export default function Cart() {
                 {/* Items */}
                 <div className="divide-y divide-gray-50">
                   {group.items.map(item => (
-                    <div key={item._id} className="flex gap-4 p-5 items-center">
-                      <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                        {item.image
-                          ? <img src={imgUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center"><StoreIcon className="w-6 h-6 text-gray-300" /></div>
-                        }
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{item.name}</p>
-                        <p className="text-blue-600 font-bold mt-0.5">TZS {item.price.toLocaleString()}</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button onClick={() => updateQty(item._id, item.quantity - 1)} className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="w-8 text-center font-bold text-gray-900">{item.quantity}</span>
-                        <button onClick={() => updateQty(item._id, item.quantity + 1)} className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div className="text-right shrink-0 min-w-[90px]">
-                        <p className="font-bold text-gray-900">TZS {(item.price * item.quantity).toLocaleString()}</p>
-                        <button onClick={() => remove(item._id)} className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 mt-1 ml-auto transition-colors">
-                          <Trash2 className="w-3 h-3" />Remove
-                        </button>
+                    <div key={item._id} className="p-4 sm:p-5">
+                      <div className="flex gap-3 sm:gap-4 items-start sm:items-center">
+                        {/* Image */}
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">
+                          {item.image
+                            ? <img src={imgUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center"><StoreIcon className="w-6 h-6 text-gray-300" /></div>
+                          }
+                        </div>
+                        {/* Name + price */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm leading-tight">{item.name}</p>
+                          <p className="text-blue-600 font-bold mt-0.5 text-sm">TZS {item.price.toLocaleString()}</p>
+                          {/* Mobile: qty + remove inline under name */}
+                          <div className="flex items-center gap-3 mt-2 sm:hidden">
+                            <button onClick={() => updateQty(item._id, item.quantity - 1)} className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50">
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center font-bold text-gray-900 text-sm">{item.quantity}</span>
+                            <button onClick={() => updateQty(item._id, item.quantity + 1)} className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50">
+                              <Plus className="w-3 h-3" />
+                            </button>
+                            <span className="ml-auto font-bold text-gray-900 text-sm">TZS {(item.price * item.quantity).toLocaleString()}</span>
+                            <button onClick={() => remove(item._id)} className="text-red-400 hover:text-red-600 ml-1">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        {/* Desktop: qty controls */}
+                        <div className="hidden sm:flex items-center gap-2 shrink-0">
+                          <button onClick={() => updateQty(item._id, item.quantity - 1)} className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-8 text-center font-bold text-gray-900">{item.quantity}</span>
+                          <button onClick={() => updateQty(item._id, item.quantity + 1)} className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {/* Desktop: total + remove */}
+                        <div className="hidden sm:block text-right shrink-0 min-w-[90px]">
+                          <p className="font-bold text-gray-900">TZS {(item.price * item.quantity).toLocaleString()}</p>
+                          <button onClick={() => remove(item._id)} className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 mt-1 ml-auto transition-colors">
+                            <Trash2 className="w-3 h-3" />Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

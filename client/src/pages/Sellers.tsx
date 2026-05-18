@@ -508,31 +508,35 @@ export default function Sellers() {
                 </div>
 
                 <div className="space-y-2">
-                  {/* Header */}
+                  {/* Header — desktop only */}
                   <div className="hidden sm:grid grid-cols-[1fr_80px_100px_32px] gap-2 text-xs text-gray-400 font-medium px-1">
                     <span>Product</span><span>Qty</span><span>Unit Cost (TZS)</span><span />
                   </div>
 
                   {stockInItems.map((row, idx) => (
-                    <div key={idx} className="grid grid-cols-[1fr_70px_90px_32px] gap-2 items-center">
+                    <div key={idx} className="flex flex-col sm:grid sm:grid-cols-[1fr_80px_100px_32px] gap-2">
+                      {/* Mobile label */}
+                      <p className="text-xs text-gray-400 font-medium sm:hidden mt-1">Row {idx + 1}</p>
                       <select
                         value={row.productId}
                         onChange={e => updateStockInRow(idx, 'productId', e.target.value)}
-                        className="h-9 px-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
+                        className="h-10 px-2 border border-gray-200 rounded-lg text-base bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
                       >
                         <option value="">Select product…</option>
                         {products.map(p => (
                           <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
                       </select>
-                      <Input type="number" min="1" placeholder="Qty"
-                        value={row.quantity} onChange={e => updateStockInRow(idx, 'quantity', e.target.value)}
-                        className="h-9 text-sm" />
-                      <Input type="number" min="0" placeholder="Cost"
-                        value={row.unitCost} onChange={e => updateStockInRow(idx, 'unitCost', e.target.value)}
-                        className="h-9 text-sm" />
+                      <div className="grid grid-cols-2 gap-2 sm:contents">
+                        <Input type="number" min="1" placeholder="Qty"
+                          value={row.quantity} onChange={e => updateStockInRow(idx, 'quantity', e.target.value)}
+                          className="h-10 text-base" />
+                        <Input type="number" min="0" placeholder="Unit cost"
+                          value={row.unitCost} onChange={e => updateStockInRow(idx, 'unitCost', e.target.value)}
+                          className="h-10 text-base" />
+                      </div>
                       <button onClick={() => removeStockInRow(idx)} disabled={stockInItems.length === 1}
-                        className="h-9 w-8 flex items-center justify-center text-gray-400 hover:text-red-500 disabled:opacity-30">
+                        className="h-10 w-full sm:w-8 flex items-center justify-center text-gray-400 hover:text-red-500 disabled:opacity-30 border border-gray-200 rounded-lg sm:border-0">
                         <X className="w-4 h-4" />
                       </button>
                     </div>

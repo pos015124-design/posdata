@@ -501,7 +501,7 @@ export default function Settings() {
                         id="currency"
                         value={generalSettings.currency}
                         onChange={(e) => setGeneralSettings({...generalSettings, currency: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                       >
                         <option value="TZS">TZS - Tanzanian Shilling</option>
                         <option value="USD">USD - US Dollar</option>
@@ -514,7 +514,7 @@ export default function Settings() {
                         id="language"
                         value={generalSettings.language}
                         onChange={(e) => setGeneralSettings({...generalSettings, language: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                       >
                         <option value="en">English</option>
                         <option value="sw">Swahili</option>
@@ -626,7 +626,7 @@ export default function Settings() {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input 
                           type="checkbox" 
-                          className="sr0-peer"
+                          className="sr-only peer"
                           checked={businessSettings.isPublic || false}
                           onChange={(e) => setBusinessSettings({...businessSettings, isPublic: e.target.checked})}
                         />
@@ -837,12 +837,7 @@ export default function Settings() {
                       id="defaultPayment"
                       value={paymentSettings.defaultPaymentMethod}
                       onChange={(e) => setPaymentSettings({...paymentSettings, defaultPaymentMethod: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="cash">Cash</option>
-                      <option value="card">Card</option>
-                      <option value="mobile">Mobile Money</option>
-                      <option value="credit">Credit</option>
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                     </select>
                   </div>
                   <Button

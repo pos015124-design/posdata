@@ -68,14 +68,6 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
-        aria-label="Toggle menu"
-      >
-        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
 
       {/* Sidebar Overlay for Mobile */}
       {sidebarOpen && (
@@ -86,66 +78,93 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`w-64 md:w-72 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed h-screen shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
+      <aside className={`w-64 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        {/* Header — padded top on mobile so X button doesn't overlap logo */}
-        <div className="pt-14 lg:pt-0 px-4 pb-2 md:p-6 shrink-0">
-          <Logo variant="white" className="h-10" />
-          <p className="text-xs md:text-sm text-gray-300 mt-2 truncate">{user?.email}</p>
+      }`}
+        style={{ height: '100dvh' }}
+      >
+        {/* Header */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <div className="flex items-center justify-between">
+            <Logo variant="white" className="h-9" />
+            {/* Close button — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-xs text-gray-300 mt-1.5 truncate">{user?.email}</p>
         </div>
 
-        {/* Nav — scrolls internally if items overflow, never expands sidebar */}
-        <nav className="flex-1 overflow-y-auto mt-2 px-2 md:px-3 space-y-1 md:space-y-2 pb-2">
+        {/* Nav — scrolls internally, never pushes footer off screen */}
+        <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.path}
                 onClick={() => handleNavigation(item.path)}
-                className={`w-full flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 rounded-lg transition-all text-sm md:text-base ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                   isActive
-                    ? 'bg-white/20 shadow-lg'
-                    : 'hover:bg-white/10'
+                    ? 'bg-white/20 text-white shadow-sm'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium truncate">{item.label}</span>
+                <item.icon className="w-4.5 h-4.5 w-[18px] h-[18px] flex-shrink-0" />
+                <span className="truncate">{item.label}</span>
+                {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60" />}
               </button>
             );
           })}
         </nav>
 
-        {/* Footer — always pinned to bottom */}
-        <div className="shrink-0 p-3 md:p-4 space-y-2 border-t border-white/10">
-          {/* Install app button — only shown when browser install prompt is available */}
+        {/* Footer — always visible, never scrolled away */}
+        <div className="shrink-0 px-2 pb-4 pt-2 space-y-1 border-t border-white/10">
           {canInstall && (
             <button
               onClick={triggerInstall}
-              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-sm font-medium transition-all"
             >
-              <Download className="w-4 h-4 shrink-0" />
+              <Download className="w-[18px] h-[18px] shrink-0" />
               <span className="truncate">Install App</span>
             </button>
           )}
-          <Button
+          <button
             onClick={handleLogout}
-            variant="outline"
-            className="w-full bg-white/10 hover:bg-white/20 text-white border-white/30 text-sm md:text-base"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/10 hover:bg-red-500/30 text-white/80 hover:text-white text-sm font-medium transition-all"
           >
-            <LogOut className="w-4 h-4 mr-2 flex-shrink-0" />
+            <LogOut className="w-[18px] h-[18px] shrink-0" />
             <span className="truncate">Logout</span>
-          </Button>
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-0 lg:ml-72">
-        {/*
-          Mobile: pt-3 + pl-14 clears the hamburger button
-          Desktop (lg+): pt-6, symmetric px-6 — fills the full column width
-        */}
-        <div className="pt-3 pl-14 pr-4 pb-8 lg:pt-6 lg:px-6">
+      <main className="flex-1 ml-0 lg:ml-64 min-w-0">
+        {/* Mobile top bar — sticky, full width, shows hamburger + current page */}
+        <div className="lg:hidden flex items-center h-12 px-4 bg-white border-b border-gray-100 sticky top-0 z-20 shadow-sm gap-3">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-md shrink-0"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          {/* Current page label */}
+          <span className="text-sm font-semibold text-gray-800 truncate">
+            {menuItems.find(m => m.path === location.pathname)?.label ?? 'E-Shop'}
+          </span>
+          {/* Logo mark on the right */}
+          <div className="ml-auto shrink-0">
+            <Logo variant="default" className="h-6" />
+          </div>
+        </div>
+
+        {/* Page content — full width, consistent padding */}
+        <div className="px-4 pt-4 pb-8 lg:pt-6 lg:px-6">
           {children}
         </div>
       </main>

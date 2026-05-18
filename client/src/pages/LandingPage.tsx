@@ -12,7 +12,9 @@ import {
   CheckCircle,
   Globe,
   Smartphone,
-  BarChart3
+  BarChart3,
+  Menu,
+  X
 } from 'lucide-react';
 import Logo from '../components/Logo';
 
@@ -36,6 +38,7 @@ interface Stat {
 
 const LandingPage: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
@@ -116,26 +119,52 @@ const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Logo className="h-10" />
             </div>
+            {/* Desktop nav */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
-              <a href="#testimonials" className="text-gray-600 hover:text-gray-900">Testimonials</a>
-              <a href="#pricing" className="text-gray-600 hover:text-gray-900">Pricing</a>
-              <Link to="/login" className="text-gray-600 hover:text-gray-900">Sign In</Link>
-              <Link 
-                to="/register" 
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              <a href="#features" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Features</a>
+              <a href="#testimonials" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Testimonials</a>
+              <Link to="/store" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Marketplace</Link>
+              <Link to="/login" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Sign In</Link>
+              <Link
+                to="/register"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-purple-700 transition-all"
               >
                 Get Started
               </Link>
             </div>
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
+              onClick={() => setMobileMenuOpen(v => !v)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
         </div>
+        {/* Mobile menu dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-gray-100 px-4 py-3 space-y-1">
+            <a href="#features" onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 font-medium text-sm">Features</a>
+            <a href="#testimonials" onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 font-medium text-sm">Testimonials</a>
+            <Link to="/store" onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 font-medium text-sm">Marketplace</Link>
+            <Link to="/login" onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 font-medium text-sm">Sign In</Link>
+            <Link to="/register" onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm text-center">
+              Get Started
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}

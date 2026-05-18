@@ -164,7 +164,7 @@ function ReviewSection({ slug, storeName }: { slug: string; storeName: string })
                 <label className="text-sm font-medium text-gray-700 block mb-1">Comment</label>
                 <textarea value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
                   placeholder="Share your experience with this store…" rows={3}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
               </div>
               <div className="flex gap-2">
                 <Button type="submit" disabled={submitting} className="gap-2 bg-blue-600 hover:bg-blue-700">

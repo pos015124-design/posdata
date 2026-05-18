@@ -6,7 +6,7 @@
  * the admin approves the account.
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { CheckCircle, Clock, Circle, Mail, Phone, RefreshCw, LogOut } from 'lucide-react';
+import { CheckCircle, Clock, Circle, Mail, Phone, RefreshCw, LogOut, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';

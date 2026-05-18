@@ -287,7 +287,7 @@ export default function Expenses() {
                     name="notes"
                     value={formData.notes}
                     onChange={handleInputChange as any}
-                    className="w-full min-h-[100px] px-3 py-2 border rounded-md"
+                    className="w-full min-h-[100px] px-3 py-2 border rounded-md text-base"
                   />
                 </div>
 
