@@ -143,8 +143,8 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Main Content — full width on mobile, offset by sidebar on desktop */}
       <main className="block w-full lg:pl-64">
-        {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center h-12 px-3 bg-white border-b border-gray-100 sticky top-0 z-20 shadow-sm gap-3">
+        {/* Mobile top bar — FIXED so it's always visible regardless of scroll position */}
+        <div className="lg:hidden fixed top-0 left-0 right-0 flex items-center h-12 px-3 bg-white border-b border-gray-100 z-20 shadow-sm gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-md shrink-0"
@@ -158,8 +158,8 @@ export default function Layout({ children }: LayoutProps) {
           <Logo variant="icon" className="h-7 shrink-0" />
         </div>
 
-        {/* Page content */}
-        <div className="px-4 pt-4 pb-8 lg:pt-6 lg:px-6">
+        {/* Page content — pt-12 on mobile to clear the fixed top bar */}
+        <div className="px-4 pt-16 pb-8 lg:pt-6 lg:px-6">
           {children}
         </div>
       </main>
