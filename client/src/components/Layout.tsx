@@ -19,7 +19,6 @@ import {
   Download,
   Truck
 } from 'lucide-react';
-import { Button } from '../components/ui/button';
 import { useInstallPrompt } from './InstallPWA';
 import Logo from './Logo';
 
@@ -67,7 +66,7 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50">
 
       {/* Sidebar Overlay for Mobile */}
       {sidebarOpen && (
@@ -77,8 +76,8 @@ export default function Layout({ children }: LayoutProps) {
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={`w-64 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
+      {/* Sidebar — fixed, slides in from left on mobile, always visible on desktop */}
+      <aside className={`w-64 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed top-0 left-0 shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
         style={{ height: '100dvh' }}
@@ -142,10 +141,10 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 ml-0 lg:ml-64 min-w-0">
-        {/* Mobile top bar — sticky, full width, shows hamburger + current page */}
-        <div className="lg:hidden flex items-center h-12 px-4 bg-white border-b border-gray-100 sticky top-0 z-20 shadow-sm gap-3">
+      {/* Main Content — full width on mobile, offset by sidebar on desktop */}
+      <main className="block w-full lg:pl-64">
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center h-12 px-3 bg-white border-b border-gray-100 sticky top-0 z-20 shadow-sm gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-md shrink-0"
@@ -153,17 +152,13 @@ export default function Layout({ children }: LayoutProps) {
           >
             <Menu className="w-5 h-5" />
           </button>
-          {/* Current page label */}
-          <span className="text-sm font-semibold text-gray-800 truncate">
+          <span className="text-sm font-semibold text-gray-800 truncate flex-1">
             {menuItems.find(m => m.path === location.pathname)?.label ?? 'E-Shop'}
           </span>
-          {/* Logo mark on the right */}
-          <div className="ml-auto shrink-0">
-            <Logo variant="default" className="h-6" />
-          </div>
+          <Logo variant="icon" className="h-7 shrink-0" />
         </div>
 
-        {/* Page content — full width, consistent padding */}
+        {/* Page content */}
         <div className="px-4 pt-4 pb-8 lg:pt-6 lg:px-6">
           {children}
         </div>
