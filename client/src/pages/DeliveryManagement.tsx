@@ -206,14 +206,9 @@ export default function DeliveryManagement() {
     <div className="space-y-6">
 
       {/* ── Page header ── */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Truck className="w-6 h-6 text-blue-600" />Delivery Management
-        </h1>
-        <p className="text-gray-500 mt-0.5 text-sm">
-          BHABY GROUP LTD middleman delivery hub — assign riders, track orders
-        </p>
-      </div>
+      <p className="text-gray-500 mt-0.5 text-sm">
+        BHABY GROUP LTD middleman delivery hub — assign riders, track orders
+      </p>
 
       {/* ── Summary stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

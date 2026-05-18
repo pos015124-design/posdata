@@ -129,10 +129,7 @@ export default function Customers() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Customers</h1>
-          <p className="text-gray-600 mt-0.5 text-sm">Manage your customer base</p>
-        </div>
+        <p className="text-gray-500 text-sm mt-0.5">Manage your customer base</p>
         <Button
           size="sm"
           onClick={() => {

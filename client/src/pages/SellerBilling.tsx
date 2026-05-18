@@ -85,10 +85,7 @@ export default function SellerBilling() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Billing & Fees</h1>
-        <p className="text-gray-500 text-sm mt-1">Fees owed to BHABY GROUP LTD for using E-Shop platform</p>
-      </div>
+      <p className="text-gray-500 text-sm">Fees owed to BHABY GROUP LTD for using E-Shop platform</p>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

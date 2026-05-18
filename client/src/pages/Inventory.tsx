@@ -393,10 +393,7 @@ export default function Inventory() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-gray-600 mt-0.5 text-sm">Manage your products and stock</p>
-        </div>
+        <p className="text-gray-500 text-sm mt-0.5">Manage your products and stock</p>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Button
             onClick={() => {

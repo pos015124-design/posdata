@@ -333,16 +333,9 @@ export default function AdminBilling() {
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-blue-600" />Billing Management
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            PBZ{' '}
-            <span className="font-mono font-bold text-gray-700">0952509001</span>
-            {' '}— BHABY GROUP LTD
-          </p>
-        </div>
+        <p className="text-gray-500 text-sm mt-0.5">
+          PBZ <span className="font-mono font-bold text-gray-700">0952509001</span> — BHABY GROUP LTD
+        </p>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setSubModal(true)} className="gap-1.5">
             <CreditCard className="w-4 h-4" />Create Invoice

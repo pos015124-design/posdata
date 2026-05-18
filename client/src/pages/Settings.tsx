@@ -362,10 +362,7 @@ export default function Settings() {
     return (
       <div className="space-y-4 md:space-y-6">
         <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Super Admin Settings</h1>
-            <p className="text-sm text-gray-600 mt-0.5">Approve and manage users and businesses</p>
-          </div>
+          <p className="text-sm text-gray-500 mt-0.5">Approve and manage users and businesses</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => navigate('/super-admin')}>
               Super Admin
@@ -404,12 +401,7 @@ export default function Settings() {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Settings</h1>
-          <p className="text-sm text-gray-600 mt-0.5">Manage your account and preferences</p>
-        </div>
-      </div>
+      <p className="text-sm text-gray-500">Manage your account and preferences</p>
 
       {/* Mobile Tab Selector */}
       <div className="md:hidden">

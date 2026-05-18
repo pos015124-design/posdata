@@ -180,14 +180,9 @@ const BusinessManagement: React.FC = () => {
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Store className="w-5 h-5 text-blue-600" />Business Management
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            {pagination.total} registered · {pendingCount} pending approval
-          </p>
-        </div>
+        <p className="text-gray-500 text-sm mt-0.5">
+          {pagination.total} registered · {pendingCount} pending approval
+        </p>
         <Button size="sm" variant="outline" onClick={fetchBusinesses} disabled={loading} className="gap-1.5">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
         </Button>

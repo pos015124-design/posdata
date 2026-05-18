@@ -261,14 +261,9 @@ export default function Sellers() {
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Truck className="w-5 h-5 text-blue-600" />My Suppliers
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            Track your stock suppliers, record deliveries, and monitor what you owe
-          </p>
-        </div>
+        <p className="text-gray-500 text-sm mt-0.5">
+          Track your stock suppliers, record deliveries, and monitor what you owe
+        </p>
         <div className="flex gap-2 shrink-0">
           <Button size="sm" variant="outline" onClick={() => fetchAll(false)} className="h-9 gap-1.5">
             <RefreshCw className="w-4 h-4" />

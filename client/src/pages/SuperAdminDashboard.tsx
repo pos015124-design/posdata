@@ -147,14 +147,9 @@ const SuperAdminDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-blue-600" />Super Admin
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            Platform overview · Last refreshed {lastRefresh.toLocaleTimeString()}
-          </p>
-        </div>
+        <p className="text-gray-500 text-sm mt-0.5">
+          Platform overview · Last refreshed {lastRefresh.toLocaleTimeString()}
+        </p>
         <Button variant="outline" size="sm" onClick={refreshAll} className="gap-1.5 shrink-0">
           <RefreshCw className="w-4 h-4" />Refresh all
         </Button>

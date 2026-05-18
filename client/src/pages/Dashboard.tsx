@@ -209,10 +209,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-0.5 text-sm truncate max-w-[220px] sm:max-w-none">Welcome back, {user?.email}!</p>
-        </div>
+        <p className="text-gray-500 text-sm">Welcome back, {user?.email}</p>
         <div className="flex gap-2 shrink-0">
           {/* Notification toggle */}
           <Button
