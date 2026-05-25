@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://e-shop.bhabygroup.co.tz/sitemap.xml
