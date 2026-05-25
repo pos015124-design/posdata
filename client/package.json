@@ -76,6 +76,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "sharp": "^0.34.5",
     "vite-plugin-pwa": "^0.21.1"
   }
 }
