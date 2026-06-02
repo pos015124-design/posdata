@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ShoppingCart, Search, Building2, ExternalLink,
   ChevronLeft, ChevronRight, X, Plus, Minus, Trash2,
-  SlidersHorizontal, Sparkles, Store as StoreIcon, Tag
+  SlidersHorizontal, Sparkles, Store as StoreIcon, Tag, User
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import Logo from '../components/Logo';
@@ -333,6 +333,13 @@ export default function Store() {
               <Link to="/stores" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
                 <Building2 className="w-4 h-4" />Stores
               </Link>
+              {/* Seller/Admin login — always visible so app users can access dashboard */}
+              <Link
+                to="/login"
+                className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors"
+              >
+                <User className="w-4 h-4" />Seller Login
+              </Link>
               <button
                 onClick={() => setCartOpen(true)}
                 className="relative flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
@@ -370,6 +377,12 @@ export default function Store() {
               <Link to="/stores">
                 <Button variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2">
                   <Building2 className="w-4 h-4" />Browse stores
+                </Button>
+              </Link>
+              {/* Login button — visible on mobile where navbar login is hidden */}
+              <Link to="/login">
+                <Button variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2 sm:hidden">
+                  <User className="w-4 h-4" />Seller Login
                 </Button>
               </Link>
               {/* Cart button in hero — only for guests (logged-in users use sidebar) */}
