@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ShoppingCart, Search, Building2, ExternalLink,
   ChevronLeft, ChevronRight, X, Plus, Minus, Trash2,
-  SlidersHorizontal, Sparkles, Store as StoreIcon, Tag, User
+  SlidersHorizontal, Sparkles, Store as StoreIcon, Tag
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import Logo from '../components/Logo';
@@ -333,13 +333,6 @@ export default function Store() {
               <Link to="/stores" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors">
                 <Building2 className="w-4 h-4" />Stores
               </Link>
-              {/* Seller/Admin login — always visible so app users can access dashboard */}
-              <Link
-                to="/login"
-                className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors"
-              >
-                <User className="w-4 h-4" />Seller Login
-              </Link>
               <button
                 onClick={() => setCartOpen(true)}
                 className="relative flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
@@ -563,19 +556,33 @@ export default function Store() {
               <StoreIcon className="w-5 h-5" />
               <span className="text-xs font-medium">Stores</span>
             </Link>
-            <Link
-              to="/login"
-              className="flex flex-col items-center gap-1 px-4 py-2 text-gray-500 hover:text-blue-600 transition-colors"
+            <button
+              onClick={() => setCartOpen(true)}
+              className="flex flex-col items-center gap-1 px-4 py-2 text-gray-500 hover:text-blue-600 transition-colors relative"
             >
-              <User className="w-5 h-5" />
-              <span className="text-xs font-medium">Seller Login</span>
-            </Link>
+              <ShoppingCart className="w-5 h-5" />
+              {cartCount > 0 && (
+                <span className="absolute top-1 right-3 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+              <span className="text-xs font-medium">Cart</span>
+            </button>
           </div>
         </nav>
       )}
 
       {/* Spacer so bottom nav doesn't cover content on mobile */}
       {!isInsideLayout && <div className="h-16 sm:hidden" />}
+
+      {/* ── Subtle seller/admin login link — in page footer, not prominent ── */}
+      {!isInsideLayout && (
+        <div className="sm:hidden pb-20 pt-4 text-center">
+          <Link to="/login" className="text-xs text-gray-300 hover:text-gray-400 transition-colors">
+            Seller / Admin Portal
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
