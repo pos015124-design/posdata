@@ -379,12 +379,6 @@ export default function Store() {
                   <Building2 className="w-4 h-4" />Browse stores
                 </Button>
               </Link>
-              {/* Login button — visible on mobile where navbar login is hidden */}
-              <Link to="/login">
-                <Button variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2 sm:hidden">
-                  <User className="w-4 h-4" />Seller Login
-                </Button>
-              </Link>
               {/* Cart button in hero — only for guests (logged-in users use sidebar) */}
               {!isInsideLayout && cartCount > 0 && (
                 <Button
@@ -556,6 +550,32 @@ export default function Store() {
 
       {/* Cart drawer */}
       <CartDrawer cart={cart} open={cartOpen} onClose={() => setCartOpen(false)} onUpdate={handleUpdate} onRemove={handleRemove} />
+
+      {/* ── Mobile bottom nav — guests only, always visible ── */}
+      {!isInsideLayout && (
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg">
+          <div className="flex items-center justify-around h-16 px-2">
+            <Link to="/store" className="flex flex-col items-center gap-1 px-4 py-2 text-blue-600">
+              <ShoppingCart className="w-5 h-5" />
+              <span className="text-xs font-semibold">Shop</span>
+            </Link>
+            <Link to="/stores" className="flex flex-col items-center gap-1 px-4 py-2 text-gray-500 hover:text-blue-600 transition-colors">
+              <StoreIcon className="w-5 h-5" />
+              <span className="text-xs font-medium">Stores</span>
+            </Link>
+            <Link
+              to="/login"
+              className="flex flex-col items-center gap-1 px-4 py-2 text-gray-500 hover:text-blue-600 transition-colors"
+            >
+              <User className="w-5 h-5" />
+              <span className="text-xs font-medium">Seller Login</span>
+            </Link>
+          </div>
+        </nav>
+      )}
+
+      {/* Spacer so bottom nav doesn't cover content on mobile */}
+      {!isInsideLayout && <div className="h-16 sm:hidden" />}
     </div>
   );
 }
