@@ -626,6 +626,8 @@ router.put('/fix-business/:userId', requireAdmin, async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 });
+
+router.put('/permissions/:userId', requireAdmin, async (req, res) => {
   try {
     const { permissions } = req.body;
     if (!permissions) {
