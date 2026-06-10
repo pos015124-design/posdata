@@ -564,7 +564,68 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
   }
 });
 
-router.put('/permissions/:userId', requireAdmin, async (req, res) => {
+// PUT /api/auth/fix-business/:userId — super admin only
+// Creates a missing business profile for a user who registered but has none
+router.put('/fix-business/:userId', requireAdmin, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const Business = require('../models/Business');
+
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Check if business already exists
+    const existing = await Business.findOne({ userId: user._id });
+    if (existing) {
+      // Just ensure it's linked on the user record
+      if (!user.businessId) {
+        user.businessId = existing._id;
+        await user.save();
+      }
+      return res.json({ success: true, message: 'Business already exists — linked to user', data: existing });
+    }
+
+    // Also check by email
+    const byEmail = await Business.findOne({ email: user.email });
+    if (byEmail) {
+      byEmail.userId = user._id;
+      if (!byEmail.tenantId) byEmail.tenantId = 'default';
+      if (user.isApproved) { byEmail.status = 'active'; byEmail.isPublic = true; }
+      await byEmail.save();
+      user.businessId = byEmail._id;
+      await user.save();
+      return res.json({ success: true, message: 'Existing business linked to user', data: byEmail });
+    }
+
+    // Create a new business for this user
+    const name = `${user.firstName || user.email.split('@')[0]}'s Store`;
+    const baseSlug = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-');
+    // Ensure slug is unique
+    let slug = baseSlug;
+    let count = 1;
+    while (await Business.findOne({ slug })) { slug = `${baseSlug}-${count++}`; }
+
+    const business = new Business({
+      name,
+      slug,
+      email: user.email,
+      userId: user._id,
+      tenantId: 'default',
+      category: 'retail',
+      status: user.isApproved ? 'active' : 'pending',
+      isPublic: !!user.isApproved
+    });
+    await business.save();
+
+    user.businessId = business._id;
+    await user.save();
+
+    return res.json({ success: true, message: 'Business created and linked', data: business });
+  } catch (error) {
+    console.error('fix-business error:', error);
+    return res.status(500).json({ message: error.message });
+  }
+});
   try {
     const { permissions } = req.body;
     if (!permissions) {

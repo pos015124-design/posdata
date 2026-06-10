@@ -103,6 +103,16 @@ const PendingUsers: React.FC = () => {
     }
   };
 
+  const fixBusiness = async (id: string, email: string) => {
+    try {
+      const d = await api(`/api/auth/fix-business/${id}`, 'PUT');
+      toast({ title: d.success ? 'Business fixed ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) fetchUsers();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const suspend = async (id: string) => {
     try {
       const d = await api(`/api/auth/suspend/${id}`, 'PUT', { reason: suspendReason || 'Suspended by admin' });
@@ -240,6 +250,15 @@ const PendingUsers: React.FC = () => {
                     <Button size="sm" variant="ghost" onClick={() => deleteUser(u._id, u.email)}
                       className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50 px-2">
                       <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {/* Fix Business — for approved sellers who have no business profile */}
+                  {u.isApproved && u.role === 'business_admin' && !u.isSuspended && (
+                    <Button size="sm" variant="outline"
+                      onClick={() => fixBusiness(u._id, u.email)}
+                      className="h-8 border-purple-300 text-purple-700 hover:bg-purple-50 gap-1 text-xs px-2"
+                      title="Create or link missing business profile">
+                      <Shield className="w-3.5 h-3.5" />Fix Store
                     </Button>
                   )}
                 </div>
