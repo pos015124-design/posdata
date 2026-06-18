@@ -23,8 +23,9 @@
 # data (SQLite download counter — regenerated on first run)
 /data/
 
-# APK binary — too large for git, host separately (Cloudinary, S3, or server filesystem)
-/public/bhaby-eshop.apk
+# APK binary — committed to repo for deployment
+# To update: replace public/bhaby-eshop.apk and commit
+# public/bhaby-eshop.apk
 
 # misc
 .DS_Store
