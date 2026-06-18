@@ -1,12 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2563eb"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#2563eb"/>
     </linearGradient>
   </defs>
-  <rect width="192" height="192" rx="35" fill="url(#g)"/>
-  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
-    font-family="Arial,sans-serif" font-weight="900" font-size="81"
-    fill="white">E</text>
+
+  <!-- Background -->
+  <rect width="192" height="192" rx="35" fill="url(#bg)"/>
+
+  <!-- B circuit icon scaled to fit with padding -->
+  <!-- Original viewBox: 0 0 100 100, we scale to ~70% of icon size centered -->
+  <g transform="translate(28.799999999999997, 28.799999999999997) scale(1.3439999999999999)">
+
+    <!-- Outer B shape -->
+    <path
+      d="M18 10 L18 90 L55 90 C72 90 82 80 82 67 C82 58 77 52 69 49 C76 46 80 40 80 32 C80 19 70 10 55 10 Z"
+      stroke="#0ea5e9" stroke-width="5" fill="none" stroke-linejoin="round"/>
+
+    <!-- Upper bump of B -->
+    <path
+      d="M18 10 L55 10 C68 10 78 18 78 30 C78 42 68 49 55 49 L18 49"
+      stroke="#0ea5e9" stroke-width="5" fill="none"/>
+
+    <!-- Lower bump of B -->
+    <path
+      d="M18 49 L57 49 C71 49 82 57 82 68 C82 79 71 88 57 88 L18 88"
+      stroke="#ffffff" stroke-width="5" fill="none"/>
+
+    <!-- Circuit traces left -->
+    <line x1="18" y1="30" x2="6" y2="30" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="4" cy="30" r="3" fill="#0ea5e9"/>
+    <line x1="18" y1="50" x2="6" y2="50" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="4" cy="50" r="3" fill="#0ea5e9"/>
+    <line x1="18" y1="70" x2="6" y2="70" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="4" cy="70" r="3" fill="#ffffff"/>
+
+    <!-- Shopping cart inside B -->
+    <g transform="translate(36, 38)">
+      <path d="M2 4 L4 4 L7 14 L18 14 L20 7 L6 7"
+        stroke="#0ea5e9" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="9" cy="17" r="1.8" fill="#0ea5e9"/>
+      <circle cx="16" cy="17" r="1.8" fill="#0ea5e9"/>
+    </g>
+  </g>
 </svg>

@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Layout from './components/Layout';
+import SplashScreen from './components/SplashScreen';
 import { Toaster } from './components/ui/toaster';
 
 // ── Eagerly loaded — needed on first paint for every user ──────────────────
@@ -70,8 +71,18 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // Show splash screen on first load — only in standalone PWA/TWA mode
+  // (when installed as app, not browsing in a regular browser tab)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || (window.navigator as any).standalone === true;
+  const [splashDone, setSplashDone] = useState(!isStandalone);
+
   return (
-    <Router>
+    <>
+      {!splashDone && (
+        <SplashScreen minDuration={1400} onDone={() => setSplashDone(true)} />
+      )}
+      <Router>
       <LanguageProvider>
         <AuthProvider>
           {/* Suspense wraps all routes — lazy chunks show PageLoader while downloading */}
@@ -118,6 +129,7 @@ function App() {
         </AuthProvider>
       </LanguageProvider>
     </Router>
+    </>
   );
 }
 
