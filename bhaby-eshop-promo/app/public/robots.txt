@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://download.bhabygroup.co.tz/sitemap.xml
+Sitemap: https://bhaby-eshop-promo.onrender.com/sitemap.xml
