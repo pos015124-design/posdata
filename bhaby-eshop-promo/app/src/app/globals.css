@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --color-navy-900: #1E3A5F;
+  --color-navy-800: #274B73;
+  --color-navy-700: #315C8C;
+  --color-royal: #2563EB;
+  --color-royal-light: #60A5FA;
+}
+
+body {
+  background: #F8FAFC;
+  color: #0f172a;
+  font-family: var(--font-inter, Arial, Helvetica, sans-serif);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* ── Scroll-animation base classes ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-50px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal-left.in-view {
+  opacity: 1;
+  transform: translateX(0);
+}
+.reveal-right {
+  opacity: 0;
+  transform: translateX(50px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal-right.in-view {
+  opacity: 1;
+  transform: translateX(0);
+}
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+.reveal-scale.in-view {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* stagger helpers */
+.delay-100 { transition-delay: 0.1s; }
+.delay-200 { transition-delay: 0.2s; }
+.delay-300 { transition-delay: 0.3s; }
+.delay-400 { transition-delay: 0.4s; }
+.delay-500 { transition-delay: 0.5s; }
+.delay-600 { transition-delay: 0.6s; }
+
+/* ── Animated SVG paths ── */
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+.svg-draw {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+}
+.svg-draw.in-view {
+  animation: draw 1.2s ease forwards;
+}
+
+/* ── Floating phone ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-14px); }
+}
+.phone-float { animation: float 3.6s ease-in-out infinite; }
+
+/* ── Pulse ring ── */
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.pulse-ring {
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+/* ── Icon spin on hover ── */
+.icon-spin:hover svg { transform: rotate(360deg); transition: transform 0.6s ease; }
+
+/* ── Story connector line ── */
+.story-line {
+  width: 2px;
+  background: linear-gradient(to bottom, #2563EB, #1E3A5F);
+}
+
+/* ── Gradient text ── */
+.gradient-text {
+  background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Particle dots (hero background) ── */
+@keyframes drift {
+  0%   { transform: translate(0, 0) scale(1);   opacity: 0.6; }
+  50%  { transform: translate(20px, -30px) scale(1.2); opacity: 0.3; }
+  100% { transform: translate(0, 0) scale(1);   opacity: 0.6; }
+}
+.particle {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgba(37,99,235,0.35);
+  animation: drift linear infinite;
+}
