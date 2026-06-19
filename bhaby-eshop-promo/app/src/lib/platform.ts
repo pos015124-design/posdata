@@ -14,12 +14,12 @@ export function detectPlatform(): Platform {
 export function getPlatformMessage(platform: Platform): string {
   switch (platform) {
     case "android":
-      return "You're on Android — tap the button above to download the app (APK, ~1 MB).";
+      return "You're on Android — tap the button above to download (~1 MB).";
     case "ios":
-      return "iOS version coming soon! Visit this page on your Android phone to download.";
+      return "You're on iPhone/iPad — tap the button below to add E-Shop to your home screen.";
     case "desktop":
-      return "Open this page on your Android phone to download and install the app.";
+      return "Open this page on your phone to download or add to your home screen.";
     default:
-      return "Open this page on your Android phone or device to download the app.";
+      return "Open this page on your phone to get the app.";
   }
 }

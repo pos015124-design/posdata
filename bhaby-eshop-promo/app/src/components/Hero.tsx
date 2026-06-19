@@ -1,15 +1,76 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { detectPlatform, getPlatformMessage } from "@/lib/platform";
+import { detectPlatform, getPlatformMessage, Platform } from "@/lib/platform";
 import Logo from "@/components/Logo";
 
 const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "/bhaby-eshop.apk";
+const ESHOP_URL = process.env.NEXT_PUBLIC_ESHOP_URL || "https://e-shop.bhabygroup.co.tz";
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || "";
-
-// When NEXT_PUBLIC_PLAY_STORE_URL is set, the button links to Play Store.
-// When not set, it downloads the APK directly.
 const isPlayStore = !!PLAY_STORE_URL;
+
+// ── iOS "Add to Home Screen" instructions card ────────────────────────────────
+function IOSInstallCard() {
+  return (
+    <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 max-w-sm mx-auto text-left">
+      <p className="text-white font-bold text-base mb-4 text-center">
+        Add E-Shop to your Home Screen
+      </p>
+      <ol className="space-y-3">
+        {[
+          {
+            step: "1",
+            icon: (
+              <svg className="w-5 h-5 shrink-0 text-blue-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
+              </svg>
+            ),
+            text: <>Tap the <strong className="text-white">Share</strong> button at the bottom of Safari</>,
+          },
+          {
+            step: "2",
+            icon: (
+              <svg className="w-5 h-5 shrink-0 text-blue-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+            ),
+            text: <>Scroll down and tap <strong className="text-white">Add to Home Screen</strong></>,
+          },
+          {
+            step: "3",
+            icon: (
+              <svg className="w-5 h-5 shrink-0 text-blue-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ),
+            text: <>Tap <strong className="text-white">Add</strong> — E-Shop appears on your home screen instantly</>,
+          },
+        ].map(({ step, icon, text }) => (
+          <li key={step} className="flex items-start gap-3 text-slate-200 text-sm">
+            <span className="w-6 h-6 rounded-full bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              {step}
+            </span>
+            {icon}
+            <span>{text}</span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-4 pt-4 border-t border-white/10 text-center">
+        <a
+          href={ESHOP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 bg-white text-[#1E3A5F] font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-blue-50 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+          </svg>
+          Or open E-Shop in Safari
+        </a>
+      </div>
+    </div>
+  );
+}
 
 interface HeroProps {
   initialCount: number;
@@ -104,8 +165,9 @@ export default function Hero({ initialCount }: HeroProps) {
   const [loading, setLoading] = useState(false);
   const [arrowAnim, setArrowAnim] = useState(false);
   const [platformMessage, setPlatformMessage] = useState(
-    "Open this page on your phone or mobile device to download the app."
+    "Open this page on your phone to get the app."
   );
+  const [platform, setPlatform] = useState<Platform>("unknown");
   const downloadLinkRef = useRef<HTMLAnchorElement>(null);
 
   // Entrance animation states
@@ -116,11 +178,12 @@ export default function Hero({ initialCount }: HeroProps) {
   }, []);
 
   useEffect(() => {
-    const platform = detectPlatform();
+    const p = detectPlatform();
+    setPlatform(p);
     if (isPlayStore) {
       setPlatformMessage("Available on Google Play — tap to install instantly.");
     } else {
-      setPlatformMessage(getPlatformMessage(platform));
+      setPlatformMessage(getPlatformMessage(p));
     }
   }, []);
 
@@ -236,7 +299,8 @@ export default function Hero({ initialCount }: HeroProps) {
           Browse, compare, and buy with ease, anytime, anywhere.
         </p>
 
-        {/* Download button */}
+        {/* Download button — Android/Desktop only */}
+        {platform !== "ios" && (
         <div
           className={`${base} ${show} flex flex-col items-center gap-4 mb-8`}
           style={{ transitionDelay: "0.45s" }}
@@ -292,6 +356,17 @@ export default function Hero({ initialCount }: HeroProps) {
             Download APK
           </a>
         </div>
+        )}
+
+        {/* iOS — Add to Home Screen instructions */}
+        {platform === "ios" && (
+          <div
+            className={`${base} ${show} mb-8`}
+            style={{ transitionDelay: "0.45s" }}
+          >
+            <IOSInstallCard />
+          </div>
+        )}
 
         {/* Platform message */}
         <p
