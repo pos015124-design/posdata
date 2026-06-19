@@ -1,3 +1,5 @@
+import Logo from "@/components/Logo";
+
 const ESHOP_URL = process.env.NEXT_PUBLIC_ESHOP_URL || "https://e-shop.bhabygroup.co.tz";
 
 export default function Footer() {
@@ -12,7 +14,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-10">
           {/* Brand */}
           <div>
-            <h3 className="text-xl font-extrabold tracking-tight mb-3">Bhaby E-Shop</h3>
+            <div className="mb-3">
+              <Logo variant="white" className="h-10" />
+            </div>
             <p className="text-slate-300 text-sm leading-relaxed">
               Tanzania&apos;s premier mobile e-commerce experience. Shop smart, shop Bhaby.
             </p>

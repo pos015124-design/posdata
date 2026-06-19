@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { detectPlatform, getPlatformMessage } from "@/lib/platform";
+import Logo from "@/components/Logo";
 
 const APK_URL = process.env.NEXT_PUBLIC_APK_URL || "/bhaby-eshop.apk";
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || "";
@@ -212,8 +213,9 @@ export default function Hero({ initialCount }: HeroProps) {
           className={`${base} ${show} text-5xl sm:text-7xl font-extrabold tracking-tight mb-4`}
           style={{ transitionDelay: "0.15s" }}
         >
-          Bhaby{" "}
-          <span className="gradient-text">E-Shop</span>
+          <span className="flex justify-center">
+            <Logo variant="white" className="h-16 sm:h-20" />
+          </span>
         </h1>
 
         <p
