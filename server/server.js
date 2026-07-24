@@ -364,7 +364,18 @@ const startServer = async () => {
     console.log('✅ Database connected successfully');
   } catch (err) {
     console.error('❌ Database connection failed:', err.message);
-    console.log('⚠️ Server will start without database connection');
+    
+    // CRITICAL FIX: Do NOT start Express if database fails
+    // This prevents the 10-second buffering timeout on every query
+    if (process.env.VERCEL !== '1') {
+      // Exit if not on Vercel (serverless handles it gracefully)
+      console.error('🛑 Stopping server startup - database connection is required');
+      process.exit(1);
+    } else {
+      // On Vercel, log but return (serverless will handle requests)
+      console.warn('⚠️ Running on Vercel without database connection');
+      return;
+    }
   }
 
   // CRITICAL: Only start listening if NOT on Vercel (serverless)
