@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       strategies: "generateSW",
       injectRegister: "script",
       // Tell vite-plugin-pwa the manifest filename so it matches the
