@@ -19,7 +19,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             // API calls: network-first, fall back to cache for 5 minutes
-            urlPattern: /^https:\/\/posdata-73sd\.onrender\.com\/api\//,
+            urlPattern: /^https:\/\/portal\.bhabygroup\.co\.tz\/api\//,
             handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",
