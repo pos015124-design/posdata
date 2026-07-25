@@ -118,13 +118,8 @@ export default function POS() {
         description: `Sale completed! Total: TZS ${total.toLocaleString()}`,
       });
       setCart([]);
-      fetchProducts(); // Refresh products to update stock
-      
-      // Notify dashboard and other pages about the new sale
-      localStorage.setItem('sale-created', Date.now().toString());
-      
-      // Dispatch custom event for same-tab listeners
-      window.dispatchEvent(new Event('sale-created'));
+      // ✅ Only refetch on demand, not trigger global event
+      fetchProducts();
     } catch (error: any) {
       toast({
         title: 'Error',

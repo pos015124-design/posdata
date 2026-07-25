@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -23,11 +23,7 @@ export default function Customers() {
     creditLimit: 0
   });
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await customersApi.getCustomers();
@@ -41,7 +37,11 @@ export default function Customers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,13 +61,19 @@ export default function Customers() {
     e.preventDefault();
     try {
       if (editingCustomer) {
-        await customersApi.updateCustomer(editingCustomer._id, formData);
+        const response = await customersApi.updateCustomer(editingCustomer._id, formData);
+        // ✅ Update local state immediately
+        setCustomers(prev => prev.map(c => 
+          c._id === editingCustomer._id ? { ...c, ...formData } : c
+        ));
         toast({
           title: 'Success',
           description: 'Customer updated successfully',
         });
       } else {
-        await customersApi.addCustomer(formData);
+        const response = await customersApi.addCustomer(formData);
+        // ✅ Add to local state immediately
+        setCustomers(prev => [...prev, response.customer || { _id: Date.now().toString(), ...formData }]);
         toast({
           title: 'Success',
           description: 'Customer added successfully',
@@ -76,7 +82,6 @@ export default function Customers() {
       setShowAddModal(false);
       setEditingCustomer(null);
       resetForm();
-      fetchCustomers();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -102,11 +107,12 @@ export default function Customers() {
     if (!confirm('Are you sure you want to delete this customer?')) return;
     try {
       await customersApi.deleteCustomer(customerId);
+      // ✅ Remove from local state immediately
+      setCustomers(prev => prev.filter(c => c._id !== customerId));
       toast({
         title: 'Success',
         description: 'Customer deleted successfully',
       });
-      fetchCustomers();
     } catch (error) {
       toast({
         title: 'Error',
