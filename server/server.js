@@ -211,7 +211,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", 'https://s3.us-east-1.amazonaws.com'],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'blob:'],
-      connectSrc: ["'self'", 'https://posdata-73sd.onrender.com', 'https://e-shop.bhabygroup.co.tz'],
+      connectSrc: ["'self'", 'https://backend.bhabygroup.co.tz', 'https://e-shop.bhabygroup.co.tz'],
       fontSrc: ["'self'", 'data:'],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: []
