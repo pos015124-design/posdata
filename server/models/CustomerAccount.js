@@ -5,6 +5,7 @@
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const addressSchema = new mongoose.Schema({
   type: {
@@ -239,16 +240,16 @@ customerAccountSchema.methods.comparePassword = async function(candidatePassword
 };
 
 customerAccountSchema.methods.generateVerificationToken = function() {
-  const token = Math.random().toString(36).substring(2, 15) + 
-                Math.random().toString(36).substring(2, 15);
+  // 32 bytes = 256 bits of cryptographic entropy — not Math.random()
+  const token = crypto.randomBytes(32).toString('hex');
   this.verificationToken = token;
   this.verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   return token;
 };
 
 customerAccountSchema.methods.generatePasswordResetToken = function() {
-  const token = Math.random().toString(36).substring(2, 15) + 
-                Math.random().toString(36).substring(2, 15);
+  // 32 bytes = 256 bits of cryptographic entropy — not Math.random()
+  const token = crypto.randomBytes(32).toString('hex');
   this.passwordResetToken = token;
   this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
   return token;

@@ -53,9 +53,9 @@ export default function POS() {
   useSmartPolling(fetchProducts, { baseInterval: 30_000, maxInterval: 300_000 });
 
   const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+    (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.barcode || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const addToCart = (product: any) => {
@@ -129,41 +129,34 @@ export default function POS() {
     }
   };
 
+  // Total item quantity across all cart lines — used in the tab badge
+  const cartQty = cart.reduce((s, i) => s + i.quantity, 0);
+
   return (
     <div className="space-y-3">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        {/* Cart badge — mobile only */}
-        <button
-          className="lg:hidden relative p-2 rounded-xl bg-blue-600 text-white"
-          onClick={() => setMobileTab(mobileTab === 'cart' ? 'products' : 'cart')}
-          aria-label="Toggle cart"
-        >
-          <ShoppingCart className="w-5 h-5" />
-          {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-              {cart.reduce((s, i) => s + i.quantity, 0)}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Mobile tab bar */}
+      {/* Mobile tab bar — the sole navigation element on small screens.
+          The formerly separate floating cart button above this has been
+          removed: it duplicated this switcher and produced an unbalanced
+          layout with a lone button floating on the left. */}
       <div className="flex lg:hidden gap-1 bg-gray-100 p-1 rounded-xl">
         <button
           onClick={() => setMobileTab('products')}
-          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${mobileTab === 'products' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'}`}
+          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+            mobileTab === 'products' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'
+          }`}
         >
           Products
         </button>
         <button
           onClick={() => setMobileTab('cart')}
-          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${mobileTab === 'cart' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'}`}
+          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === 'cart' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'
+          }`}
         >
           Cart
-          {cart.length > 0 && (
-            <span className="bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
-              {cart.reduce((s, i) => s + i.quantity, 0)}
+          {cartQty > 0 && (
+            <span className="bg-blue-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none">
+              {cartQty}
             </span>
           )}
         </button>

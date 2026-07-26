@@ -13,6 +13,9 @@ import Register from './pages/Register';
 import WaitingApproval from './pages/WaitingApproval';
 import Store from './pages/Store';
 import InstallPWA from './components/InstallPWA';
+import UpdateBanner from './components/UpdateBanner';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // ── Lazy loaded — only downloaded when the user navigates to that route ────
 // Each becomes its own JS chunk. Buyers never download seller/admin code.
@@ -93,8 +96,13 @@ function App() {
               <Route path="/about" element={<LandingPage />} />
 
               {/* Auth */}
-              <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
-              <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+              <Route path="/login"             element={<PublicRoute><Login /></PublicRoute>} />
+              <Route path="/register"          element={<PublicRoute><Register /></PublicRoute>} />
+              <Route path="/forgot-password"   element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+              {/* Reset password is intentionally not wrapped in PublicRoute —
+                  a logged-in user who follows a reset link should still be able
+                  to complete the flow without being bounced to /dashboard. */}
+              <Route path="/reset-password"    element={<ResetPassword />} />
 
               {/* Public storefront */}
               <Route path="/store"        element={<StorefrontWithOptionalLayout><Store /></StorefrontWithOptionalLayout>} />
@@ -126,6 +134,7 @@ function App() {
           </Suspense>
           <Toaster />
           <InstallPWA />
+          <UpdateBanner />
         </AuthProvider>
       </LanguageProvider>
     </Router>

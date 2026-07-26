@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
   // Basic Information
@@ -344,8 +345,8 @@ userSchema.methods.isAccountLocked = function() {
 };
 
 userSchema.methods.generatePasswordResetToken = function() {
-  const token = Math.random().toString(36).substring(2, 15) +
-                Math.random().toString(36).substring(2, 15);
+  // 32 bytes = 256 bits of cryptographic entropy — not Math.random()
+  const token = crypto.randomBytes(32).toString('hex');
   this.passwordResetToken = token;
   this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
   return token;

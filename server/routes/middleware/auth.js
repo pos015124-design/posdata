@@ -8,10 +8,7 @@ const requireUser = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // DEBUG: Log decoded token
-    console.log(`[AUTH] Token decoded - userId: ${decoded.userId}, email: ${decoded.email}, role: ${decoded.role}`);
-    
+
     // Check if user exists and is approved
     const user = await User.findById(decoded.userId);
     if (!user) {
@@ -22,9 +19,7 @@ const requireUser = async (req, res, next) => {
       });
       return res.status(401).json({ message: 'Session expired. Please log in again.' });
     }
-    
-    console.log(`[AUTH] User found in DB - ${user.email}, isActive: ${user.isActive}`);
-    
+
     if (!user.isApproved && !['admin', 'super_admin'].includes(user.role)) {
       securityLogger.warn('Authentication failed - account not approved', {
         userId: decoded.userId,
@@ -33,7 +28,7 @@ const requireUser = async (req, res, next) => {
       });
       return res.status(403).json({ message: 'Account not approved yet. Please contact an administrator.' });
     }
-    
+
     if (!user.isActive) {
       securityLogger.warn('Authentication failed - account inactive', {
         userId: decoded.userId,
@@ -41,12 +36,11 @@ const requireUser = async (req, res, next) => {
       });
       return res.status(403).json({ message: 'Account is inactive.' });
     }
-    
+
     req.user = decoded;
     req.userDetails = user;
     req.userPermissions = user.permissions;
-    
-    console.log(`[AUTH] Authentication successful for ${user.email}`);
+
     next();
   } catch (err) {
     securityLogger.warn('Authentication failed - invalid token', {
@@ -61,21 +55,40 @@ const requireUser = async (req, res, next) => {
 const requireAdmin = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
-    console.log('requireAdmin: No token provided');
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('requireAdmin: Decoded token:', decoded);
+
+    // Fetch the user from the database — do not trust role from token alone.
+    // If the user's role was changed or the account suspended after token issuance,
+    // the token-only check would still grant admin access for the full 24h lifetime.
+    const user = await User.findById(decoded.userId).select('role isActive isSuspended isApproved');
+    if (!user) {
+      securityLogger.warn('Admin authentication failed - user not found', {
+        userId: decoded.userId,
+        ip: req.ip,
+        path: req.path
+      });
+      return res.status(401).json({ message: 'Session expired. Please log in again.' });
+    }
+
+    if (!user.isActive || user.isSuspended) {
+      securityLogger.warn('Admin authentication failed - account inactive or suspended', {
+        userId: decoded.userId,
+        ip: req.ip,
+        path: req.path
+      });
+      return res.status(403).json({ message: 'Account is inactive.' });
+    }
 
     // Only allow 'admin' and 'super_admin' for admin endpoints (not business_admin)
     const adminRoles = ['admin', 'super_admin'];
-    if (!adminRoles.includes(decoded.role)) {
-      console.log('requireAdmin: Access denied for role', decoded.role);
+    if (!adminRoles.includes(user.role)) {
       securityLogger.warn('Admin access denied', {
         userId: decoded.userId,
-        role: decoded.role,
+        role: user.role,
         ip: req.ip,
         path: req.path
       });
@@ -83,9 +96,9 @@ const requireAdmin = async (req, res, next) => {
     }
 
     req.user = decoded;
+    req.userDetails = user;
     next();
   } catch (err) {
-    console.log('requireAdmin: JWT error', err);
     securityLogger.warn('Admin authentication failed', {
       error: err.message,
       ip: req.ip

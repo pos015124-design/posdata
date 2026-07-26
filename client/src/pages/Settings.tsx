@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../contexts/AuthContext';
 import * as settingsApi from '../api/settings';
@@ -63,6 +63,18 @@ export default function Settings() {
     acceptCredit: false,
     defaultPaymentMethod: 'cash'
   });
+
+  // Password change state — separate from profile so saving profile never
+  // accidentally triggers a password update
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordSaving,      setPasswordSaving]      = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword,     setShowNewPassword]     = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     // Super admins don't own a business profile, so skip seller business settings fetches.
@@ -335,6 +347,50 @@ export default function Settings() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({ title: 'Error', description: 'All password fields are required.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast({ title: 'Error', description: 'New password must be at least 8 characters.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Error', description: 'New passwords do not match.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      const token   = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+
+      const res = await fetch(`${baseUrl}/api/auth/change-password`, {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization:  `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to update password.');
+      }
+
+      toast({ title: 'Success', description: 'Password updated successfully.' });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to update password.', variant: 'destructive' });
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -715,13 +771,6 @@ export default function Settings() {
                       placeholder="your@email.com" 
                     />
                   </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <Label className="flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      Change Password
-                    </Label>
-                    <p className="text-sm text-gray-600 mt-2">Password change functionality will be available soon.</p>
-                  </div>
                   <Button
                     onClick={handleSaveProfile}
                     disabled={saving}
@@ -730,6 +779,96 @@ export default function Settings() {
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Update Profile
                   </Button>
+
+                  {/* ── Change password ── */}
+                  <div className="border-t pt-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-gray-500" />
+                      <h3 className="font-semibold text-base text-gray-900">Change Password</h3>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                      <div className="relative mt-1">
+                        <Input
+                          id="currentPassword"
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          placeholder="Enter current password"
+                          value={passwordForm.currentPassword}
+                          onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                          className="pr-10"
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <div className="relative mt-1">
+                          <Input
+                            id="newPassword"
+                            type={showNewPassword ? 'text' : 'password'}
+                            placeholder="At least 8 characters"
+                            value={passwordForm.newPassword}
+                            onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                            className="pr-10"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(v => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                        <div className="relative mt-1">
+                          <Input
+                            id="confirmNewPassword"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            placeholder="Repeat new password"
+                            value={passwordForm.confirmPassword}
+                            onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                            className="pr-10"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(v => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={handleChangePassword}
+                      disabled={passwordSaving}
+                      variant="outline"
+                      className="w-full md:w-auto border-blue-300 text-blue-700 hover:bg-blue-50"
+                    >
+                      {passwordSaving
+                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating…</>
+                        : <><Shield className="w-4 h-4 mr-2" />Update Password</>
+                      }
+                    </Button>
+                  </div>
                 </div>
               )}
 

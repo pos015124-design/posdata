@@ -1,10 +1,3 @@
-// Print all uncaught errors and unhandled promise rejections for debugging
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION:', err);
-});
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('UNHANDLED REJECTION:', reason);
-});
 // Load environment variables
 require('dotenv').config();
 
@@ -291,16 +284,6 @@ app.use('/api/public', require('./routes/storeRoutes'));
 // GET /api/public/products is defined in routes/storeRoutes.js (marketplace: active public stores only)
 
 app.use('/api/sellers', sellerRoutes);
-
-// DEBUG: Test endpoint for sellers
-app.get('/api/sellers/test', (req, res) => {
-  console.log('TEST: /api/sellers/test endpoint hit');
-  res.json({ 
-    message: 'Sellers API is working!',
-    timestamp: new Date().toISOString(),
-    note: 'If you see this, the route is working'
-  });
-});
 app.use('/api/products/import', importRoutes);
 app.use('/api/seller-inventory', sellerInventoryRoutes);
 app.use('/api/reviews', reviewRoutes);

@@ -106,6 +106,12 @@ router.post('/login',
         timestamp: new Date().toISOString()
       });
 
+      // Persist the refresh token so the /refresh endpoint can validate it.
+      // Without this save the refresh endpoint always returns 403 because
+      // user.refreshToken is null.
+      user.refreshToken = refreshToken;
+      await user.save();
+
       res.json({
         success: true,
         accessToken,
@@ -283,11 +289,20 @@ router.post('/refresh', async (req, res) => {
     });
   }
 
+  // Require a dedicated secret — never share signing keys between token types
+  const refreshSecret = process.env.REFRESH_TOKEN_SECRET;
+  if (!refreshSecret) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server configuration error'
+    });
+  }
+
   try {
     // Verify the refresh token
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const decoded = jwt.verify(refreshToken, refreshSecret);
 
-    // Find the user
+    // Find the user and validate the stored refresh token (prevents reuse after logout)
     const user = await User.findById(decoded.userId);
 
     if (!user) {
@@ -298,30 +313,31 @@ router.post('/refresh', async (req, res) => {
     }
 
     if (user.refreshToken !== refreshToken) {
+      // Token mismatch — possible token reuse attack; invalidate all sessions
+      user.refreshToken = null;
+      await user.save();
       return res.status(403).json({
         success: false,
         message: 'Invalid refresh token'
       });
     }
 
-    // Generate new tokens
-    const newAccessToken = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    
-    const newRefreshToken = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Build new token pair (rotation — old refresh token is invalidated)
+    const tokenPayload = {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      businessId: user.businessId
+    };
 
-    // Update user's refresh token in database
+    const newAccessToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const newRefreshToken = jwt.sign(tokenPayload, refreshSecret, { expiresIn: '7d' });
+
+    // Persist the new refresh token, invalidating the old one
     user.refreshToken = newRefreshToken;
     await user.save();
 
-    // Return new tokens
     return res.status(200).json({
       success: true,
       data: {
@@ -331,8 +347,6 @@ router.post('/refresh', async (req, res) => {
     });
 
   } catch (error) {
-    console.error(`Token refresh error: ${error.message}`);
-
     if (error.name === 'TokenExpiredError') {
       return res.status(403).json({
         success: false,
@@ -656,5 +670,194 @@ router.put('/permissions/:userId', requireAdmin, async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 });
+
+// ── Authenticated password change ────────────────────────────────────────────
+// POST /api/auth/change-password
+// Requires a valid access token. Verifies the current password before updating.
+// The User pre-save hook re-hashes the new password automatically.
+router.post('/change-password',
+  requireUser,
+  [
+    bodyCheck('currentPassword').notEmpty().withMessage('Current password is required'),
+    bodyCheck('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+  ],
+  async (req, res) => {
+    const errors = checkResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const user = await User.findById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect.' });
+      }
+
+      user.password     = newPassword;
+      // Invalidate all other sessions on password change
+      user.refreshToken = undefined;
+      await user.save();
+
+      securityLogger.info('Password changed by authenticated user', {
+        userId: user._id,
+        email:  user.email,
+        ip:     req.ip
+      });
+
+      return res.json({ success: true, message: 'Password updated successfully.' });
+    } catch (error) {
+      securityLogger.error('change-password error', { error: error.message, ip: req.ip });
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// ── Password reset — seller / admin accounts ──────────────────────────────────
+//
+// POST /api/auth/forgot-password
+// Accepts an email address, generates a cryptographically secure reset token
+// (via User.generatePasswordResetToken which uses crypto.randomBytes), saves it
+// to the user document, and dispatches a reset email.
+//
+// The response is always the same generic message regardless of whether the
+// email exists.  This prevents user-enumeration attacks (an attacker cannot
+// tell from the response whether an account is registered).
+//
+const { body: bodyCheck, validationResult: checkResult } = require('express-validator');
+
+router.post('/forgot-password',
+  [
+    bodyCheck('email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('A valid email address is required')
+  ],
+  async (req, res) => {
+    const errors = checkResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    // Always return the same message — do not reveal whether the account exists
+    const GENERIC_OK = 'If an account with that email exists, a password reset link has been sent.';
+
+    try {
+      const { email } = req.body;
+      const user = await User.findOne({ email });
+
+      if (!user) {
+        // Deliberate: same response as success
+        return res.json({ success: true, message: GENERIC_OK });
+      }
+
+      // Suspended accounts should not be able to reset passwords
+      if (user.isSuspended) {
+        return res.json({ success: true, message: GENERIC_OK });
+      }
+
+      const token = user.generatePasswordResetToken();
+      await user.save();
+
+      try {
+        const { sendPasswordResetEmail } = require('../utils/emailService');
+        await sendPasswordResetEmail(user.email, token);
+      } catch (emailErr) {
+        securityLogger.error('Failed to dispatch password reset email', {
+          userId: user._id,
+          error: emailErr.message
+        });
+        // Continue — do not expose internal email failures to the client
+      }
+
+      securityLogger.info('Password reset requested', {
+        userId: user._id,
+        email: user.email,
+        ip: req.ip
+      });
+
+      return res.json({ success: true, message: GENERIC_OK });
+    } catch (error) {
+      securityLogger.error('forgot-password error', { error: error.message, ip: req.ip });
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// POST /api/auth/reset-password
+// Accepts the token (from the email link) and the new password.
+// Validates token existence + expiry, hashes the new password via the pre-save
+// hook on User, invalidates the token, and resets any account lockout state.
+router.post('/reset-password',
+  [
+    bodyCheck('token')
+      .notEmpty()
+      .withMessage('Reset token is required'),
+    bodyCheck('password')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters')
+  ],
+  async (req, res) => {
+    const errors = checkResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    try {
+      const { token, password } = req.body;
+
+      const user = await User.findOne({
+        passwordResetToken:   token,
+        passwordResetExpires: { $gt: new Date() }   // token must not be expired
+      });
+
+      if (!user) {
+        return res.status(400).json({
+          error: 'Invalid or expired reset token',
+          message: 'This reset link is invalid or has expired. Please request a new one.'
+        });
+      }
+
+      // Assign the new password — the pre-save hook on User hashes it with bcrypt (12 rounds)
+      user.password            = password;
+      user.passwordResetToken  = undefined;
+      user.passwordResetExpires = undefined;
+      // Reset any lockout state so the user can log in immediately
+      user.failedLoginAttempts = 0;
+      user.accountLockedUntil  = undefined;
+      // Invalidate all existing sessions by clearing the stored refresh token
+      user.refreshToken = undefined;
+
+      await user.save();
+
+      securityLogger.info('Password reset completed', {
+        userId: user._id,
+        email:  user.email,
+        ip:     req.ip
+      });
+
+      auditLogger.info('Password reset', {
+        action:    'PASSWORD_RESET',
+        userId:    user._id,
+        email:     user.email,
+        ip:        req.ip,
+        timestamp: new Date().toISOString()
+      });
+
+      return res.json({
+        success: true,
+        message: 'Password has been reset successfully. You can now log in with your new password.'
+      });
+    } catch (error) {
+      securityLogger.error('reset-password error', { error: error.message, ip: req.ip });
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
 
 module.exports = router;
