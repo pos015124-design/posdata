@@ -14,6 +14,7 @@ const {
   clearLoginAttempts
 } = require('./middleware/authEnhanced');
 const { securityLogger, auditLogger } = require('../config/logger');
+const { body: bodyCheck, validationResult: checkResult } = require('express-validator');
 
 router.post('/login',
   validateLogin,
@@ -729,8 +730,6 @@ router.post('/change-password',
 // email exists.  This prevents user-enumeration attacks (an attacker cannot
 // tell from the response whether an account is registered).
 //
-const { body: bodyCheck, validationResult: checkResult } = require('express-validator');
-
 router.post('/forgot-password',
   [
     bodyCheck('email')
