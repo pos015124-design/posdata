@@ -1,13 +1,16 @@
 /**
  * Email Service — E-Shop by BHABY GROUP LTD
  *
- * Required env vars (set in Render dashboard):
- *   EMAIL_HOST     e.g. smtp.gmail.com
- *   EMAIL_PORT     587 (TLS) or 465 (SSL)
- *   EMAIL_USER     sender address
- *   EMAIL_PASS     SMTP password / app password
- *   EMAIL_FROM     "E-Shop <noreply@bhabygroup.co.tz>"
- *   EMAIL_SECURE   true for port 465, false for 587
+ * Provider: ZeptoMail (Zoho) — SMTP on port 587 (STARTTLS)
+ *
+ * Required env vars on the VPS (set in /var/www/posdata/server/.env):
+ *   EMAIL_HOST     smtp.zeptomail.com
+ *   EMAIL_PORT     587
+ *   EMAIL_USER     emailapikey
+ *   EMAIL_PASS     <your ZeptoMail API key>
+ *   EMAIL_FROM     "E-Shop — BHABY GROUP LTD" <noreply@bhabygroup.co.tz>
+ *   EMAIL_CC       arafat1421.lee@gmail.com   (optional — CC on every email)
+ *   ADMIN_EMAIL    info@bhabygroup.co.tz
  *   FRONTEND_URL   https://e-shop.bhabygroup.co.tz
  */
 
@@ -16,15 +19,19 @@ const { logger } = require('../config/logger');
 
 const FRONTEND = process.env.FRONTEND_URL || 'https://e-shop.bhabygroup.co.tz';
 const FROM     = process.env.EMAIL_FROM    || '"E-Shop — BHABY GROUP LTD" <noreply@bhabygroup.co.tz>';
+// Optional CC on every outbound email — set EMAIL_CC in .env to enable
+const CC       = process.env.EMAIL_CC      || null;
 
 /* ── transporter ─────────────────────────────────────────────────── */
 const createTransporter = () => {
   const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
   if (EMAIL_HOST && EMAIL_PORT && EMAIL_USER && EMAIL_PASS) {
     return nodemailer.createTransport({
-      host: EMAIL_HOST,
+      host: EMAIL_HOST,   // smtp.zeptomail.com
       port: parseInt(EMAIL_PORT) || 587,
-      secure: process.env.EMAIL_SECURE === 'true',
+      // ZeptoMail uses STARTTLS on port 587 — secure must be false
+      // (secure: true is for implicit SSL on port 465 only)
+      secure: false,
       auth: { user: EMAIL_USER, pass: EMAIL_PASS }
     });
   }
@@ -74,7 +81,10 @@ const sendEmail = async ({ to, subject, html, text }) => {
     return { success: true, mock: true };
   }
   try {
-    const info = await transporter.sendMail({ from: FROM, to, subject, html, text });
+    const message = { from: FROM, to, subject, html, text };
+    // Attach CC if configured — keeps admin informed on all outbound mail
+    if (CC) message.cc = CC;
+    const info = await transporter.sendMail(message);
     logger.info('[Email] Sent', { messageId: info.messageId, to, subject });
     return { success: true, messageId: info.messageId };
   } catch (err) {
