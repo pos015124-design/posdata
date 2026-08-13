@@ -38,7 +38,7 @@ const roleBadge = (role: string) => {
   return map[role] || 'bg-gray-100 text-gray-600';
 };
 
-const PendingUsers: React.FC = () => {
+const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -76,8 +76,8 @@ const PendingUsers: React.FC = () => {
   const approve = async (id: string) => {
     try {
       const d = await api(`/api/auth/approve/${id}`);
-      toast({ title: d.success ? 'Approved ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-      if (d.success) fetchUsers();
+      toast({ title: d.success ? 'User approved' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) { fetchUsers(); onMutate?.(); }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
@@ -86,8 +86,8 @@ const PendingUsers: React.FC = () => {
   const approveAll = async () => {
     try {
       const d = await api('/api/auth/approve-all-pending');
-      toast({ title: d.success ? 'Done ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-      if (d.success) fetchUsers();
+      toast({ title: d.success ? 'All users approved' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) { fetchUsers(); onMutate?.(); }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
@@ -96,8 +96,8 @@ const PendingUsers: React.FC = () => {
   const activate = async (id: string) => {
     try {
       const d = await api(`/api/auth/activate/${id}`);
-      toast({ title: d.success ? 'Activated ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-      if (d.success) fetchUsers();
+      toast({ title: d.success ? 'User activated' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) { fetchUsers(); onMutate?.(); }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
@@ -106,8 +106,8 @@ const PendingUsers: React.FC = () => {
   const fixBusiness = async (id: string, email: string) => {
     try {
       const d = await api(`/api/auth/fix-business/${id}`, 'PUT');
-      toast({ title: d.success ? 'Business fixed ✓' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-      if (d.success) fetchUsers();
+      toast({ title: d.success ? 'Business fixed' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) { fetchUsers(); onMutate?.(); }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
@@ -116,8 +116,8 @@ const PendingUsers: React.FC = () => {
   const suspend = async (id: string) => {
     try {
       const d = await api(`/api/auth/suspend/${id}`, 'PUT', { reason: suspendReason || 'Suspended by admin' });
-      toast({ title: d.success ? 'Suspended' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
-      if (d.success) { fetchUsers(); setSuspendTarget(null); setSuspendReason(''); }
+      toast({ title: d.success ? 'User suspended' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });
+      if (d.success) { fetchUsers(); setSuspendTarget(null); setSuspendReason(''); onMutate?.(); }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
@@ -127,8 +127,8 @@ const PendingUsers: React.FC = () => {
     if (!confirm(`Permanently delete ${email}? This cannot be undone.`)) return;
     try {
       const d = await api(`/api/auth/users/${id}`, 'DELETE');
-      toast({ title: d.success ? 'Deleted ✓' : 'Error', description: d.message || d.success ? 'User deleted' : 'Failed', variant: d.success ? 'default' : 'destructive' });
-      if (d.success) fetchUsers();
+      toast({ title: d.success ? 'User deleted' : 'Error', description: d.message || d.success ? 'User deleted' : 'Failed', variant: d.success ? 'default' : 'destructive' });
+      if (d.success) { fetchUsers(); onMutate?.(); }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }

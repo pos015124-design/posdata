@@ -72,7 +72,7 @@ const CATEGORIES = [
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const BusinessManagement: React.FC = () => {
+const BusinessManagement: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -130,6 +130,7 @@ const BusinessManagement: React.FC = () => {
       if (!res.ok) throw new Error(json.message || 'Failed');
       toast({ title: `${biz.name} approved` });
       fetchBusinesses();
+      onMutate?.();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -154,6 +155,7 @@ const BusinessManagement: React.FC = () => {
       setRejectTarget(null);
       setRejectReason('');
       fetchBusinesses();
+      onMutate?.();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {

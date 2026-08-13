@@ -96,6 +96,8 @@ const SuperAdminDashboard: React.FC = () => {
   const [sfHealth, setSfHealth]   = useState<SectionState<any>>(initSection());
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
+
   /* ── individual loaders ── */
   const loadAnalytics = useCallback(async () => {
     setAnalytics(s => ({ ...s, loading: true, error: null }));
@@ -255,13 +257,25 @@ const SuperAdminDashboard: React.FC = () => {
                             <p className="text-xs text-gray-500 mt-0.5 capitalize">{u.role?.replace('_', ' ')} · {new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
                           </div>
                           <button
+                            disabled={approvingUserId === u._id}
                             onClick={async () => {
-                              await fetch(`${BASE}/api/auth/approve/${u._id}`, { method: 'PUT', headers: authHeaders() });
-                              loadAnalytics();
+                              setApprovingUserId(u._id);
+                              try {
+                                const res = await fetch(`${BASE}/api/auth/approve/${u._id}`, { method: 'PUT', headers: authHeaders() });
+                                if (!res.ok) throw new Error('Failed to approve');
+                                loadAnalytics();
+                              } catch {
+                                /* toast would go here if needed */
+                              } finally {
+                                setApprovingUserId(null);
+                              }
                             }}
-                            className="text-xs font-bold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                            className="text-xs font-bold bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-lg transition-colors shrink-0 flex items-center gap-1"
                           >
-                            Approve
+                            {approvingUserId === u._id
+                              ? <><RefreshCw className="w-3 h-3 animate-spin" />Approving…</>
+                              : 'Approve'
+                            }
                           </button>
                         </div>
                       ))}
@@ -319,12 +333,12 @@ const SuperAdminDashboard: React.FC = () => {
 
         {/* ── Businesses tab ── */}
         <TabsContent value="businesses">
-          <BusinessManagement />
+          <BusinessManagement onMutate={loadAnalytics} />
         </TabsContent>
 
         {/* ── Users tab ── */}
         <TabsContent value="pending-users">
-          <PendingUsers />
+          <PendingUsers onMutate={loadAnalytics} />
         </TabsContent>
 
         {/* ── Settings tab ── */}
