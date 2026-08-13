@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText, Loader2, Eye, EyeOff, CheckCircle, Ban, Clock, Lock } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../contexts/AuthContext';
 import * as settingsApi from '../api/settings';
@@ -681,10 +681,10 @@ export default function Settings() {
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {businessSettings.isPublic 
-                        ? '✅ Your store is public and accessible to everyone'
-                        : '⚠️ Your store is private. Only you can see it.'}
+                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
+                      {businessSettings.isPublic
+                        ? <><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />Your store is public and accessible to everyone</>
+                        : <><EyeOff className="w-3.5 h-3.5 text-amber-500 shrink-0" />Your store is private. Only you can see it.</>}
                     </p>
                   </div>
 
@@ -708,21 +708,26 @@ export default function Settings() {
                               ? 'bg-red-100 text-red-800'
                               : 'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {effectiveStatus === 'active' ? '✅ Active'
-                              : effectiveStatus === 'suspended' ? '🚫 Suspended'
-                              : '⏳ Pending Approval'}
+                            {effectiveStatus === 'active'
+                              ? <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" />Active</span>
+                              : effectiveStatus === 'suspended'
+                              ? <span className="flex items-center gap-1"><Ban className="w-3.5 h-3.5" />Suspended</span>
+                              : <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Pending Approval</span>
+                            }
                           </span>
                         );
                       })()}
                     </div>
                     {businessSettings.status === 'pending' && !user?.isApproved && (
-                      <p className="text-xs text-yellow-600 mt-2">
-                        ⏳ Your business is awaiting admin approval. You'll receive an email once approved.
+                      <p className="text-xs text-yellow-600 mt-2 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        Your business is awaiting admin approval. You will receive an email once approved.
                       </p>
                     )}
                     {businessSettings.status === 'pending' && user?.isApproved && (
-                      <p className="text-xs text-green-600 mt-2">
-                        ✅ Your account is approved and active.
+                      <p className="text-xs text-green-600 mt-2 flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                        Your account is approved and active.
                       </p>
                     )}
                   </div>

@@ -6,6 +6,7 @@ import { Label } from '../components/ui/label';
 import { Search, Plus, Mail, Phone, Edit, Trash2, X } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import * as customersApi from '../api/customers';
+import ConfirmDialog, { type ConfirmDialogProps } from '../components/ConfirmDialog';
 
 export default function Customers() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -13,6 +14,7 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogProps | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -103,23 +105,23 @@ export default function Customers() {
     setShowAddModal(true);
   };
 
-  const handleDelete = async (customerId: string) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
-    try {
-      await customersApi.deleteCustomer(customerId);
-      // ✅ Remove from local state immediately
-      setCustomers(prev => prev.filter(c => c._id !== customerId));
-      toast({
-        title: 'Success',
-        description: 'Customer deleted successfully',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete customer',
-        variant: 'destructive',
-      });
-    }
+  const handleDelete = async (customerId: string, name: string) => {
+    setConfirmDialog({
+      title: 'Delete customer',
+      description: `Permanently delete ${name}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await customersApi.deleteCustomer(customerId);
+          setCustomers(prev => prev.filter(c => c._id !== customerId));
+          toast({ title: 'Customer deleted' });
+        } catch {
+          toast({ title: 'Error', description: 'Failed to delete customer', variant: 'destructive' });
+        }
+      },
+      onClose: () => setConfirmDialog(null),
+    });
   };
 
   const resetForm = () => {
@@ -193,7 +195,7 @@ export default function Customers() {
                           size="sm"
                           variant="outline"
                           className="text-red-600"
-                          onClick={() => handleDelete(customer._id)}
+                          onClick={() => handleDelete(customer._id, customer.name)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -292,6 +294,8 @@ export default function Customers() {
           </Card>
         </div>
       )}
+
+      {confirmDialog && <ConfirmDialog {...confirmDialog} />}
     </div>
   );
 }

@@ -14,7 +14,8 @@ import {
   Copy,
   Share2,
   Bell,
-  BellOff
+  BellOff,
+  Package
 } from 'lucide-react';
 import * as salesApi from '../api/sales';
 import * as customersApi from '../api/customers';
@@ -93,7 +94,7 @@ export default function Dashboard() {
         const diff = newOrderCount - prevOrderCount.current;
         if (playOrderSound) playOrderSound();
         toast({
-          title: `🛒 ${diff} new order${diff > 1 ? 's' : ''}!`,
+          title: `${diff} new order${diff > 1 ? 's' : ''}`,
           description: 'A customer just placed an order in your store.',
         });
         if (Notification.permission === 'granted') {
@@ -265,9 +266,10 @@ export default function Dashboard() {
                   </Button>
                 </div>
                 {stats.totalProducts === 0 && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
+                    <Package className="w-4 h-4 text-yellow-600 shrink-0 mt-0.5" />
                     <p className="text-sm text-yellow-800">
-                      <strong>📦 Tip:</strong> Add products to your inventory and toggle "Publish to Store" ON to make them appear in your store!
+                      <strong>Tip:</strong> Add products to your inventory and toggle "Publish to Store" ON to make them appear in your store.
                     </p>
                   </div>
                 )}

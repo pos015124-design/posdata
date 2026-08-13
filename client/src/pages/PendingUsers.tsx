@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/useToast';
 import {
   CheckCircle, XCircle, Trash2, UserCheck, UserX,
-  Search, RefreshCw, Shield, Clock, AlertTriangle
+  Search, RefreshCw, Shield, Clock, AlertTriangle, FileCheck
 } from 'lucide-react';
+import ConfirmDialog, { type ConfirmDialogProps } from '../components/ConfirmDialog';
 
 interface ManagedUser {
   _id: string;
@@ -45,6 +46,7 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'suspended'>('all');
   const [suspendReason, setSuspendReason] = useState('');
   const [suspendTarget, setSuspendTarget] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogProps | null>(null);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -124,14 +126,22 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   };
 
   const deleteUser = async (id: string, email: string) => {
-    if (!confirm(`Permanently delete ${email}? This cannot be undone.`)) return;
-    try {
-      const d = await api(`/api/auth/users/${id}`, 'DELETE');
-      toast({ title: d.success ? 'User deleted' : 'Error', description: d.message || d.success ? 'User deleted' : 'Failed', variant: d.success ? 'default' : 'destructive' });
-      if (d.success) { fetchUsers(); onMutate?.(); }
-    } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
-    }
+    setConfirmDialog({
+      title: 'Delete user',
+      description: `Permanently delete ${email}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const d = await api(`/api/auth/users/${id}`, 'DELETE');
+          toast({ title: d.success ? 'User deleted' : 'Error', description: d.message || d.success ? 'User deleted' : 'Failed', variant: d.success ? 'default' : 'destructive' });
+          if (d.success) { fetchUsers(); onMutate?.(); }
+        } catch (e: any) {
+          toast({ title: 'Error', description: e.message, variant: 'destructive' });
+        }
+      },
+      onClose: () => setConfirmDialog(null),
+    });
   };
 
   const filtered = users.filter(u => {
@@ -222,7 +232,11 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
                     {u.isSuspended && <span className="text-xs text-red-600 font-medium flex items-center gap-1"><XCircle className="w-3 h-3" />Suspended</span>}
                     {!u.isApproved && !u.isSuspended && <span className="text-xs text-amber-600 font-medium flex items-center gap-1"><Clock className="w-3 h-3" />Pending approval</span>}
                     {u.isApproved && !u.isSuspended && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" />Active</span>}
-                    {u.termsAccepted && <span className="text-xs text-gray-400">T&C ✓</span>}
+                    {u.termsAccepted && (
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <FileCheck className="w-3 h-3" />Terms
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -268,6 +282,9 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
         )}
       </CardContent>
     </Card>
+
+    {/* Confirm delete dialog */}
+    {confirmDialog && <ConfirmDialog {...confirmDialog} />}
   );
 };
 

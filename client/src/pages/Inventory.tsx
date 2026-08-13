@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Package, Search, Plus, Edit, Trash2, Scan, X, Upload, Image as ImageIcon, Download, Copy, Globe } from 'lucide-react';
+import { Package, Search, Plus, Edit, Trash2, Scan, X, Upload, Image as ImageIcon, Download, Copy, Globe, Radio, CircleDashed, CheckCircle } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import * as productsApi from '../api/products';
 import * as uploadsApi from '../api/uploads';
+import ConfirmDialog, { type ConfirmDialogProps } from '../components/ConfirmDialog';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -25,6 +26,7 @@ export default function Inventory() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogProps | null>(null);
 
   // Product cloning
   const [showCloneModal, setShowCloneModal] = useState(false);
@@ -229,25 +231,24 @@ export default function Inventory() {
     setShowAddModal(true);
   };
 
-  const handleDelete = async (productId: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-    try {
-      await productsApi.deleteProduct(productId);
-      toast({
-        title: 'Success',
-        description: 'Product deleted successfully',
-      });
-      fetchProducts();
-      
-      // Notify other tabs/components about the update
-      localStorage.setItem('product-updated', Date.now().toString());
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete product',
-        variant: 'destructive',
-      });
-    }
+  const handleDelete = async (productId: string, productName: string) => {
+    setConfirmDialog({
+      title: 'Delete product',
+      description: `Permanently delete "${productName}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await productsApi.deleteProduct(productId);
+          toast({ title: 'Product deleted' });
+          fetchProducts();
+          localStorage.setItem('product-updated', Date.now().toString());
+        } catch {
+          toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive' });
+        }
+      },
+      onClose: () => setConfirmDialog(null),
+    });
   };
 
   const resetForm = () => {
@@ -506,7 +507,10 @@ export default function Inventory() {
                               : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300'
                           }`}
                         >
-                          {product.isPublished ? '✓ Live' : 'Draft'}
+                          {product.isPublished
+                            ? <><Radio className="w-3 h-3" />Live</>
+                            : <><CircleDashed className="w-3 h-3" />Draft</>
+                          }
                         </button>
                       </td>
                       <td className="py-3 px-3">
@@ -518,7 +522,7 @@ export default function Inventory() {
                             size="sm"
                             variant="outline"
                             className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
-                            onClick={() => handleDelete(product._id)}
+                            onClick={() => handleDelete(product._id, product.name)}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -679,10 +683,9 @@ export default function Inventory() {
                     </button>
                   </div>
                   {formData.isPublished && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        ✅ This product will be visible in your public store
-                      </p>
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                      <p className="text-sm text-blue-800">This product will be visible in your public store</p>
                     </div>
                   )}
                 </div>
@@ -868,6 +871,8 @@ export default function Inventory() {
           </Card>
         </div>
       )}
+
+      {confirmDialog && <ConfirmDialog {...confirmDialog} />}
     </div>
   );
 }
