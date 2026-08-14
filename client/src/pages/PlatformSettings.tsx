@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '../hooks/useToast';
 import {
   Globe, Shield, Wrench, Zap, Mail, Building2,
-  Save, Loader2, RefreshCw, AlertTriangle
+  Save, Loader2, AlertTriangle
 } from 'lucide-react';
 
 const BASE = import.meta.env.VITE_API_URL || '';
@@ -115,8 +115,6 @@ const PlatformSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const { toast } = useToast();
-
-  const token = () => localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
 
   /* Load */
   useEffect(() => {
@@ -409,7 +407,7 @@ const PlatformSettings: React.FC = () => {
           {/* Save button */}
           <div className="pt-2 border-t border-gray-100">
             <Button onClick={save} disabled={saving}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-11 px-6 font-semibold">
+              className="bg-blue-600 hover:bg-blue-700 h-11 px-6 font-semibold">
               {saving
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</>
                 : <><Save className="w-4 h-4 mr-2" />Save {tabs.find(t => t.id === activeTab)?.label}</>

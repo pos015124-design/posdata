@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText, Loader2, Eye, EyeOff, CheckCircle, Ban, Clock, Lock } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText,  Loader2, Eye, EyeOff, CheckCircle, Ban, Clock } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../contexts/AuthContext';
 import * as settingsApi from '../api/settings';
@@ -254,7 +254,7 @@ export default function Settings() {
       }
       
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         toast({
           title: 'Success',
           description: 'Business settings saved successfully!',
@@ -425,7 +425,7 @@ export default function Settings() {
             </Button>
             <Button
               size="sm"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="bg-blue-600 hover:bg-blue-700"
               onClick={() => navigate('/business-management')}
             >
               Businesses
@@ -463,7 +463,7 @@ export default function Settings() {
       <div className="md:hidden">
         <Button
           onClick={() => setShowMobileMenu(!showMobileMenu)}
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
+          className="w-full bg-blue-600"
         >
           <SettingsIcon className="w-4 h-4 mr-2" />
           {tabs.find(t => t.id === activeTab)?.label || 'Settings'}
@@ -481,7 +481,7 @@ export default function Settings() {
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                      ? 'bg-blue-600 text-white shadow-lg'
                       : 'hover:bg-gray-100'
                   }`}
                 >
@@ -505,7 +505,7 @@ export default function Settings() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                      ? 'bg-blue-600 text-white shadow-lg'
                       : 'hover:bg-gray-100'
                   }`}
                 >
@@ -572,7 +572,7 @@ export default function Settings() {
                   <Button
                     onClick={handleSaveGeneral}
                     disabled={saving}
-                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full md:w-auto bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Save Changes
@@ -735,7 +735,7 @@ export default function Settings() {
                   <Button
                     onClick={handleSaveBusiness}
                     disabled={saving}
-                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full md:w-auto bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Save Changes
@@ -779,7 +779,7 @@ export default function Settings() {
                   <Button
                     onClick={handleSaveProfile}
                     disabled={saving}
-                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full md:w-auto bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Update Profile
@@ -916,7 +916,7 @@ export default function Settings() {
                   <Button
                     onClick={handleSaveTax}
                     disabled={saving}
-                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full md:w-auto bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Save Tax Settings
@@ -984,7 +984,7 @@ export default function Settings() {
                   <Button
                     onClick={handleSavePayment}
                     disabled={saving}
-                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full md:w-auto bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Save Payment Settings
@@ -1021,7 +1021,7 @@ export default function Settings() {
                   <Button
                     onClick={handleSaveNotifications}
                     disabled={saving}
-                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    className="w-full md:w-auto bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Save Preferences

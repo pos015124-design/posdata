@@ -403,7 +403,7 @@ export default function Inventory() {
               setShowAddModal(true);
             }}
             size="sm"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5"
+            className="bg-blue-600 hover:bg-blue-700 h-9 gap-1.5"
           >
             <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Product</span><span className="sm:hidden">Add</span>
           </Button>
@@ -577,7 +577,7 @@ export default function Inventory() {
                       type="button"
                       onClick={handleBarcodeScan}
                       disabled={isScanning}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600"
+                      className="bg-blue-600"
                     >
                       <Scan className="w-4 h-4 mr-2" />
                       {isScanning ? 'Scanning...' : 'Scan'}
@@ -623,7 +623,7 @@ export default function Inventory() {
                       />
                       <Label
                         htmlFor="product-image-upload"
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg cursor-pointer hover:from-blue-700 hover:to-purple-700 inline-flex"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 inline-flex"
                       >
                         <Upload className="w-4 h-4" />
                         {uploadingImage ? 'Uploading...' : productImage ? 'Change Image' : 'Upload Image'}
@@ -693,7 +693,7 @@ export default function Inventory() {
                 <div className="flex gap-2 pt-4">
                   <Button 
                     type="submit" 
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                    className="flex-1 bg-blue-600"
                     disabled={uploadingImage}
                   >
                     {uploadingImage ? 'Uploading Image...' : (editingProduct ? 'Update Product' : 'Add Product')}
@@ -796,7 +796,7 @@ export default function Inventory() {
                 <Button
                   onClick={handleImport}
                   disabled={!importFile || importing}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                  className="flex-1 bg-blue-600"
                 >
                   {importing ? 'Importing...' : 'Import Products'}
                 </Button>

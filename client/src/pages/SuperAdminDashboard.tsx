@@ -5,13 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Users, Store, TrendingUp, DollarSign, Activity,
-  AlertCircle, Clock, BarChart3, Settings, Shield,
+  Users, Store, TrendingUp, DollarSign,
+  AlertCircle, Clock, BarChart3, Shield,
   ShoppingBag, Building2, RefreshCw, CheckCircle,
-  XCircle, Eye, Wifi, WifiOff, Server, Database
+  Wifi, WifiOff, Server, Database
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import BusinessReviewModal from './BusinessReviewModal';
 import PendingUsers from './PendingUsers';
 import BusinessManagement from './BusinessManagement';
 import PlatformSettings from './PlatformSettings';

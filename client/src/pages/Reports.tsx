@@ -24,7 +24,7 @@ export default function Reports() {
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'all'>('month');
   const [loading, setLoading] = useState(true);
   const [salesData, setSalesData] = useState<any>(null);
-  const [inventoryData, setInventoryData] = useState<any>(null);
+  const [, setInventoryData] = useState<any>(null);
   const [expensesData, setExpensesData] = useState<any[]>([]);
   const [allSales, setAllSales] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -284,7 +284,7 @@ export default function Reports() {
                 variant={selectedPeriod === period.value ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSelectedPeriod(period.value)}
-                className={selectedPeriod === period.value ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''}
+                className={selectedPeriod === period.value ? 'bg-blue-600' : ''}
               >
                 {period.label}
               </Button>

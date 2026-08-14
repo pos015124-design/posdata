@@ -160,6 +160,7 @@ export const updateProduct = async (
     stock?: number;
     category?: string;
     reorderPoint?: number;
+    isPublished?: boolean;
     images?: Array<{url: string; isPrimary: boolean; alt: string}>;
   }
 ) => {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
@@ -63,7 +63,7 @@ function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () =
         </div>
         <div className="px-6 py-4 border-t flex gap-3">
           <Button variant="outline" className="flex-1" onClick={onClose}>Decline</Button>
-          <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600" onClick={onAccept}>
+          <Button className="flex-1 bg-blue-600" onClick={onAccept}>
             <CheckCircle className="w-4 h-4 mr-2" />I Accept
           </Button>
         </div>
@@ -129,10 +129,10 @@ export default function Register() {
         />
       )}
 
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 via-purple-700 to-pink-600 p-4">
-        <div className="absolute inset-0 bg-black/20" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(37,99,235,0.08)_0%,_transparent_60%),radial-gradient(ellipse_at_bottom_right,_rgba(124,58,237,0.06)_0%,_transparent_60%)]" />
 
-        <Card className="relative w-full max-w-lg shadow-2xl border-0">
+        <Card className="relative w-full max-w-lg shadow-lg border border-gray-200 bg-white">
           <CardHeader className="space-y-3 text-center pb-4">
             <div className="flex justify-center">
               <Logo className="h-12" />
@@ -214,7 +214,7 @@ export default function Register() {
               </div>
 
               <Button type="submit" disabled={loading || !termsAccepted}
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-base font-bold shadow-lg disabled:opacity-50">
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-sm disabled:opacity-50">
                 {loading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Creating Account…</> : 'Create Seller Account'}
               </Button>
 

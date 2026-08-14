@@ -133,7 +133,7 @@ export default function Expenses() {
             setEditingExpense(null);
             setShowAddModal(true);
           }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5 shrink-0"
+          className="bg-blue-600 hover:bg-blue-700 h-9 gap-1.5 shrink-0"
         >
           <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Expense</span><span className="sm:hidden">Add</span>
         </Button>
@@ -289,7 +289,7 @@ export default function Expenses() {
                 </div>
 
                 <div className="flex gap-2 pt-4">
-                  <Button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600">
+                  <Button type="submit" className="flex-1 bg-blue-600">
                     {editingExpense ? 'Update Expense' : 'Add Expense'}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>

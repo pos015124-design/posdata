@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useInstallPrompt } from './InstallPWA';
 import Logo from './Logo';
+import NotificationsBell from './NotificationsBell';
 
 interface LayoutProps {
   children: ReactNode;
@@ -68,16 +69,16 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Sidebar Overlay for Mobile */}
+      {/* Sidebar Overlay for Mobile — with backdrop blur for depth */}
       {sidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-30"
+          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar — fixed, slides in from left on mobile, always visible on desktop */}
-      <aside className={`w-64 bg-gradient-to-b from-blue-900 to-purple-900 text-white fixed top-0 left-0 shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
+      <aside className={`w-64 bg-[#0f172a] text-white fixed top-0 left-0 shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
         style={{ height: '100dvh' }}
@@ -112,7 +113,7 @@ export default function Layout({ children }: LayoutProps) {
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <item.icon className="w-4.5 h-4.5 w-[18px] h-[18px] flex-shrink-0" />
+                <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
                 {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60" />}
               </button>
@@ -122,6 +123,10 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Footer — always visible, never scrolled away */}
         <div className="shrink-0 px-2 pb-4 pt-2 space-y-1 border-t border-white/10">
+          <div className="flex items-center justify-between px-1">
+            <NotificationsBell placement="sidebar" />
+            <span className="text-[11px] text-white/40 truncate">Notifications</span>
+          </div>
           {canInstall && (
             <button
               onClick={triggerInstall}
@@ -144,21 +149,22 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content — full width on mobile, offset by sidebar on desktop */}
       <main className="block w-full lg:pl-64">
         {/* Mobile top bar — FIXED so it's always visible regardless of scroll position */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 flex items-center h-12 px-3 bg-white border-b border-gray-100 z-20 shadow-sm gap-3">
+        <div className="lg:hidden fixed top-0 left-0 right-0 flex items-center h-14 px-4 bg-white border-b border-gray-100 z-20 shadow-sm gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-md shrink-0"
+            className="p-2 bg-blue-600 text-white rounded-xl shadow-sm shrink-0"
             aria-label="Toggle menu"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-4 h-4" />
           </button>
-          <span className="text-sm font-semibold text-gray-800 truncate flex-1">
+          <span className="text-base font-semibold text-gray-900 truncate flex-1">
             {menuItems.find(m => m.path === location.pathname)?.label ?? 'E-Shop'}
           </span>
-          <Logo variant="icon" className="h-7 shrink-0" />
+          {/* Notifications bell — opens the system notifications dropdown */}
+          <NotificationsBell />
         </div>
 
-        {/* Page content — pt-12 on mobile to clear the fixed top bar */}
+        {/* Page content — pt-16 on mobile clears the fixed h-14 top bar with a small gap */}
         <div className="px-4 pt-16 pb-8 lg:pt-6 lg:px-6">
           {children}
         </div>

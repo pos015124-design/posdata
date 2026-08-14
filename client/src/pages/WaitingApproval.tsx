@@ -22,7 +22,7 @@ interface Step {
 }
 
 const WaitingApproval: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
-  const { refreshUser, user } = useAuth();
+  const { refreshUser } = useAuth();
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date>(new Date());
 
@@ -110,7 +110,6 @@ const WaitingApproval: React.FC<{ onLogout?: () => void }> = ({ onLogout }) => {
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-5">Application Progress</h2>
           <div className="space-y-0">
             {steps.map((step, idx) => {
-              const Icon = step.icon;
               const isLast = idx === steps.length - 1;
               return (
                 <div key={step.id} className="flex gap-4">

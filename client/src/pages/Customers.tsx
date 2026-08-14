@@ -63,7 +63,7 @@ export default function Customers() {
     e.preventDefault();
     try {
       if (editingCustomer) {
-        const response = await customersApi.updateCustomer(editingCustomer._id, formData);
+        await customersApi.updateCustomer(editingCustomer._id, formData);
         // ✅ Update local state immediately
         setCustomers(prev => prev.map(c => 
           c._id === editingCustomer._id ? { ...c, ...formData } : c
@@ -145,7 +145,7 @@ export default function Customers() {
             setEditingCustomer(null);
             setShowAddModal(true);
           }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5 shrink-0"
+          className="bg-blue-600 hover:bg-blue-700 h-9 gap-1.5 shrink-0"
         >
           <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Customer</span><span className="sm:hidden">Add</span>
         </Button>
@@ -282,7 +282,7 @@ export default function Customers() {
                 )}
 
                 <div className="flex gap-2 pt-4">
-                  <Button type="submit" className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600">
+                  <Button type="submit" className="flex-1 bg-blue-600">
                     {editingCustomer ? 'Update Customer' : 'Add Customer'}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>

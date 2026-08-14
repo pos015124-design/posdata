@@ -8,14 +8,10 @@ import {
   Package, 
   Users, 
   DollarSign, 
-  TrendingUp,
-  Eye,
   Clock,
-  CheckCircle,
   AlertCircle,
   Store,
   Globe,
-  Smartphone,
   BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,14 +84,14 @@ const BusinessDashboard: React.FC = () => {
 
   const fetchBusinessData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      
-      // Fetch business profile and analytics
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+
+      // Fetch business profile and this business's real orders
       const [businessResponse, ordersResponse] = await Promise.all([
         fetch(`/api/business/${user?.businessId}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch(`/api/orders/business/${user?.businessId}?limit=5`, {
+        fetch(`/api/orders/business/${user?.businessId}?limit=100`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -107,35 +103,45 @@ const BusinessDashboard: React.FC = () => {
 
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json();
-        // Mock analytics data for now - in real implementation, this would come from API
+        const data = ordersData.data || {};
+        const orders: any[] = Array.isArray(data.orders) ? data.orders : [];
+        const totalOrders: number = data.pagination?.total ?? orders.length;
+        const totalRevenue = orders.reduce((sum: number, order: any) => sum + (order.total || 0), 0);
+
+        // Derive top products from real order items
+        const productMap = new Map<string, { sales: number; revenue: number }>();
+        orders.forEach((order: any) => {
+          const items = Array.isArray(order.items) ? order.items : [];
+          items.forEach((item: any) => {
+            const key = item.productName || item.name || 'Unknown';
+            const prev = productMap.get(key) || { sales: 0, revenue: 0 };
+            productMap.set(key, {
+              sales: prev.sales + (item.quantity || 0),
+              revenue: prev.revenue + ((item.price || 0) * (item.quantity || 0))
+            });
+          });
+        });
+        const topProducts = Array.from(productMap.entries())
+          .map(([name, v]) => ({ _id: name, name, sales: v.sales, revenue: v.revenue }))
+          .sort((a, b) => b.sales - a.sales)
+          .slice(0, 5);
+
+        // Approximate unique customers from order contact info
+        const customerKeys = new Set(orders.map((o: any) => o.customerEmail || o.customerPhone || o.customerName || '').filter(Boolean));
+
         setAnalytics({
           overview: {
-            totalOrders: ordersData.data.pagination.total,
-            totalRevenue: ordersData.data.orders.reduce((sum: number, order: any) => sum + order.total, 0),
-            totalCustomers: 150, // Mock data
-            totalProducts: 45, // Mock data
-            conversionRate: 3.2, // Mock data
-            averageOrderValue: 85.50 // Mock data
+            totalOrders,
+            totalRevenue,
+            totalCustomers: customerKeys.size,
+            totalProducts: topProducts.length,
+            conversionRate: 0, // no funnel data available for this business — shown as "—" in the UI
+            averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0
           },
-          recentOrders: ordersData.data.orders,
-          topProducts: [
-            { _id: '1', name: 'Product A', sales: 120, revenue: 2400 },
-            { _id: '2', name: 'Product B', sales: 95, revenue: 1900 },
-            { _id: '3', name: 'Product C', sales: 78, revenue: 1560 }
-          ],
-          salesData: [
-            { date: '2024-01-01', sales: 1200, orders: 15 },
-            { date: '2024-01-02', sales: 1800, orders: 22 },
-            { date: '2024-01-03', sales: 1500, orders: 18 },
-            { date: '2024-01-04', sales: 2100, orders: 28 },
-            { date: '2024-01-05', sales: 1900, orders: 24 }
-          ],
-          categoryData: [
-            { name: 'Electronics', value: 35, color: '#8884d8' },
-            { name: 'Clothing', value: 25, color: '#82ca9d' },
-            { name: 'Books', value: 20, color: '#ffc658' },
-            { name: 'Home', value: 20, color: '#ff7300' }
-          ]
+          recentOrders: orders.slice(0, 5),
+          topProducts,
+          salesData: [],
+          categoryData: []
         });
       }
     } catch (err) {
@@ -166,6 +172,17 @@ const BusinessDashboard: React.FC = () => {
       </Badge>
     );
   };
+
+  if (user?.role !== 'business_admin') {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600">You don't have access to this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -236,7 +253,7 @@ const BusinessDashboard: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{analytics.overview.totalOrders}</div>
               <p className="text-xs text-muted-foreground">
-                +12% from last month
+                Live from your store
               </p>
             </CardContent>
           </Card>
@@ -249,7 +266,7 @@ const BusinessDashboard: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(analytics.overview.totalRevenue)}</div>
               <p className="text-xs text-muted-foreground">
-                +8% from last month
+                Live from your store
               </p>
             </CardContent>
           </Card>
@@ -262,7 +279,7 @@ const BusinessDashboard: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{analytics.overview.totalCustomers}</div>
               <p className="text-xs text-muted-foreground">
-                +15% from last month
+                From your orders
               </p>
             </CardContent>
           </Card>
@@ -275,7 +292,7 @@ const BusinessDashboard: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{analytics.overview.totalProducts}</div>
               <p className="text-xs text-muted-foreground">
-                +3 new this month
+                With sales recorded
               </p>
             </CardContent>
           </Card>
@@ -301,7 +318,7 @@ const BusinessDashboard: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Conversion Rate</span>
-                  <span className="text-sm font-bold">{analytics?.overview.conversionRate}%</span>
+                  <span className="text-sm font-bold">{analytics?.overview.conversionRate ? `${analytics.overview.conversionRate}%` : '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Average Order Value</span>
@@ -425,7 +442,9 @@ const BusinessDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded">
-                  <p className="text-gray-500">Sales chart will be displayed here</p>
+                  <p className="text-gray-500">
+                    {analytics?.salesData.length ? 'Sales chart' : 'No sales data available yet'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -437,7 +456,9 @@ const BusinessDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded">
-                  <p className="text-gray-500">Category distribution chart will be displayed here</p>
+                  <p className="text-gray-500">
+                    {analytics?.categoryData.length ? 'Category distribution' : 'No category data available yet'}
+                  </p>
                 </div>
               </CardContent>
             </Card>

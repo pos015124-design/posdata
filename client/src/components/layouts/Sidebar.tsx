@@ -14,12 +14,9 @@ import {
   Settings,
   Store,
   TrendingUp,
-  Zap,
   LogOut,
   Shield,
   Building,
-  Globe,
-  Activity,
   CreditCard
 } from "lucide-react"
 

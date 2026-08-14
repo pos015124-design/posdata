@@ -9,6 +9,9 @@ type Permissions = {
   staff: boolean;
   reports: boolean;
   settings: boolean;
+  platformManagement: boolean;
+  tenantManagement: boolean;
+  systemSettings: boolean;
 };
 
 type User = {
@@ -16,6 +19,7 @@ type User = {
   role: string;
   isApproved?: boolean;
   isSuspended?: boolean;
+  businessId?: string;
   permissions?: Permissions;
 };
 

@@ -14,10 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
-  FileText, TrendingUp, DollarSign, Search, Filter,
+  FileText, DollarSign, Search, Filter,
   Eye, X, Calendar, User, Phone, Mail, MapPin,
   ShoppingBag, Store as StoreIcon, Package, CheckCircle,
-  Clock, XCircle, Shield, Truck, AlertCircle
+  Clock, XCircle, Shield, Truck
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../contexts/AuthContext';
@@ -114,7 +114,6 @@ export default function Orders() {
   const storefrontCount = orders.filter(o => o.source === 'storefront').length;
   const pendingCount    = orders.filter(o => o.status === 'pending').length;
 
-  const pageTitle    = isSuperAdmin ? 'All Orders' : 'Fulfillment Requests';
   const pageSubtitle = isSuperAdmin
     ? 'Full order details — all sellers, all buyers'
     : 'Prepare items for collection by BHABY GROUP LTD';

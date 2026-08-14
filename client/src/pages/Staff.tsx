@@ -80,7 +80,7 @@ export function Staff() {
 
       
       // First update the basic staff information
-      const result = await updateStaff(updatedStaff._id, staffData);
+      await updateStaff(updatedStaff._id, staffData);
 
       
       // Performance update code removed

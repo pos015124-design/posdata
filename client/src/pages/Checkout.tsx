@@ -120,7 +120,7 @@ export default function Checkout() {
             <Button variant="outline" className="flex-1" onClick={() => navigate('/store')}>
               <ShoppingBag className="w-4 h-4 mr-2" />Keep shopping
             </Button>
-            <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600" onClick={() => navigate('/store')}>
+            <Button className="flex-1 bg-blue-600" onClick={() => navigate('/store')}>
               Done
             </Button>
           </div>
@@ -289,7 +289,7 @@ export default function Checkout() {
                 <Button
                   type="submit"
                   disabled={processing}
-                  className="w-full h-12 text-base font-bold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl"
+                  className="w-full h-12 text-base font-bold bg-blue-600 hover:bg-blue-700 rounded-xl"
                 >
                   {processing ? (
                     <span className="flex items-center gap-2">

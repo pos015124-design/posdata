@@ -467,6 +467,20 @@ router.put('/suspend/:userId', requireAdmin, async (req, res) => {
     user.suspendedReason = reason || 'Suspended by admin';
     await user.save();
 
+    // Notify the user about the suspension (non-blocking)
+    setImmediate(async () => {
+      try {
+        const { sendAccountSuspendedEmail } = require('../utils/emailService');
+        await sendAccountSuspendedEmail({
+          userEmail: user.email,
+          userName: user.fullName || user.firstName || user.email.split('@')[0],
+          reason: user.suspendedReason
+        });
+      } catch (emailErr) {
+        console.error('Failed to send suspension email:', emailErr.message);
+      }
+    });
+
     return res.json({ success: true, message: 'User suspended successfully' });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -499,7 +513,26 @@ router.delete('/users/:userId', requireAdmin, async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
     if (user.role === 'super_admin') return res.status(403).json({ message: 'Cannot delete super admin' });
 
+    // Capture details before deleting so we can notify the user
+    const wasPendingSeller = user.role === 'business_admin' && !user.isApproved;
+    const userEmail = user.email;
+    const userName = user.fullName || user.firstName || user.email.split('@')[0];
+
     await User.findByIdAndDelete(req.params.userId);
+
+    // Send rejection email for a pending seller whose registration was declined
+    // (non-blocking — must not fail the delete request)
+    if (wasPendingSeller) {
+      setImmediate(async () => {
+        try {
+          const { sendSellerRejectedEmail } = require('../utils/emailService');
+          await sendSellerRejectedEmail({ sellerEmail: userEmail, sellerName: userName });
+        } catch (emailErr) {
+          console.error('Failed to send rejection email:', emailErr.message);
+        }
+      });
+    }
+
     return res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });

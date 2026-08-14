@@ -614,7 +614,7 @@ export default function IndividualStore() {
                   
                   {product.stock > 0 && (
                     <Button 
-                      className="w-full mt-3 bg-gradient-to-r from-blue-600 to-purple-600"
+                      className="w-full mt-3 bg-blue-600"
                       onClick={() => addToCart(product)}
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />

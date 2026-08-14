@@ -15,8 +15,6 @@
  *   <Logo variant="white" />    full, all white
  *   <Logo className="h-10" />   control height via className
  */
-import React from 'react';
-
 interface LogoProps {
   variant?: 'full' | 'icon' | 'white';
   className?: string;

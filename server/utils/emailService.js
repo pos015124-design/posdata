@@ -318,6 +318,75 @@ const sendOrderDeliveredToBuyer = async ({ buyerEmail, buyerName, invoiceNumber,
   });
 };
 
+/* ══════════════════════════════════════════════════════════════════
+   ACCOUNT STATUS EMAILS
+══════════════════════════════════════════════════════════════════ */
+
+/**
+ * 8. Registration declined — notify seller their registration was not approved
+ */
+const sendSellerRejectedEmail = async ({ sellerEmail, sellerName, businessName, reason }) => {
+  return sendEmail({
+    to: sellerEmail,
+    subject: 'Update on your E-Shop seller registration',
+    html: wrap('Registration Update', `
+      ${h2(`Hi ${sellerName || 'there'},`)}
+      ${p(`Thank you for applying to sell on E-Shop by BHABY GROUP LTD${businessName ? ` with <strong>${businessName}</strong>` : ''}.`)}
+      ${p('After careful review, your seller registration has <strong>not been approved</strong> at this time.')}
+      ${reason ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin:16px 0;"><p style="margin:0;color:#92400e;font-size:13px;"><strong>Reason:</strong> ${reason}</p></div>` : ''}
+      ${p('If you believe this was a mistake or would like to provide more information, please reply to this email or contact BHABY GROUP LTD support.')}
+      ${btn('Register Again', `${FRONTEND}/register`)}
+    `),
+    text: `Your E-Shop seller registration${businessName ? ` for ${businessName}` : ''} was not approved. Contact BHABY GROUP LTD if you believe this is a mistake.`
+  });
+};
+
+/**
+ * 9. Account suspended — notify the user
+ */
+const sendAccountSuspendedEmail = async ({ userEmail, userName, reason }) => {
+  return sendEmail({
+    to: userEmail,
+    subject: 'Your E-Shop account has been suspended',
+    html: wrap('Account Suspended', `
+      ${h2(`Hi ${userName || 'there'},`)}
+      ${p('Your E-Shop account has been suspended by an administrator.')}
+      ${reason ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin:16px 0;"><p style="margin:0;color:#92400e;font-size:13px;"><strong>Reason:</strong> ${reason}</p></div>` : ''}
+      ${p('If you believe this is a mistake, please contact BHABY GROUP LTD support for assistance.')}
+    `),
+    text: `Your E-Shop account has been suspended${reason ? `: ${reason}` : ''}. Contact BHABY GROUP LTD support if you believe this is a mistake.`
+  });
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   INVENTORY EMAILS
+══════════════════════════════════════════════════════════════════ */
+
+/**
+ * 10. Low stock alert — notify seller a product just hit its reorder point
+ *     (fired once per crossing: only when stock moves from above → at/below)
+ */
+const sendLowStockAlertToSeller = async ({ sellerEmail, sellerName, productName, currentStock, reorderPoint }) => {
+  return sendEmail({
+    to: sellerEmail,
+    subject: `Low stock alert — ${productName}`,
+    html: wrap('Low Stock Alert', `
+      ${h2(`Your product is running low: ${productName}`)}
+      ${p(`Hi ${sellerName || 'Seller'}, <strong>${productName}</strong> has reached its reorder point.`)}
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:16px 0;">
+        ${row('Product', productName)}
+        ${row('Current Stock', `${currentStock} unit${currentStock === 1 ? '' : 's'}`)}
+        ${row('Reorder Point', `${reorderPoint} units`)}
+      </table>
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin:16px 0;">
+        <p style="margin:0;color:#92400e;font-size:13px;"><strong>⚠ Action needed:</strong> Restock this product soon to avoid running out and losing sales. You can update stock from your Inventory page.</p>
+      </div>
+      ${btn('Manage Inventory', `${FRONTEND}/inventory`)}
+    `),
+    text: `Low stock alert: ${productName} has ${currentStock} unit(s) left (reorder point: ${reorderPoint}). Restock soon.`
+  });
+};
+
 /* ── legacy exports kept for backward compat ─────────────────────── */
 const sendVerificationEmail  = async (email, token) => sendEmail({ to: email, subject: 'Verify your email', html: wrap('Verify Email', `${p('Click below to verify your email.')}${btn('Verify Email', `${FRONTEND}/verify?token=${token}`)}`), text: `Verify: ${FRONTEND}/verify?token=${token}` });
 const sendPasswordResetEmail = async (email, token) => sendEmail({ to: email, subject: 'Reset your password', html: wrap('Password Reset', `${p('Click below to reset your password. Link expires in 1 hour.')}${btn('Reset Password', `${FRONTEND}/reset-password?token=${token}`)}`), text: `Reset: ${FRONTEND}/reset-password?token=${token}` });
@@ -337,4 +406,9 @@ module.exports = {
   sendOrderConfirmedToBuyer,
   sendRiderAssignedToBuyer,
   sendOrderDeliveredToBuyer,
+  // Account status
+  sendSellerRejectedEmail,
+  sendAccountSuspendedEmail,
+  // Inventory
+  sendLowStockAlertToSeller,
 };

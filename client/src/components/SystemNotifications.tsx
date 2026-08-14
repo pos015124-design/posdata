@@ -97,10 +97,15 @@ const systemNotifications: SystemNotification[] = [
   }
 ];
 
-export const SystemNotifications = () => {
+/**
+ * Shared source of truth for system tips/notifications.
+ * Filters by days-since-join and dismissal state (persisted in localStorage),
+ * so the bell badge count and the rendered list always agree.
+ */
+export function useSystemNotifications() {
+  const [dismissedItems, setDismissedItems] = useState<string[]>([]);
   const [visibleTips, setVisibleTips] = useState<SystemTip[]>([]);
   const [visibleNotifications, setVisibleNotifications] = useState<SystemNotification[]>([]);
-  const [dismissedItems, setDismissedItems] = useState<string[]>([]);
 
   // Load dismissed items from localStorage
   useEffect(() => {
@@ -113,7 +118,7 @@ export const SystemNotifications = () => {
     const now = new Date();
     const userJoinDateString = localStorage.getItem('user-join-date') || now.toISOString();
     const userJoinDate = new Date(userJoinDateString);
-    
+
     // Calculate days since user joined
     const daysSinceJoin = Math.floor((now.getTime() - userJoinDate.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -140,39 +145,58 @@ export const SystemNotifications = () => {
     localStorage.setItem('dismissed-notifications', JSON.stringify(updatedDismissed));
   };
 
-  // Get icon based on type
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'tip':
-        return <Lightbulb className="h-4 w-4 text-blue-500" />;
-      case 'info':
-        return <Info className="h-4 w-4 text-blue-500" />;
-      case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      default:
-        return <Bell className="h-4 w-4 text-muted-foreground" />;
-    }
+  return {
+    visibleTips,
+    visibleNotifications,
+    dismissedItems,
+    dismissItem,
+    total: visibleTips.length + visibleNotifications.length
   };
+}
 
-  // Get badge variant based on priority
-  const getPriorityVariant = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'destructive';
-      case 'medium':
-        return 'default';
-      case 'low':
-      default:
-        return 'secondary';
-    }
-  };
+// Get icon based on type
+const getIcon = (type: string) => {
+  switch (type) {
+    case 'tip':
+      return <Lightbulb className="h-4 w-4 text-blue-500" />;
+    case 'info':
+      return <Info className="h-4 w-4 text-blue-500" />;
+    case 'warning':
+      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+    case 'success':
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
+    default:
+      return <Bell className="h-4 w-4 text-muted-foreground" />;
+  }
+};
 
+// Get badge variant based on priority
+const getPriorityVariant = (priority: string) => {
+  switch (priority) {
+    case 'high':
+      return 'destructive';
+    case 'medium':
+      return 'default';
+    case 'low':
+    default:
+      return 'secondary';
+  }
+};
+
+/** Presentational list of tips + notifications — used by both the full panel and the bell dropdown. */
+export function SystemNotificationsList({
+  tips,
+  notifications,
+  dismissItem
+}: {
+  tips: SystemTip[];
+  notifications: SystemNotification[];
+  dismissItem: (id: string) => void;
+}) {
   return (
     <div className="space-y-3">
       {/* System Tips */}
-      {visibleTips.map((tip) => (
+      {tips.map((tip) => (
         <Alert key={tip.id} className="relative">
           <div className="flex items-start gap-3">
             {getIcon(tip.type)}
@@ -204,7 +228,7 @@ export const SystemNotifications = () => {
       ))}
 
       {/* System Notifications */}
-      {visibleNotifications.map((notification) => (
+      {notifications.map((notification) => (
         <Alert 
           key={notification.id} 
           className={`relative ${
@@ -241,13 +265,24 @@ export const SystemNotifications = () => {
       ))}
 
       {/* Empty state when no notifications */}
-      {visibleTips.length === 0 && visibleNotifications.length === 0 && (
+      {tips.length === 0 && notifications.length === 0 && (
         <div className="text-center py-4 text-muted-foreground">
           <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No notifications or tips at this time</p>
         </div>
       )}
     </div>
+  );
+}
+
+export const SystemNotifications = () => {
+  const { visibleTips, visibleNotifications, dismissItem } = useSystemNotifications();
+  return (
+    <SystemNotificationsList
+      tips={visibleTips}
+      notifications={visibleNotifications}
+      dismissItem={dismissItem}
+    />
   );
 };
 

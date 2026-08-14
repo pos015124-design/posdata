@@ -63,7 +63,6 @@ export default function InstallPWA() {
 
     const isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isSafari  = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const isAndroid = /android/i.test(navigator.userAgent);
 
     if (isIOS && isSafari) {
       // iOS: show instructions after 5 s if not dismissed this session
@@ -174,7 +173,7 @@ export default function InstallPWA() {
             {/* Actions */}
             <button
               onClick={install}
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200 active:scale-95"
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200 active:scale-95"
             >
               <Download className="w-5 h-5" />
               Install App

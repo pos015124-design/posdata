@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -225,7 +225,7 @@ export default function POS() {
         {/* Cart Section */}
         <div className={`lg:col-span-5 min-w-0 ${mobileTab === 'products' ? 'hidden lg:block' : 'block'}`}>
           <Card className="border-0 shadow-xl">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-t-xl">
+            <CardHeader className="bg-blue-600 text-white py-3 px-4 rounded-t-xl">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Store className="w-5 h-5" />Current Sale
               </CardTitle>
@@ -278,7 +278,7 @@ export default function POS() {
               <Button
                 onClick={handleCheckout}
                 disabled={cart.length === 0}
-                className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-base font-semibold"
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-base font-semibold"
               >
                 Checkout
               </Button>

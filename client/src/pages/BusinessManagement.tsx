@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Search, CheckCircle, XCircle, Eye, RefreshCw,
   Store, Mail, Phone, MapPin, BarChart3, Calendar,
-  Shield, AlertCircle, Clock, X, ChevronDown, ChevronUp
+  Shield, AlertCircle, Clock, X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
@@ -272,7 +272,6 @@ const BusinessManagement: React.FC<{ onMutate?: () => void }> = ({ onMutate }) =
           ) : (
             <div className="space-y-2">
               {businesses.map(biz => {
-                const cfg = STATUS[biz.status] || STATUS.inactive;
                 return (
                   <div
                     key={biz._id}

@@ -14,8 +14,7 @@ import {
   Copy,
   Share2,
   Bell,
-  BellOff,
-  Package
+  BellOff
 } from 'lucide-react';
 import * as salesApi from '../api/sales';
 import * as customersApi from '../api/customers';
@@ -233,7 +232,7 @@ export default function Dashboard() {
             </Button>
           )}
           <Button size="sm" onClick={() => navigate('/pos')}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5">
+            className="bg-blue-600 hover:bg-blue-700 h-9 gap-1.5">
             <Store className="w-4 h-4" /><span className="hidden sm:inline">Go to POS</span><span className="sm:hidden">POS</span>
           </Button>
         </div>
@@ -330,7 +329,7 @@ export default function Dashboard() {
           <CardContent className="space-y-3">
             <Button 
               onClick={() => navigate('/pos')}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="w-full bg-blue-600 hover:bg-blue-700"
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
               New Sale

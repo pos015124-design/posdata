@@ -100,7 +100,7 @@ export default function ResetPassword() {
                 </p>
               </div>
               <Link to="/login">
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700">
                   Sign in now
                 </Button>
               </Link>
@@ -185,7 +185,7 @@ export default function ResetPassword() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-base font-semibold"
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-base font-semibold"
               >
                 {loading
                   ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Updating password…</>

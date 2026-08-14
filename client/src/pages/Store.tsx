@@ -148,7 +148,7 @@ function CartDrawer({
                 <span className="font-bold text-gray-900">TZS {total.toLocaleString()}</span>
               </div>
               <Link to="/checkout" className="block">
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-11 text-base font-semibold">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 h-11 text-base font-semibold">
                   Checkout · TZS {total.toLocaleString()}
                 </Button>
               </Link>

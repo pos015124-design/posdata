@@ -270,17 +270,62 @@ class SaleService {
     // Update product stock levels and business analytics
     const Product = require('../models/Product');
     const Business = require('../models/Business');
+    const lowStockCrossings = []; // products that just fell to/under their reorder point
     for (const item of items) {
       const productId = item.product || item._id;
       if (productId) {
-        await Product.findByIdAndUpdate(productId, {
+        // { new: false } returns the pre-update document so we can detect a fresh
+        // low-stock crossing (stock was above the reorder point, now at/below it)
+        const prev = await Product.findByIdAndUpdate(productId, {
           $inc: { 
             stock: -item.quantity,
             'analytics.sales': item.quantity,
             'analytics.revenue': item.price * item.quantity
           }
-        });
+        }, { new: false });
+
+        if (
+          prev &&
+          typeof prev.stock === 'number' &&
+          typeof prev.reorderPoint === 'number' &&
+          prev.reorderPoint > 0 &&
+          prev.stock > prev.reorderPoint &&
+          (prev.stock - item.quantity) <= prev.reorderPoint
+        ) {
+          lowStockCrossings.push({
+            _id: prev._id,
+            name: prev.name,
+            stock: Math.max(0, prev.stock - item.quantity),
+            reorderPoint: prev.reorderPoint,
+            userId: prev.userId
+          });
+        }
       }
+    }
+
+    // Notify sellers once per low-stock crossing (non-blocking, never throws)
+    if (lowStockCrossings.length > 0) {
+      setImmediate(async () => {
+        try {
+          const { sendLowStockAlertToSeller } = require('../utils/emailService');
+          const User = require('../models/User');
+          for (const lp of lowStockCrossings) {
+            if (!lp.userId) continue;
+            const seller = await User.findById(lp.userId).select('email firstName');
+            if (seller?.email) {
+              sendLowStockAlertToSeller({
+                sellerEmail: seller.email,
+                sellerName: seller.firstName || seller.email.split('@')[0],
+                productName: lp.name,
+                currentStock: lp.stock,
+                reorderPoint: lp.reorderPoint
+              }).catch(e => console.error('[Email] low stock alert failed:', e.message));
+            }
+          }
+        } catch (e) {
+          console.error('[Email] low stock alert error:', e.message);
+        }
+      });
     }
 
     // Keep Business.analytics in sync so super admin sees live numbers

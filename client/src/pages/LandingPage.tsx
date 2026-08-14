@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { 
   ShoppingBag, 
   Store, 
-  TrendingUp, 
-  Users, 
   Shield, 
   Zap,
   Star,
@@ -133,7 +131,7 @@ const LandingPage: React.FC = () => {
               <Link to="/login" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Sign In</Link>
               <Link
                 to="/register"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-purple-700 transition-all"
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all"
               >
                 Get Started
               </Link>
@@ -160,7 +158,7 @@ const LandingPage: React.FC = () => {
             <Link to="/login" onClick={() => setMobileMenuOpen(false)}
               className="block px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50 font-medium text-sm">Sign In</Link>
             <Link to="/register" onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm text-center">
+              className="block px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm text-center">
               Get Started
             </Link>
           </div>

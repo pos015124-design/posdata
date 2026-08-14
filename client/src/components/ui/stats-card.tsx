@@ -13,6 +13,7 @@ interface StatsCardProps {
   gradient?: string
   className?: string
   loading?: boolean
+  style?: React.CSSProperties
 }
 
 export function StatsCard({
@@ -22,11 +23,12 @@ export function StatsCard({
   icon: Icon,
   gradient = "from-blue-500 to-purple-600",
   className,
-  loading = false
+  loading = false,
+  style
 }: StatsCardProps) {
   if (loading) {
     return (
-      <Card className={cn("card-modern hover-lift", className)}>
+      <Card className={cn("card-modern hover-lift", className)} style={style}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="space-y-2 flex-1">
@@ -48,7 +50,7 @@ export function StatsCard({
   }
 
   return (
-    <Card className={cn("card-modern hover-lift group animate-scale-in", className)}>
+    <Card className={cn("card-modern hover-lift group animate-scale-in", className)} style={style}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-2 flex-1">

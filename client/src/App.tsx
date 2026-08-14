@@ -38,6 +38,7 @@ const Checkout          = lazy(() => import('./pages/Checkout'));
 const LandingPage       = lazy(() => import('./pages/LandingPage'));
 const SellerBilling     = lazy(() => import('./pages/SellerBilling'));
 const DeliveryManagement = lazy(() => import('./pages/DeliveryManagement'));
+const BusinessDashboard = lazy(() => import('./pages/BusinessDashboard'));
 
 // ── Page loading fallback ──────────────────────────────────────────────────
 // Minimal skeleton — shows instantly while the chunk downloads.
@@ -122,6 +123,7 @@ function App() {
               <Route path="/sellers"    element={<PrivateRoute><Sellers /></PrivateRoute>} />
               <Route path="/settings"   element={<PrivateRoute><Settings /></PrivateRoute>} />
               <Route path="/billing"    element={<PrivateRoute><SellerBilling /></PrivateRoute>} />
+              <Route path="/business-dashboard" element={<PrivateRoute><BusinessDashboard /></PrivateRoute>} />
 
               {/* Private — super admin */}
               <Route path="/super-admin"          element={<PrivateRoute><SuperAdminDashboard /></PrivateRoute>} />

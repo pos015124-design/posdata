@@ -105,7 +105,7 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
     }
   };
 
-  const fixBusiness = async (id: string, email: string) => {
+  const fixBusiness = async (id: string, _email: string) => {
     try {
       const d = await api(`/api/auth/fix-business/${id}`, 'PUT');
       toast({ title: d.success ? 'Business fixed' : 'Error', description: d.message, variant: d.success ? 'default' : 'destructive' });

@@ -65,7 +65,7 @@ export default function Cart() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
           <p className="text-gray-500 mb-8">Looks like you haven't added anything yet.</p>
           <Link to="/store">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8">
+            <Button className="bg-blue-600 hover:bg-blue-700 px-8">
               <ShoppingBag className="w-4 h-4 mr-2" />Browse marketplace
             </Button>
           </Link>
@@ -195,7 +195,7 @@ export default function Cart() {
                 </div>
               </div>
               <Button
-                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700"
                 onClick={() => navigate('/checkout')}
               >
                 Proceed to checkout

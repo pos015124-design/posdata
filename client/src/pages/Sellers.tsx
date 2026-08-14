@@ -9,13 +9,13 @@
  *  - View full delivery history per supplier with running totals (spent / owed)
  */
 import { useState, useCallback, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import {
   Truck, Search, Plus, Edit, Trash2, X, ChevronDown, ChevronUp,
-  Package, DollarSign, RefreshCw, ClipboardList, CheckCircle, Clock, AlertCircle
+  Package, RefreshCw, ClipboardList, CheckCircle, Clock, AlertCircle
 } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { useSmartPolling } from '../hooks/useSmartPolling';
@@ -269,7 +269,7 @@ export default function Sellers() {
             <RefreshCw className="w-4 h-4" />
           </Button>
           <Button size="sm" onClick={openAddSupplier}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-9 gap-1.5">
+            className="bg-blue-600 hover:bg-blue-700 h-9 gap-1.5">
             <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Supplier</span><span className="sm:hidden">Add</span>
           </Button>
         </div>
@@ -451,7 +451,7 @@ export default function Sellers() {
               </div>
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" className="flex-1" onClick={() => setShowSupplierModal(false)}>Cancel</Button>
-                <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                <Button className="flex-1 bg-blue-600"
                   disabled={savingSupplier} onClick={saveSupplier}>
                   {savingSupplier ? 'Saving…' : editingSupplier ? 'Save Changes' : 'Add Supplier'}
                 </Button>
