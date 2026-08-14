@@ -162,7 +162,8 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   };
 
   return (
-    <Card className="border-0 shadow-sm">
+    <>
+      <Card className="border-0 shadow-sm">
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
@@ -285,6 +286,7 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
 
     {/* Confirm delete dialog */}
     {confirmDialog && <ConfirmDialog {...confirmDialog} />}
+    </>
   );
 };
 
