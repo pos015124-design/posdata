@@ -387,6 +387,40 @@ const sendLowStockAlertToSeller = async ({ sellerEmail, sellerName, productName,
   });
 };
 
+/* ══════════════════════════════════════════════════════════════════
+   DAILY REPORTS
+══════════════════════════════════════════════════════════════════ */
+
+/**
+ * 11. Daily sales report — notify seller of yesterday's performance
+ *     (sent by scripts/send-daily-reports.js on a cron schedule)
+ */
+const sendDailySalesReportToSeller = async ({ sellerEmail, sellerName, date, totalOrders, totalRevenue, topProducts, lowStockCount }) => {
+  const productRows = (topProducts || []).map((p, i) =>
+    row(`${i + 1}. ${p.name}`, `${p.quantity} sold — TZS ${(p.revenue || 0).toLocaleString()}`)
+  ).join('');
+
+  return sendEmail({
+    to: sellerEmail,
+    subject: `Your daily sales report — ${date}`,
+    html: wrap('Daily Sales Report', `
+      ${h2(`Daily report for ${date}`)}
+      ${p(`Hi ${sellerName || 'Seller'}, here's how your store performed yesterday.`)}
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:16px 0;">
+        ${row('Orders', String(totalOrders || 0))}
+        ${row('Revenue', `TZS ${(totalRevenue || 0).toLocaleString()}`)}
+        ${row('Low stock items', String(lowStockCount || 0))}
+      </table>
+      ${topProducts && topProducts.length
+        ? `<h3 style="margin:16px 0 8px;color:#1f2937;font-size:16px;">Top products</h3><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:8px 0;">${productRows}</table>`
+        : '<p style="margin:0 0 12px;color:#4b5563;font-size:14px;line-height:1.6;">No product sales recorded.</p>'}
+      ${lowStockCount ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin:16px 0;"><p style="margin:0;color:#92400e;font-size:13px;"><strong>⚠ Attention:</strong> ${lowStockCount} product(s) are at or below their reorder point. Restock soon.</p></div>` : ''}
+      ${btn('Open Dashboard', `${FRONTEND}/dashboard`)}
+    `),
+    text: `Daily report for ${date}: ${totalOrders} order(s), TZS ${(totalRevenue || 0).toLocaleString()} revenue${lowStockCount ? `, ${lowStockCount} low stock item(s)` : ''}.`
+  });
+};
+
 /* ── legacy exports kept for backward compat ─────────────────────── */
 const sendVerificationEmail  = async (email, token) => sendEmail({ to: email, subject: 'Verify your email', html: wrap('Verify Email', `${p('Click below to verify your email.')}${btn('Verify Email', `${FRONTEND}/verify?token=${token}`)}`), text: `Verify: ${FRONTEND}/verify?token=${token}` });
 const sendPasswordResetEmail = async (email, token) => sendEmail({ to: email, subject: 'Reset your password', html: wrap('Password Reset', `${p('Click below to reset your password. Link expires in 1 hour.')}${btn('Reset Password', `${FRONTEND}/reset-password?token=${token}`)}`), text: `Reset: ${FRONTEND}/reset-password?token=${token}` });
@@ -411,4 +445,6 @@ module.exports = {
   sendAccountSuspendedEmail,
   // Inventory
   sendLowStockAlertToSeller,
+  // Daily reports
+  sendDailySalesReportToSeller,
 };

@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, X, CheckCheck, ShoppingBag, AlertTriangle, CheckCircle, Ban, Info } from 'lucide-react';
+import { Bell, X, CheckCheck, ShoppingBag, AlertTriangle, CheckCircle, Ban, Info, ClipboardList } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { useSystemNotifications, SystemNotificationsList } from './SystemNotifications';
 import { useNotificationFeed } from '../hooks/useNotificationFeed';
+import { getPendingUserCount } from '../api/notifications';
 import type { AppNotification } from '../api/notifications';
 
 function timeAgo(iso: string) {
@@ -40,15 +42,28 @@ const typeIcon = (type: string) => {
  */
 export default function NotificationsBell({ placement = 'top-right' }: { placement?: 'top-right' | 'sidebar' }) {
   const [open, setOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const { user } = useAuth();
   const { visibleTips, visibleNotifications, dismissItem, total: tipsTotal } = useSystemNotifications();
   const { notifications, unreadCount, markRead, markAllRead, refresh } = useNotificationFeed();
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const isSuperAdmin = user?.role === 'super_admin';
 
   // Refresh the feed whenever the dropdown opens so it's always current
   useEffect(() => {
     if (open) refresh();
   }, [open, refresh]);
+
+  // Super admins also see how many registrations are awaiting approval
+  useEffect(() => {
+    if (!open || !isSuperAdmin) return;
+    let cancelled = false;
+    getPendingUserCount()
+      .then(count => { if (!cancelled) setPendingCount(count); })
+      .catch(() => { if (!cancelled) setPendingCount(0); });
+    return () => { cancelled = true; };
+  }, [open, isSuperAdmin]);
 
   // Close when clicking/tapping outside the bell + dropdown
   useEffect(() => {
@@ -130,6 +145,20 @@ export default function NotificationsBell({ placement = 'top-right' }: { placeme
             </div>
 
             <div className="p-3 max-h-[60vh] overflow-y-auto">
+              {/* Super admin: pending registrations shortcut */}
+              {isSuperAdmin && pendingCount > 0 && (
+                <button
+                  onClick={() => { setOpen(false); navigate('/settings'); }}
+                  className="w-full flex items-center gap-3 p-2.5 mb-2 rounded-xl bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+                >
+                  <ClipboardList className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="flex-1 text-left text-sm font-semibold text-amber-900">
+                    {pendingCount} pending registration{pendingCount === 1 ? '' : 's'}
+                  </span>
+                  <span className="text-xs font-medium text-amber-700">Review →</span>
+                </button>
+              )}
+
               {/* Real notifications */}
               {notifications.length > 0 ? (
                 <ul className="space-y-1">

@@ -33,3 +33,10 @@ export const markAllNotificationsRead = async () => {
   const response = await api.put('/api/notifications/read-all');
   return response.data;
 };
+
+// GET /api/auth/pending-users → count of registrations awaiting admin approval
+// (super_admin only — the endpoint itself enforces the role)
+export const getPendingUserCount = async (): Promise<number> => {
+  const response = await api.get('/api/auth/pending-users');
+  return Array.isArray(response.data?.users) ? response.data.users.length : 0;
+};
