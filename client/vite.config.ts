@@ -184,6 +184,13 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false
+      },
+      // WebSocket proxy — realtime notifications in dev
+      '/socket.io': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+        ws: true
       }
     }
   },

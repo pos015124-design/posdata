@@ -173,6 +173,19 @@ class SaleService {
               customer: { name: sale.customerName, phone: sale.customerPhone, city: sale.customerCity }
             }).catch(e => console.error('[Email] seller notify failed:', e.message));
           }
+          // In-app notification to the seller (non-blocking)
+          try {
+            const { createNotification } = require('../services/notificationService');
+            await createNotification({
+              userId: sale.createdBy,
+              type: 'order',
+              title: 'New order received',
+              message: `Order ${sale.invoiceNumber} — TZS ${Number(sale.total || 0).toLocaleString()}`,
+              link: '/orders'
+            });
+          } catch (notifErr) {
+            console.error('[Notification] order notify failed:', notifErr.message);
+          }
         }
 
         if (customer?.email) {
@@ -320,6 +333,19 @@ class SaleService {
                 currentStock: lp.stock,
                 reorderPoint: lp.reorderPoint
               }).catch(e => console.error('[Email] low stock alert failed:', e.message));
+            }
+            // In-app low-stock notification (non-blocking)
+            try {
+              const { createNotification } = require('../services/notificationService');
+              await createNotification({
+                userId: lp.userId,
+                type: 'low_stock',
+                title: 'Low stock alert',
+                message: `${lp.name} is at or below its reorder point (${lp.stock} unit${lp.stock === 1 ? '' : 's'} left).`,
+                link: '/inventory'
+              });
+            } catch (notifErr) {
+              console.error('[Notification] low stock notify failed:', notifErr.message);
             }
           }
         } catch (e) {

@@ -240,6 +240,25 @@ router.post('/register',
         console.error('Failed to send admin registration notification:', emailErr.message);
       }
 
+      // In-app notification to all super admins about the new registration (non-blocking)
+      try {
+        const { createNotification } = require('../services/notificationService');
+        const UserModel = require('../models/User');
+        const admins = await UserModel.find({ role: 'super_admin' }).select('_id');
+        const sellerLabel = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email.split('@')[0];
+        for (const admin of admins) {
+          await createNotification({
+            userId: admin._id,
+            type: 'system',
+            title: 'New seller registration',
+            message: `${sellerLabel} (${user.email}) is awaiting approval${businessName || name ? ` — ${businessName || name}` : ''}.`,
+            link: '/settings'
+          });
+        }
+      } catch (notifErr) {
+        console.error('Failed to notify admins of registration:', notifErr.message);
+      }
+
       res.status(201).json({
         success: true,
         message: 'Registration successful! Your account is pending admin approval. You will be notified once approved.',
@@ -479,6 +498,20 @@ router.put('/suspend/:userId', requireAdmin, async (req, res) => {
       } catch (emailErr) {
         console.error('Failed to send suspension email:', emailErr.message);
       }
+
+      // In-app notification to the suspended user (non-blocking)
+      try {
+        const { createNotification } = require('../services/notificationService');
+        await createNotification({
+          userId: user._id,
+          type: 'suspension',
+          title: 'Account suspended',
+          message: 'Your account has been suspended by an administrator.',
+          link: ''
+        });
+      } catch (notifErr) {
+        console.error('Failed to create suspension notification:', notifErr.message);
+      }
     });
 
     return res.json({ success: true, message: 'User suspended successfully' });
@@ -594,6 +627,20 @@ router.put('/approve/:userId', requireAdmin, async (req, res) => {
         });
       } catch (emailErr) {
         console.error('Failed to send approval email:', emailErr.message);
+      }
+
+      // In-app notification to the approved seller (non-blocking)
+      try {
+        const { createNotification } = require('../services/notificationService');
+        await createNotification({
+          userId: user._id,
+          type: 'approval',
+          title: 'Account approved',
+          message: `Your seller account${business?.name ? ` for ${business.name}` : ''} has been approved. Welcome to E-Shop!`,
+          link: '/dashboard'
+        });
+      } catch (notifErr) {
+        console.error('Failed to create approval notification:', notifErr.message);
       }
     }
     

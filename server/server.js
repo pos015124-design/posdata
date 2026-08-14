@@ -290,6 +290,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/billing', require('./routes/billingRoutes'));
 app.use('/api/suppliers', require('./routes/supplierRoutes'));
 app.use('/api/delivery', require('./routes/deliveryRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -372,6 +373,14 @@ const startServer = async () => {
       console.log(`✅ Login endpoint available at http://0.0.0.0:${port}/api/auth/login`);
       console.log('✅ Server started successfully!');
     });
+
+    // Real-time WebSocket service — guarded so a socket failure never crashes the API
+    try {
+      const webSocketService = require('./services/websocketService');
+      webSocketService.initialize(server);
+    } catch (err) {
+      console.error('WebSocket init failed (non-fatal):', err.message);
+    }
 
     return server;
   } else {

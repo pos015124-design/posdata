@@ -22,6 +22,7 @@ import {
 import { useInstallPrompt } from './InstallPWA';
 import Logo from './Logo';
 import NotificationsBell from './NotificationsBell';
+import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 
 interface LayoutProps {
   children: ReactNode;
@@ -33,6 +34,8 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { available: canInstall, trigger: triggerInstall } = useInstallPrompt();
+  // One realtime socket per app shell — feeds the notification bell instantly
+  useRealtimeNotifications();
 
   const isSuperAdmin = user?.role === 'super_admin';
   const menuItems = isSuperAdmin

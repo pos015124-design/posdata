@@ -24,7 +24,9 @@ class WebSocketService {
   initialize(server) {
     this.io = new Server(server, {
       cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:3000",
+        // true = reflect the request origin (works for same-origin and any
+        // configured frontend). Socket auth is JWT-verified regardless.
+        origin: process.env.FRONTEND_URL || process.env.CLIENT_URL || true,
         methods: ["GET", "POST"],
         credentials: true
       },
@@ -354,6 +356,27 @@ class WebSocketService {
       type: notification.type,
       recipients: this.io.sockets.adapter.rooms.get('dashboard')?.size || 0
     });
+  }
+
+  /**
+   * Emit an event to every live socket belonging to a specific user.
+   * Used for targeted notifications (data isolation: users only see their own).
+   * @param {string} userId - Target user id
+   * @param {string} event - Event name
+   * @param {Object} data - Event payload
+   * @returns {number} Number of sockets the event was delivered to
+   */
+  emitToUser(userId, event, data) {
+    if (!this.io) return 0;
+    const target = String(userId);
+    let delivered = 0;
+    for (const socket of this.io.sockets.sockets.values()) {
+      if (socket.userId && String(socket.userId) === target) {
+        socket.emit(event, data);
+        delivered++;
+      }
+    }
+    return delivered;
   }
 
   /**
