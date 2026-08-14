@@ -47,8 +47,29 @@ const saleSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cash', 'card', 'credit', 'mobile'],
+    enum: ['cash', 'card', 'credit', 'mobile', 'online'],
     default: 'cash'
+  },
+  // Payment lifecycle for online / Selcom flows. POS & cash sales are 'paid' instantly;
+  // storefront Selcom sales start 'pending' until the webhook confirms payment.
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'failed'],
+    default: 'pending'
+  },
+  // Selcom checkout order id this sale belongs to (aggregate payment covering multiple sellers)
+  selcomOrderId: {
+    type: String,
+    trim: true,
+    index: true
+  },
+  // Selcom transaction reference once payment confirms
+  transactionId: {
+    type: String,
+    trim: true
+  },
+  paidAt: {
+    type: Date
   },
   amountPaid: {
     type: Number,
@@ -101,5 +122,7 @@ saleSchema.index({ tenantId: 1, createdAt: -1 });
 saleSchema.index({ createdBy: 1, createdAt: -1 });
 saleSchema.index({ source: 1, createdAt: -1 });
 saleSchema.index({ deliveryStatus: 1, source: 1 });
+saleSchema.index({ paymentStatus: 1, createdAt: -1 });
+saleSchema.index({ selcomOrderId: 1 });
 
 module.exports = mongoose.model('Sale', saleSchema);

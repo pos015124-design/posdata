@@ -281,6 +281,7 @@ app.use('/api/catalog', catalogRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/migrate', require('./routes/migrationRoutes'));
 app.use('/api/public', require('./routes/storeRoutes'));
+app.use('/api/public/payments', require('./routes/paymentRoutes'));
 // GET /api/public/products is defined in routes/storeRoutes.js (marketplace: active public stores only)
 
 app.use('/api/sellers', sellerRoutes);

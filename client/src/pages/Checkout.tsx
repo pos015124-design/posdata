@@ -1,8 +1,9 @@
-﻿import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, ShoppingBag, User, Phone, Mail,
-  MapPin, MessageSquare, Banknote, CreditCard, Smartphone, Package
+  MapPin, MessageSquare, Banknote, CreditCard, Smartphone, Package,
+  Loader2, ExternalLink, X, AlertTriangle
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -19,9 +20,20 @@ const imgUrl = (url?: string | null) => {
 
 const PAYMENT_METHODS = [
   { id: 'cash', label: 'Cash on delivery', icon: Banknote, desc: 'Pay when you receive your order' },
-  { id: 'mobile', label: 'Mobile money', icon: Smartphone, desc: 'M-Pesa, Tigo Pesa, Airtel Money' },
-  { id: 'card', label: 'Card payment', icon: CreditCard, desc: 'Visa, Mastercard' },
+  { id: 'mobile', label: 'Mobile money', icon: Smartphone, desc: 'M-Pesa, Tigo Pesa, Airtel Money — instant USSD prompt' },
+  { id: 'card', label: 'Card payment', icon: CreditCard, desc: 'Visa, Mastercard — secure gateway' },
 ];
+
+type OnlineMethod = 'mobile' | 'card';
+
+type PayPhase =
+  | { name: 'idle' }
+  | { name: 'processing' }
+  | { name: 'paying'; orderId: string; method: OnlineMethod; redirectUrl?: string | null }
+  | { name: 'error'; message: string };
+
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLLS = 60; // ~3 minutes before we ask the buyer to check manually
 
 export default function Checkout() {
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -29,26 +41,98 @@ export default function Checkout() {
   const [orderComplete, setOrderComplete] = useState(false);
   const [invoices, setInvoices] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [payPhase, setPayPhase] = useState<PayPhase>({ name: 'idle' });
+  const [payError, setPayError] = useState<string | null>(null);
+  const [pollStopped, setPollStopped] = useState(false);
+  const [pollEpoch, setPollEpoch] = useState(0); // bump to restart polling ("Check again")
+  const pollTimer = useRef<number | null>(null);
+  const pollCount = useRef(0);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   const [info, setInfo] = useState({ name: '', email: '', phone: '', address: '', city: '', notes: '' });
+
+  const completeOrder = useCallback((invs: string[]) => {
+    setInvoices(invs);
+    setOrderComplete(true);
+    localStorage.removeItem('cart');
+    localStorage.setItem('sale-created', Date.now().toString());
+    window.dispatchEvent(new Event('sale-created'));
+  }, []);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem('cart');
       if (raw) { setCart(JSON.parse(raw)); }
-      else { navigate('/cart'); }
-    } catch { navigate('/cart'); }
-  }, [navigate]);
+      else if (!searchParams.get('order')) { navigate('/cart'); }
+    } catch { if (!searchParams.get('order')) navigate('/cart'); }
+  }, [navigate, searchParams]);
+
+  // Resume an in-flight payment: /checkout?order=SEL-...
+  useEffect(() => {
+    const orderId = searchParams.get('order');
+    if (orderId && payPhase.name === 'idle') {
+      setPayPhase({ name: 'paying', orderId, method: 'mobile' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const activeOrderId = payPhase.name === 'paying' ? payPhase.orderId : null;
 
   const set = (k: keyof typeof info) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setInfo(prev => ({ ...prev, [k]: e.target.value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /* ── Selcom polling: watch the payment session until it settles ────────── */
+  useEffect(() => {
+    if (!activeOrderId) return;
+    pollCount.current = 0;
+    setPollStopped(false);
+    setPayError(null);
+    const orderId = activeOrderId;
+
+    const tick = async () => {
+      try {
+        const res = await fetch(`${BASE}/api/public/payments/selcom/status?orderId=${encodeURIComponent(orderId)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not check payment status');
+
+        if (data.method) {
+          setPayPhase(p => (p.name === 'paying' ? { ...p, method: data.method } : p));
+        }
+
+        if (data.paid || data.status === 'paid') {
+          const invs = (data.sales || []).map((s: any) => s.invoiceNumber).filter(Boolean);
+          completeOrder(invs);
+          return;
+        }
+        if (data.status === 'failed') {
+          setPayError('Payment was not completed. No money was taken — please try again.');
+          setPollStopped(true);
+          return;
+        }
+        if (data.status === 'expired') {
+          setPayError('Payment session expired. No money was taken — please try again.');
+          setPollStopped(true);
+          return;
+        }
+
+        pollCount.current += 1;
+        if (pollCount.current >= MAX_POLLS) setPollStopped(true);
+      } catch {
+        // transient network error — keep polling
+      }
+    };
+
+    tick();
+    pollTimer.current = window.setInterval(tick, POLL_INTERVAL_MS);
+    return () => { if (pollTimer.current) window.clearInterval(pollTimer.current); };
+  }, [activeOrderId, pollEpoch, completeOrder]);
+
+  /* ── Cash checkout (unchanged behavior) ────────────────────────────────── */
+  const handleCashSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!info.name.trim() || !info.phone.trim()) {
       toast({ title: 'Required fields missing', description: 'Please enter your name and phone number', variant: 'destructive' });
@@ -72,11 +156,7 @@ export default function Checkout() {
       if (!res.ok) throw new Error(payload.message || payload.error || 'Checkout failed');
 
       const invs: string[] = payload.invoiceNumbers || (payload.sales || []).map((s: any) => s.invoiceNumber).filter(Boolean);
-      setInvoices(invs);
-      setOrderComplete(true);
-      localStorage.removeItem('cart');
-      localStorage.setItem('sale-created', Date.now().toString());
-      window.dispatchEvent(new Event('sale-created'));
+      completeOrder(invs);
     } catch (err: any) {
       toast({ title: 'Order failed', description: err?.message || 'Please try again', variant: 'destructive' });
     } finally {
@@ -84,7 +164,70 @@ export default function Checkout() {
     }
   };
 
-  /* ΓöÇΓöÇ Success screen ΓöÇΓöÇ */
+  /* ── Selcom online payment ─────────────────────────────────────────────── */
+  const startOnlinePayment = async (method: OnlineMethod) => {
+    if (!info.name.trim() || !info.phone.trim()) {
+      toast({ title: 'Required fields missing', description: 'Please enter your name and phone number', variant: 'destructive' });
+      return;
+    }
+    if (cart.length === 0) { toast({ title: 'Cart is empty', variant: 'destructive' }); return; }
+
+    setPayPhase({ name: 'processing' });
+    setPayError(null);
+    try {
+      const res = await fetch(`${BASE}/api/public/payments/selcom/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(i => ({ product: i._id, quantity: i.quantity })),
+          paymentMethod: method,
+          customer: { name: info.name, email: info.email, phone: info.phone, address: info.address, city: info.city },
+          notes: info.notes
+        })
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || payload.message || 'Could not start payment');
+
+      setPayPhase({
+        name: 'paying',
+        orderId: payload.orderId,
+        method,
+        redirectUrl: payload.redirectUrl || null
+      });
+
+      // Card: open the secure gateway in a new tab; polling continues in the background.
+      if (method === 'card' && payload.redirectUrl) {
+        window.open(payload.redirectUrl, '_blank', 'noopener');
+      }
+    } catch (err: any) {
+      setPayPhase({ name: 'error', message: err?.message || 'Could not start payment' });
+    }
+  };
+
+  const cancelPayment = async () => {
+    const orderId = payPhase.name === 'paying' ? payPhase.orderId : null;
+    if (orderId) {
+      try {
+        await fetch(`${BASE}/api/public/payments/selcom/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+      } catch { /* release happens via expiry anyway */ }
+    }
+    setPayPhase({ name: 'idle' });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (paymentMethod === 'mobile' || paymentMethod === 'card') {
+      startOnlinePayment(paymentMethod as OnlineMethod);
+    } else {
+      handleCashSubmit(e);
+    }
+  };
+
+  /* ── Success screen ────────────────────────────────────────────────────── */
   if (orderComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center px-4">
@@ -92,7 +235,7 @@ export default function Checkout() {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-10 h-10 text-green-500" />
           </div>
-          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Order confirmed!</h2>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Payment received — order confirmed!</h2>
           <p className="text-gray-500 mb-6">Thank you, {info.name}. We'll be in touch shortly.</p>
 
           <div className="bg-gray-50 rounded-2xl p-5 mb-6 text-left space-y-3">
@@ -129,9 +272,133 @@ export default function Checkout() {
     );
   }
 
-  /* ΓöÇΓöÇ Checkout form ΓöÇΓöÇ */
+  /* ── Selcom payment modal ──────────────────────────────────────────────── */
+  const showModal = payPhase.name === 'processing' || payPhase.name === 'paying' || payPhase.name === 'error';
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Payment modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-100 relative">
+            <button
+              onClick={cancelPayment}
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close payment"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {payPhase.name === 'processing' && (
+              <div className="text-center py-6">
+                <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Starting secure payment…</h3>
+                <p className="text-sm text-gray-500">Contacting the payment provider</p>
+              </div>
+            )}
+
+            {payPhase.name === 'paying' && (
+              <div className="text-center py-2">
+                {payPhase.method === 'mobile' ? (
+                  <>
+                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Smartphone className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Check your phone</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      A USSD prompt has been sent to <span className="font-semibold text-gray-800">{info.phone || 'your phone'}</span>.
+                      Enter your M-Pesa / Tigo Pesa / Airtel Money PIN to complete the payment of{' '}
+                      <span className="font-bold text-gray-900">TZS {total.toLocaleString()}</span>.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <CreditCard className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Complete card payment</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      You'll be redirected to the secure Selcom gateway to pay{' '}
+                      <span className="font-bold text-gray-900">TZS {total.toLocaleString()}</span>.
+                      We'll confirm automatically once the payment goes through.
+                    </p>
+                    {payPhase.redirectUrl && (
+                      <Button
+                        variant="outline"
+                        className="mb-3"
+                        onClick={() => window.open(payPhase.redirectUrl!, '_blank', 'noopener')}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />Open secure gateway
+                      </Button>
+                    )}
+                  </>
+                )}
+
+                {!pollStopped && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    Waiting for payment confirmation…
+                  </div>
+                )}
+
+                {pollStopped && !payError && (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+                    Still waiting? Make sure you approved the payment on your phone.
+                  </div>
+                )}
+
+                {payError && (
+                  <div className="mt-2 bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{payError}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3 mt-5">
+                  <Button variant="outline" className="flex-1" onClick={cancelPayment}>
+                    Cancel
+                  </Button>
+                  {pollStopped && (
+                    <Button
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      onClick={() => setPollEpoch(e => e + 1)}
+                    >
+                      Check again
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {payPhase.name === 'error' && (
+              <div className="text-center py-2">
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Payment couldn't start</h3>
+                <p className="text-sm text-gray-500 mb-2">{payPhase.message}</p>
+                <p className="text-xs text-gray-400 mb-5">No money was taken from your account.</p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setPayPhase({ name: 'idle' })}
+                  >
+                    Choose another method
+                  </Button>
+                  <Button
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    onClick={() => startOnlinePayment(paymentMethod as OnlineMethod)}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/cart" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
