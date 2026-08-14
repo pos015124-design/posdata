@@ -113,6 +113,17 @@ router.post('/login',
       user.refreshToken = refreshToken;
       await user.save();
 
+      // Backfill low-stock alerts for products already below their reorder point
+      // (non-blocking — never delays the login response)
+      setImmediate(async () => {
+        try {
+          const { sweepLowStockNotifications } = require('../services/notificationService');
+          await sweepLowStockNotifications(user._id);
+        } catch (sweepErr) {
+          console.error('[Notification] login sweep failed:', sweepErr.message);
+        }
+      });
+
       res.json({
         success: true,
         accessToken,
@@ -124,7 +135,8 @@ router.post('/login',
           permissions: user.permissions,
           tenantId: user.tenantId,
           businessId: user.businessId,
-          fullName: user.fullName
+          fullName: user.fullName,
+          notificationPrefs: user.notificationPrefs
         }
       });
     } catch (error) {
@@ -286,6 +298,33 @@ router.post('/register',
     }
   }
 );
+
+// GET /api/auth/notification-prefs — current user's notification preferences
+router.get('/notification-prefs', requireUser, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('notificationPrefs');
+    res.json({ success: true, notificationPrefs: user?.notificationPrefs || {} });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PUT /api/auth/notification-prefs — update notification preferences
+router.put('/notification-prefs', requireUser, async (req, res) => {
+  try {
+    const { email, orders, lowStock, reports } = req.body;
+    const update = {};
+    if (typeof email === 'boolean') update['notificationPrefs.email'] = email;
+    if (typeof orders === 'boolean') update['notificationPrefs.orders'] = orders;
+    if (typeof lowStock === 'boolean') update['notificationPrefs.lowStock'] = lowStock;
+    if (typeof reports === 'boolean') update['notificationPrefs.reports'] = reports;
+
+    const user = await User.findByIdAndUpdate(req.user.userId, { $set: update }, { new: true }).select('notificationPrefs');
+    res.json({ success: true, notificationPrefs: user?.notificationPrefs || {} });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 router.post('/logout', async (req, res) => {
   const { email } = req.body;

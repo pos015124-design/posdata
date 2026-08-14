@@ -42,6 +42,13 @@ export type SystemSettings = {
   payment: PaymentSettings;
 }
 
+export type NotificationPrefs = {
+  email: boolean;
+  orders: boolean;
+  lowStock: boolean;
+  reports: boolean;
+}
+
 // Description: Get system settings
 // Endpoint: GET /api/settings
 // Request: {}
@@ -137,6 +144,39 @@ export const updatePaymentSettings = async (settings: PaymentSettings): Promise<
     return response.data;
   } catch (error) {
     console.error('Error updating payment settings:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unknown error occurred');
+  }
+};
+
+// Description: Get current user's notification preferences
+// Endpoint: GET /api/auth/notification-prefs
+// Response: { success: boolean, notificationPrefs: NotificationPrefs }
+export const getNotificationPrefs = async (): Promise<{ success: boolean; notificationPrefs: NotificationPrefs }> => {
+  try {
+    const response = await api.get('/api/auth/notification-prefs');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching notification preferences:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unknown error occurred');
+  }
+};
+
+// Description: Save current user's notification preferences
+// Endpoint: PUT /api/auth/notification-prefs
+// Request: NotificationPrefs
+// Response: { success: boolean, notificationPrefs: NotificationPrefs }
+export const saveNotificationPrefs = async (prefs: NotificationPrefs): Promise<{ success: boolean; notificationPrefs: NotificationPrefs }> => {
+  try {
+    const response = await api.put('/api/auth/notification-prefs', prefs);
+    return response.data;
+  } catch (error) {
+    console.error('Error saving notification preferences:', error);
     if (error instanceof Error) {
       throw error;
     }

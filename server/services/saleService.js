@@ -162,8 +162,8 @@ class SaleService {
         const User = require('../models/User');
 
         for (const sale of sales) {
-          const seller = await User.findById(sale.createdBy).select('email firstName');
-          if (seller?.email) {
+          const seller = await User.findById(sale.createdBy).select('email firstName notificationPrefs');
+          if (seller?.email && seller.notificationPrefs?.email !== false) {
             sendNewOrderToSeller({
               sellerEmail: seller.email,
               sellerName: seller.firstName || seller.email.split('@')[0],
@@ -324,8 +324,8 @@ class SaleService {
           const User = require('../models/User');
           for (const lp of lowStockCrossings) {
             if (!lp.userId) continue;
-            const seller = await User.findById(lp.userId).select('email firstName');
-            if (seller?.email) {
+            const seller = await User.findById(lp.userId).select('email firstName notificationPrefs');
+            if (seller?.email && seller.notificationPrefs?.email !== false) {
               sendLowStockAlertToSeller({
                 sellerEmail: seller.email,
                 sellerName: seller.firstName || seller.email.split('@')[0],
@@ -342,7 +342,8 @@ class SaleService {
                 type: 'low_stock',
                 title: 'Low stock alert',
                 message: `${lp.name} is at or below its reorder point (${lp.stock} unit${lp.stock === 1 ? '' : 's'} left).`,
-                link: '/inventory'
+                link: '/inventory',
+                ref: `product:${lp._id}`
               });
             } catch (notifErr) {
               console.error('[Notification] low stock notify failed:', notifErr.message);

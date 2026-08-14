@@ -94,6 +94,21 @@ export default function Settings() {
     }
   }, [user]);
 
+  // Load the user's real notification preferences into the form
+  useEffect(() => {
+    settingsApi.getNotificationPrefs()
+      .then(data => {
+        const p = data.notificationPrefs || {};
+        setNotificationSettings({
+          emailNotifications: p.email !== false,
+          orderAlerts: p.orders !== false,
+          lowStockAlerts: p.lowStock !== false,
+          dailyReports: p.reports === true
+        });
+      })
+      .catch(() => { /* keep defaults if the endpoint is unavailable */ });
+  }, []);
+
   const loadSettings = async () => {
     try {
       setLoading(true);
@@ -297,6 +312,12 @@ export default function Settings() {
   const handleSaveNotifications = async () => {
     try {
       setSaving(true);
+      await settingsApi.saveNotificationPrefs({
+        email: notificationSettings.emailNotifications,
+        orders: notificationSettings.orderAlerts,
+        lowStock: notificationSettings.lowStockAlerts,
+        reports: notificationSettings.dailyReports
+      });
       toast({
         title: 'Success',
         description: 'Notification preferences saved!',

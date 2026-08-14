@@ -56,6 +56,14 @@ const userSchema = new mongoose.Schema({
   suspendedAt: Date,
   suspendedReason: { type: String, trim: true },
 
+  // Per-user notification preferences (in-app feed gating)
+  notificationPrefs: {
+    email:    { type: Boolean, default: true },
+    orders:   { type: Boolean, default: true },
+    lowStock: { type: Boolean, default: true },
+    reports:  { type: Boolean, default: true }
+  },
+
   // Terms & Conditions acceptance
   termsAccepted: {
     type: Boolean,
