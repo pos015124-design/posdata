@@ -52,4 +52,7 @@ const notificationSchema = new mongoose.Schema({
 // Fast lookups: a user's unread feed first, then newest-first
 notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
 
+// Auto-prune old notifications (90 days) so the collection never grows unbounded
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
+
 module.exports = mongoose.model('Notification', notificationSchema);
