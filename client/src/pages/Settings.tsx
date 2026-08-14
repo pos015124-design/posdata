@@ -43,11 +43,18 @@ export default function Settings() {
     email: ''
   });
 
-  const [notificationSettings, setNotificationSettings] = useState({
+  const [notificationSettings, setNotificationSettings] = useState<{
+    emailNotifications: boolean;
+    orderAlerts: boolean;
+    lowStockAlerts: boolean;
+    dailyReports: boolean;
+    reportFrequency: 'daily' | 'weekly' | 'off';
+  }>({
     emailNotifications: true,
     orderAlerts: true,
     lowStockAlerts: true,
-    dailyReports: false
+    dailyReports: false,
+    reportFrequency: 'daily'
   });
 
   const [taxSettings, setTaxSettings] = useState({
@@ -103,7 +110,8 @@ export default function Settings() {
           emailNotifications: p.email !== false,
           orderAlerts: p.orders !== false,
           lowStockAlerts: p.lowStock !== false,
-          dailyReports: p.reports === true
+          dailyReports: p.reports === true,
+          reportFrequency: p.reportFrequency || (p.reports === false ? 'off' : 'daily')
         });
       })
       .catch(() => { /* keep defaults if the endpoint is unavailable */ });
@@ -316,7 +324,8 @@ export default function Settings() {
         email: notificationSettings.emailNotifications,
         orders: notificationSettings.orderAlerts,
         lowStock: notificationSettings.lowStockAlerts,
-        reports: notificationSettings.dailyReports
+        reports: notificationSettings.dailyReports,
+        reportFrequency: notificationSettings.reportFrequency
       });
       toast({
         title: 'Success',
@@ -1017,10 +1026,9 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div className="space-y-3">
                     {[
-                      { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive notifications via email' },
+                      { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive order and low-stock notifications via email' },
                       { key: 'orderAlerts', label: 'Order Alerts', desc: 'Get notified for new orders' },
                       { key: 'lowStockAlerts', label: 'Low Stock Alerts', desc: 'Alert when products are low' },
-                      { key: 'dailyReports', label: 'Daily Reports', desc: 'Receive daily sales reports' },
                     ].map((item) => (
                       <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <div>
@@ -1029,7 +1037,7 @@ export default function Settings() {
                         </div>
                         <input 
                           type="checkbox" 
-                          checked={notificationSettings[item.key as keyof typeof notificationSettings]}
+                          checked={notificationSettings[item.key as 'emailNotifications' | 'orderAlerts' | 'lowStockAlerts']}
                           onChange={(e) => setNotificationSettings({
                             ...notificationSettings, 
                             [item.key]: e.target.checked
@@ -1038,6 +1046,27 @@ export default function Settings() {
                         />
                       </div>
                     ))}
+                  </div>
+
+                  {/* Sales report frequency — daily / weekly / off */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <Label className="text-base">Sales Report Frequency</Label>
+                      <p className="text-sm text-gray-600">How often you receive sales summary emails (unsubscribe link included in every report)</p>
+                    </div>
+                    <select
+                      value={notificationSettings.reportFrequency}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        reportFrequency: e.target.value as 'daily' | 'weekly' | 'off'
+                      })}
+                      className="h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm font-medium shrink-0"
+                      aria-label="Sales report frequency"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="off">Off</option>
+                    </select>
                   </div>
                   <Button
                     onClick={handleSaveNotifications}

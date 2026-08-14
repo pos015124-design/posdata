@@ -61,7 +61,9 @@ const userSchema = new mongoose.Schema({
     email:    { type: Boolean, default: true },
     orders:   { type: Boolean, default: true },
     lowStock: { type: Boolean, default: true },
-    reports:  { type: Boolean, default: true }
+    reports:  { type: Boolean, default: true },
+    // 'daily' | 'weekly' | 'off' — controls the scheduled report emails
+    reportFrequency: { type: String, enum: ['daily', 'weekly', 'off'], default: 'daily' }
   },
 
   // Terms & Conditions acceptance

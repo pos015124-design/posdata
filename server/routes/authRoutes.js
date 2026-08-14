@@ -312,12 +312,17 @@ router.get('/notification-prefs', requireUser, async (req, res) => {
 // PUT /api/auth/notification-prefs — update notification preferences
 router.put('/notification-prefs', requireUser, async (req, res) => {
   try {
-    const { email, orders, lowStock, reports } = req.body;
+    const { email, orders, lowStock, reports, reportFrequency } = req.body;
     const update = {};
     if (typeof email === 'boolean') update['notificationPrefs.email'] = email;
     if (typeof orders === 'boolean') update['notificationPrefs.orders'] = orders;
     if (typeof lowStock === 'boolean') update['notificationPrefs.lowStock'] = lowStock;
     if (typeof reports === 'boolean') update['notificationPrefs.reports'] = reports;
+    if (reportFrequency && ['daily', 'weekly', 'off'].includes(reportFrequency)) {
+      update['notificationPrefs.reportFrequency'] = reportFrequency;
+      // Keep the legacy boolean in sync — 'off' disables report emails entirely
+      update['notificationPrefs.reports'] = reportFrequency !== 'off';
+    }
 
     const user = await User.findByIdAndUpdate(req.user.userId, { $set: update }, { new: true }).select('notificationPrefs');
     res.json({ success: true, notificationPrefs: user?.notificationPrefs || {} });

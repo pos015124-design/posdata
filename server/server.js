@@ -291,6 +291,7 @@ app.use('/api/billing', require('./routes/billingRoutes'));
 app.use('/api/suppliers', require('./routes/supplierRoutes'));
 app.use('/api/delivery', require('./routes/deliveryRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

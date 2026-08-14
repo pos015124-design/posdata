@@ -74,7 +74,7 @@ const row = (label, value) =>
        <td style="padding:8px 12px;color:#111827;font-size:13px;font-weight:600;border-bottom:1px solid #f3f4f6;">${value}</td></tr>`;
 
 /* ── core send ───────────────────────────────────────────────────── */
-const sendEmail = async ({ to, subject, html, text }) => {
+const sendEmail = async ({ to, subject, html, text, headers }) => {
   const transporter = createTransporter();
   if (!transporter) {
     logger.info('[Email] (mock) Would send email', { to, subject });
@@ -84,6 +84,8 @@ const sendEmail = async ({ to, subject, html, text }) => {
     const message = { from: FROM, to, subject, html, text };
     // Attach CC if configured — keeps admin informed on all outbound mail
     if (CC) message.cc = CC;
+    // Extra headers (e.g. List-Unsubscribe for one-click digest opt-out)
+    if (headers && typeof headers === 'object') message.headers = headers;
     const info = await transporter.sendMail(message);
     logger.info('[Email] Sent', { messageId: info.messageId, to, subject });
     return { success: true, messageId: info.messageId };
@@ -392,20 +394,23 @@ const sendLowStockAlertToSeller = async ({ sellerEmail, sellerName, productName,
 ══════════════════════════════════════════════════════════════════ */
 
 /**
- * 11. Daily sales report — notify seller of yesterday's performance
- *     (sent by scripts/send-daily-reports.js on a cron schedule)
+ * 11. Sales report digest — daily or weekly summary, sent by
+ *     scripts/send-daily-reports.js on a cron schedule.
+ *     Includes a signed one-click unsubscribe link (List-Unsubscribe header).
  */
-const sendDailySalesReportToSeller = async ({ sellerEmail, sellerName, date, totalOrders, totalRevenue, topProducts, lowStockCount }) => {
+const sendSalesReportToSeller = async ({ sellerEmail, sellerName, frequency, periodLabel, totalOrders, totalRevenue, topProducts, lowStockCount, unsubscribeUrl }) => {
+  const isWeekly = frequency === 'weekly';
+  const freqLabel = isWeekly ? 'Weekly' : 'Daily';
   const productRows = (topProducts || []).map((p, i) =>
     row(`${i + 1}. ${p.name}`, `${p.quantity} sold — TZS ${(p.revenue || 0).toLocaleString()}`)
   ).join('');
 
   return sendEmail({
     to: sellerEmail,
-    subject: `Your daily sales report — ${date}`,
-    html: wrap('Daily Sales Report', `
-      ${h2(`Daily report for ${date}`)}
-      ${p(`Hi ${sellerName || 'Seller'}, here's how your store performed yesterday.`)}
+    subject: `Your ${isWeekly ? 'weekly' : 'daily'} sales report — ${periodLabel}`,
+    html: wrap(`${freqLabel} Sales Report`, `
+      ${h2(`${freqLabel} report for ${periodLabel}`)}
+      ${p(`Hi ${sellerName || 'Seller'}, here's how your store performed ${isWeekly ? 'this week' : 'yesterday'}.`)}
       <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:16px 0;">
         ${row('Orders', String(totalOrders || 0))}
         ${row('Revenue', `TZS ${(totalRevenue || 0).toLocaleString()}`)}
@@ -416,8 +421,16 @@ const sendDailySalesReportToSeller = async ({ sellerEmail, sellerName, date, tot
         : '<p style="margin:0 0 12px;color:#4b5563;font-size:14px;line-height:1.6;">No product sales recorded.</p>'}
       ${lowStockCount ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin:16px 0;"><p style="margin:0;color:#92400e;font-size:13px;"><strong>⚠ Attention:</strong> ${lowStockCount} product(s) are at or below their reorder point. Restock soon.</p></div>` : ''}
       ${btn('Open Dashboard', `${FRONTEND}/dashboard`)}
+      ${unsubscribeUrl ? `<p style="margin:24px 0 0;color:#9ca3af;font-size:11px;"><a href="${unsubscribeUrl}" style="color:#9ca3af;">Unsubscribe from sales report emails</a> — you can re-enable anytime in Settings → Notifications.</p>` : ''}
     `),
-    text: `Daily report for ${date}: ${totalOrders} order(s), TZS ${(totalRevenue || 0).toLocaleString()} revenue${lowStockCount ? `, ${lowStockCount} low stock item(s)` : ''}.`
+    text: `${freqLabel} report for ${periodLabel}: ${totalOrders} order(s), TZS ${(totalRevenue || 0).toLocaleString()} revenue${lowStockCount ? `, ${lowStockCount} low stock item(s)` : ''}. Unsubscribe: ${unsubscribeUrl || 'n/a'}`,
+    // Standard one-click unsubscribe so Gmail/Outlook show a native button
+    headers: unsubscribeUrl
+      ? {
+          'List-Unsubscribe': `<${unsubscribeUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+        }
+      : undefined
   });
 };
 
@@ -445,6 +458,6 @@ module.exports = {
   sendAccountSuspendedEmail,
   // Inventory
   sendLowStockAlertToSeller,
-  // Daily reports
-  sendDailySalesReportToSeller,
+  // Sales report digests (daily / weekly)
+  sendSalesReportToSeller,
 };

@@ -47,6 +47,7 @@ export type NotificationPrefs = {
   orders: boolean;
   lowStock: boolean;
   reports: boolean;
+  reportFrequency?: 'daily' | 'weekly' | 'off';
 }
 
 // Description: Get system settings

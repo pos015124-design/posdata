@@ -1,32 +1,47 @@
 #!/usr/bin/env node
 /**
- * Daily sales report emails — sends a "yesterday" summary to every seller who
- * has opted in (notificationPrefs.reports !== false && notificationPrefs.email !== false).
+ * Sales report digests — sends each opted-in seller their summary:
+ *   - reportFrequency 'daily'  → yesterday's performance
+ *   - reportFrequency 'weekly' → last 7 days (sent once a week)
+ *   - reportFrequency 'off'    → skipped (or if legacy reports === false)
  *
- * Schedule with cron on the VPS (adjust the path/time to taste):
+ * Every digest includes a signed one-click unsubscribe link (List-Unsubscribe
+ * header) so recipients can opt out without logging in. Re-enabling is done in
+ * Settings → Notifications.
+ *
+ * Schedule with cron on the VPS (adjust path/time to taste):
  *   0 6 * * * cd /var/www/posdata && /usr/bin/node scripts/send-daily-reports.js >> /var/log/dukani-daily-report.log 2>&1
  *
- * Safe to run repeatedly — each run only sends emails (no state changes),
- * so a double-invocation just means duplicate emails, never corruption.
+ * Weekly digests only go out on WEEKLY_REPORT_DAY (default 1 = Monday).
+ * Safe to run repeatedly — each run only sends emails, never mutates data.
  */
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', 'server', '.env') });
 
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 const { connectDB } = require('../server/config/database');
 const User = require('../server/models/User');
 const Sale = require('../server/models/Sale');
 const Product = require('../server/models/Product');
-const { sendDailySalesReportToSeller } = require('../server/utils/emailService');
+const { sendSalesReportToSeller } = require('../server/utils/emailService');
+
+const WEEKLY_DAY = parseInt(process.env.WEEKLY_REPORT_DAY ?? '1', 10); // 1 = Monday
+const FRONTEND = process.env.FRONTEND_URL || 'https://e-shop.bhabygroup.co.tz';
 
 const fmtDate = (d) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
 async function main() {
+  if (!process.env.JWT_SECRET) {
+    console.error('[daily-report] JWT_SECRET is required (for unsubscribe links). Aborting.');
+    process.exit(1);
+  }
+
   await connectDB();
 
-  const dayStart = new Date();
+  const now = new Date();
+  const dayStart = new Date(now);
   dayStart.setHours(0, 0, 0, 0);
-  const yesterdayStart = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000);
 
   const sellers = await User.find({
     role: 'business_admin',
@@ -36,19 +51,29 @@ async function main() {
   let sent = 0;
   for (const seller of sellers) {
     const prefs = seller.notificationPrefs || {};
-    // Both prefs default to true when unset — only skip on an explicit false
-    if (prefs.reports === false) continue;
     if (prefs.email === false) continue;
+
+    // Resolve frequency with legacy fallback (reports boolean → off/daily)
+    const frequency = prefs.reportFrequency
+      || (prefs.reports === false ? 'off' : 'daily');
+    if (frequency === 'off') continue;
+    if (frequency === 'weekly' && now.getDay() !== WEEKLY_DAY) continue;
+
+    const isWeekly = frequency === 'weekly';
+    const periodStart = new Date(isWeekly ? dayStart.getTime() - 7 * 24 * 60 * 60 * 1000 : dayStart.getTime() - 24 * 60 * 60 * 1000);
+    const periodLabel = isWeekly
+      ? `${fmtDate(periodStart)} – ${fmtDate(new Date(dayStart.getTime() - 24 * 60 * 60 * 1000))}`
+      : fmtDate(new Date(dayStart.getTime() - 24 * 60 * 60 * 1000));
 
     const sales = await Sale.find({
       createdBy: seller._id,
-      createdAt: { $gte: yesterdayStart, $lt: dayStart }
+      createdAt: { $gte: periodStart, $lt: dayStart }
     }).select('total items');
 
     const totalOrders = sales.length;
     const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
 
-    // Aggregate top products from yesterday's sales
+    // Aggregate top products across the period
     const prodMap = new Map();
     for (const sale of sales) {
       for (const it of (sale.items || [])) {
@@ -69,19 +94,29 @@ async function main() {
       $expr: { $lte: ['$stock', '$reorderPoint'] }
     });
 
-    await sendDailySalesReportToSeller({
+    // Signed one-click unsubscribe token (no login required)
+    const unsubscribeToken = jwt.sign(
+      { userId: seller._id.toString(), purpose: 'report-unsubscribe' },
+      process.env.JWT_SECRET,
+      { expiresIn: '180d' }
+    );
+    const unsubscribeUrl = `${FRONTEND}/api/reports/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
+
+    await sendSalesReportToSeller({
       sellerEmail: seller.email,
       sellerName: seller.fullName || seller.firstName || seller.email.split('@')[0],
-      date: fmtDate(yesterdayStart),
+      frequency,
+      periodLabel,
       totalOrders,
       totalRevenue,
       topProducts,
-      lowStockCount
+      lowStockCount,
+      unsubscribeUrl
     });
     sent++;
   }
 
-  console.log(`[daily-report] sent ${sent} report(s) for ${fmtDate(yesterdayStart)}`);
+  console.log(`[daily-report] sent ${sent} digest(s) on ${fmtDate(now)}`);
   await mongoose.disconnect();
   process.exit(0);
 }
