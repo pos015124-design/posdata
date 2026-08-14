@@ -2,7 +2,7 @@ import api from './api';
 
 export interface AppNotification {
   _id: string;
-  type: 'order' | 'sale' | 'approval' | 'suspension' | 'low_stock' | 'system' | string;
+  type: 'order' | 'sale' | 'payment' | 'approval' | 'suspension' | 'low_stock' | 'system' | string;
   title: string;
   message: string;
   link?: string;

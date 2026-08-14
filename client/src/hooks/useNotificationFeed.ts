@@ -57,11 +57,13 @@ export function useNotificationFeed(pollMs = 45_000) {
     };
     const onRealtime = () => refresh();
     const onSale = () => refreshUnreadOnly();
+    const onPayment = () => refresh();
 
     window.addEventListener('focus', onFocus);
     window.addEventListener('storage', onStorage);
     window.addEventListener('notification-realtime', onRealtime);
     window.addEventListener('sale-created', onSale);
+    window.addEventListener('payment-confirmed', onPayment);
 
     return () => {
       clearInterval(interval);
@@ -69,6 +71,7 @@ export function useNotificationFeed(pollMs = 45_000) {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('notification-realtime', onRealtime);
       window.removeEventListener('sale-created', onSale);
+      window.removeEventListener('payment-confirmed', onPayment);
     };
   }, [refresh, refreshUnreadOnly, pollMs]);
 

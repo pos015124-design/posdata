@@ -208,14 +208,20 @@ class SaleService {
           ...sellerContact
         }).catch(e => console.error('[Email] seller notify failed:', e.message));
       }
-      // In-app notification to the seller (non-blocking)
+      // In-app notification to the seller (non-blocking).
+      // Online (Selcom) sales only reach this point once payment is confirmed, so they
+      // get a distinct "Payment received" notification instead of the generic new-order
+      // one used for the cash path.
+      const isOnlineConfirm = paymentMethod === 'online';
       try {
         const { createNotification } = require('../services/notificationService');
         await createNotification({
           userId: sale.createdBy,
-          type: 'order',
-          title: 'New order received',
-          message: `Order ${sale.invoiceNumber} — TZS ${Number(sale.total || 0).toLocaleString()}`,
+          type: isOnlineConfirm ? 'payment' : 'order',
+          title: isOnlineConfirm ? 'Payment received' : 'New order received',
+          message: isOnlineConfirm
+            ? `Payment confirmed for order ${sale.invoiceNumber} — TZS ${Number(sale.total || 0).toLocaleString()}`
+            : `Order ${sale.invoiceNumber} — TZS ${Number(sale.total || 0).toLocaleString()}`,
           link: '/orders'
         });
       } catch (notifErr) {
@@ -432,6 +438,20 @@ class SaleService {
       sale.paidAt = new Date();
       await sale.save();
       newlyPaid.push(sale);
+
+      // Realtime push: tell the seller's live sockets their payment landed so the
+      // bell badge and dashboard refresh instantly (non-blocking — polling covers it).
+      try {
+        const webSocketService = require('./websocketService');
+        webSocketService.emitToUser(sale.createdBy, 'payment-confirmed', {
+          saleId: sale._id,
+          invoiceNumber: sale.invoiceNumber,
+          total: sale.total,
+          transactionId: sale.transactionId || transactionId || '',
+          paymentMethod: sale.paymentMethod,
+          paidAt: sale.paidAt
+        });
+      } catch { /* socket layer is optional */ }
     }
 
     if (newlyPaid.length > 0) {

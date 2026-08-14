@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, X, CheckCheck, ShoppingBag, AlertTriangle, CheckCircle, Ban, Info, ClipboardList } from 'lucide-react';
+import { Bell, X, CheckCheck, ShoppingBag, AlertTriangle, CheckCircle, Ban, Info, ClipboardList, Wallet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSystemNotifications, SystemNotificationsList } from './SystemNotifications';
 import { useNotificationFeed } from '../hooks/useNotificationFeed';
@@ -24,6 +24,8 @@ const typeIcon = (type: string) => {
     case 'order':
     case 'sale':
       return <ShoppingBag className="w-4 h-4 text-blue-600" />;
+    case 'payment':
+      return <Wallet className="w-4 h-4 text-green-600" />;
     case 'low_stock':
       return <AlertTriangle className="w-4 h-4 text-amber-500" />;
     case 'approval':

@@ -11,7 +11,7 @@ const createNotification = async ({ userId, type, title, message, link, ref }) =
   try {
     // Respect per-user notification preferences. Account-critical types
     // (approval, suspension, system) always deliver — they can't be muted.
-    const prefKey = type === 'order' || type === 'sale' ? 'orders'
+    const prefKey = type === 'order' || type === 'sale' || type === 'payment' ? 'orders'
       : type === 'low_stock' ? 'lowStock'
       : null;
     if (prefKey) {

@@ -36,6 +36,14 @@ export function useRealtimeNotifications() {
           }
         });
 
+        // A payment confirmation landed (Selcom webhook/status confirm).
+        // Refresh the bell feed AND nudge dashboard/orders pages to re-fetch.
+        socket.on('payment-confirmed', (payload) => {
+          if (cancelled) return;
+          window.dispatchEvent(new CustomEvent('payment-confirmed', { detail: payload }));
+          window.dispatchEvent(new Event('sale-created'));
+        });
+
         socket.on('connect_error', () => {
           // Socket unavailable — the polling feed covers us. Give up quietly.
           socket?.disconnect();
