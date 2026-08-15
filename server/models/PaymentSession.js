@@ -21,10 +21,10 @@ const paymentSessionSchema = new mongoose.Schema({
   amount: { type: Number, required: true, min: 0 },
   currency: { type: String, default: 'TZS' },
 
-  // Collection method: 'wallet' (USSD push) | 'card' (till alias / gateway)
+  // Collection method: 'mobile' (USSD push, storefront wire value) | 'wallet' (alias) | 'card' (till alias / gateway)
   method: {
     type: String,
-    enum: ['wallet', 'card'],
+    enum: ['wallet', 'card', 'mobile'],
     required: true
   },
   phone: { type: String, trim: true }, // normalized msisdn (2557XXXXXXXX)
