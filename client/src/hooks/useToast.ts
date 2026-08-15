@@ -7,7 +7,10 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+// How long after Radix closes the toast before we remove it from state.
+// Needs to be at least as long as the slide-out animation (fade-out-80 +
+// slide-out-to-right-full = ~300ms). 800ms gives a comfortable margin.
+const TOAST_REMOVE_DELAY = 800
 
 type ToasterToast = ToastProps & {
   id: string
