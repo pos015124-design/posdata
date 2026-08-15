@@ -309,7 +309,11 @@ router.post('/selcom/cancel', async (req, res) => {
       try {
         const axios = require('axios');
         const { generateSelcomHeaders } = require('../utils/selcomHelper');
-        const base = (process.env.SELCOM_BASE_URL || 'https://apigw.selcommobile.com/v1').replace(/\/+$/, '');
+        // Same normalization as selcomService — strip a trailing /v1 so we never
+        // produce /v1/v1/checkout/... (that double prefix made every call 404 → 502).
+        const base = (process.env.SELCOM_BASE_URL || 'https://apigw.selcommobile.com/v1')
+          .replace(/\/+$/, '')
+          .replace(/\/v1$/i, '');
         const payload = { vendor: process.env.SELCOM_VENDOR || '', order_id: orderId };
         const headers = generateSelcomHeaders(payload);
         axios.post(`${base}/v1/checkout/cancel-order`, payload, { headers, timeout: 10000 })

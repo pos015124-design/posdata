@@ -15,8 +15,21 @@ const axios = require('axios');
 const { generateSelcomHeaders, normalizeMsisdn } = require('../utils/selcomHelper');
 const { logger } = require('../config/logger');
 
-const BASE_URL = (process.env.SELCOM_BASE_URL || 'https://apigw.selcommobile.com/v1').replace(/\/+$/, '');
+// Selcom's SDKs treat baseUrl as the host root and expect paths like
+// "v1/checkout/create-order-minimal". Some merchants configure
+// SELCOM_BASE_URL WITH /v1 (docs convention) and some without — so strip
+// any trailing /v1 here and always build the full /v1/... path ourselves.
+// Fixes the /v1/v1/... double-prefix that made every request 404 → 502.
+const BASE_URL = (process.env.SELCOM_BASE_URL || 'https://apigw.selcommobile.com/v1')
+  .replace(/\/+$/, '')
+  .replace(/\/v1$/i, '');
 const VENDOR = process.env.SELCOM_VENDOR || '';
+
+/** Build the full endpoint URL for a Selcom path (e.g. 'checkout/create-order-minimal'). */
+function endpoint(path) {
+  const p = String(path || '').replace(/^\/+/, '');
+  return `${BASE_URL}/${p.startsWith('v1/') || p === 'v1' ? p : `v1/${p}`}`;
+}
 
 function isConfigured() {
   return Boolean(process.env.SELCOM_API_KEY && process.env.SELCOM_API_SECRET && VENDOR);
@@ -28,23 +41,54 @@ function callbackUrl() {
   return `${origin}/api/public/payments/selcom/callback`;
 }
 
+/**
+ * POST to Selcom — never throws. On any transport failure (network, timeout,
+ * non-2xx) returns a structured { result: 'FAIL', message } object so the
+ * caller can surface a clean error instead of a 500/502 crash.
+ */
 async function post(path, payload) {
   const headers = generateSelcomHeaders(payload);
-  const res = await axios.post(`${BASE_URL}${path}`, payload, {
-    headers,
-    timeout: 20000
-  });
-  return res.data;
+  try {
+    const res = await axios.post(endpoint(path), payload, {
+      headers,
+      timeout: 20000
+    });
+    return res.data;
+  } catch (err) {
+    const data = err?.response?.data;
+    logger.error('[Selcom] request failed', {
+      path,
+      status: err?.response?.status,
+      error: err.message,
+      body: data && typeof data === 'object' ? JSON.stringify(data).slice(0, 500) : undefined
+    });
+    return data && typeof data === 'object'
+      ? data
+      : { result: 'FAIL', resultcode: String(err?.response?.status || '500'), message: err.message || 'Selcom request failed' };
+  }
 }
 
+/** GET from Selcom — never throws (see post). */
 async function get(path, params) {
   const headers = generateSelcomHeaders(params);
-  const res = await axios.get(`${BASE_URL}${path}`, {
-    headers,
-    params,
-    timeout: 20000
-  });
-  return res.data;
+  try {
+    const res = await axios.get(endpoint(path), {
+      headers,
+      params,
+      timeout: 20000
+    });
+    return res.data;
+  } catch (err) {
+    const data = err?.response?.data;
+    logger.error('[Selcom] request failed', {
+      path,
+      status: err?.response?.status,
+      error: err.message
+    });
+    return data && typeof data === 'object'
+      ? data
+      : { result: 'FAIL', resultcode: String(err?.response?.status || '500'), message: err.message || 'Selcom request failed' };
+  }
 }
 
 /**
@@ -65,7 +109,7 @@ async function createOrder({ orderId, amount, customer, noOfItems, redirectUrl }
     cancel_url: Buffer.from((process.env.FRONTEND_URL || '') + '/cart').toString('base64'),
     webhook: Buffer.from(callbackUrl()).toString('base64')
   };
-  return post('/v1/checkout/create-order-minimal', payload);
+  return post('checkout/create-order-minimal', payload);
 }
 
 /**
@@ -81,7 +125,7 @@ async function walletPayment({ orderId, msisdn, amount }) {
     amount: Number(amount),
     transid
   };
-  return post('/v1/checkout/wallet-payment', payload);
+  return post('checkout/wallet-payment', payload);
 }
 
 /**
@@ -90,7 +134,7 @@ async function walletPayment({ orderId, msisdn, amount }) {
  */
 async function createTillAlias({ orderId }) {
   const payload = { vendor: VENDOR, order_id: orderId };
-  const raw = await post('/v1/checkout/create-till-alias', payload);
+  const raw = await post('checkout/create-till-alias', payload);
 
   let redirectUrl = null;
   const data = raw?.data;
@@ -108,7 +152,7 @@ async function createTillAlias({ orderId }) {
  * @returns {Promise<Object>} Selcom response ({ result, resultcode, message, data })
  */
 async function getOrderStatus({ orderId }) {
-  return get('/v1/checkout/order-status', { order_id: orderId });
+  return get('checkout/order-status', { order_id: orderId });
 }
 
 module.exports = {
@@ -117,5 +161,6 @@ module.exports = {
   createOrder,
   walletPayment,
   createTillAlias,
-  getOrderStatus
+  getOrderStatus,
+  endpoint
 };
