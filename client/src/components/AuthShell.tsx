@@ -150,14 +150,16 @@ export default function AuthShell({ children, heading, subheading, wide = false 
       </div>
 
       {/* ── Form side ───────────────────────────────────────────────────── */}
-      <div className="relative flex flex-col justify-center items-center min-h-screen p-4 sm:p-8">
+      <div className="relative flex flex-col justify-start lg:justify-center items-center min-h-screen p-4 sm:p-8 lg:pt-8">
         {/* Mobile backdrop: compact branded header strip with drifting icons */}
-        <div className="lg:hidden absolute inset-x-0 top-0 h-28 overflow-hidden bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800">
-          <FloatingIconField className="opacity-80" />
-          <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-slate-50 to-transparent" />
+        <div className={`lg:hidden absolute inset-x-0 top-0 overflow-hidden bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800 ${wide ? 'h-24' : 'h-32'}`}>
+          <FloatingIconField className="opacity-70" />
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 to-transparent" />
         </div>
-        <div className="lg:hidden relative z-10 w-full flex justify-center pt-6 pb-3">
-          <Logo variant="white" className="h-8" />
+        {/* Logo centred over the animated strip — full variant so the brand
+            colours (teal + navy) are visible against the dark background */}
+        <div className={`lg:hidden relative z-10 w-full flex justify-center ${wide ? 'pt-5 pb-2' : 'pt-8 pb-3'}`}>
+          <Logo variant="white" className="h-9" />
         </div>
 
         {subheading && (
