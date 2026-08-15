@@ -100,7 +100,10 @@ router.delete('/riders/:id', requireUser, requireSuperAdmin, async (req, res) =>
 router.get('/orders', requireUser, requireSuperAdmin, async (req, res) => {
   try {
     const { status, riderId, page = 1, limit = 50 } = req.query;
-    const query = { source: 'storefront' };
+    // Only orders that were actually paid belong in the delivery pipeline.
+    // Pending (payment in flight) and cancelled/failed (abandoned) sales are
+    // excluded — you don't dispatch a rider for an order nobody paid for.
+    const query = { source: 'storefront', paymentStatus: 'paid' };
     if (status)  query.deliveryStatus = status;
     if (riderId) query.riderId = riderId;
 

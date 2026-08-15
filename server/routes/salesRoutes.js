@@ -19,7 +19,14 @@ router.get('/', requireUser, async (req, res) => {
     // buyer information. Sellers only see what to prepare and the order total.
     const isSuperAdmin = req.user.role === 'super_admin';
 
-    const sales = result.data.map(sale => {
+    // Sellers see only actionable fulfillment requests — cancelled (failed
+    // payment) sales are not something to prepare, so hide them. Super admins
+    // keep the full history for audit.
+    const visibleSales = isSuperAdmin
+      ? result.data
+      : result.data.filter(sale => (sale.status || 'completed') !== 'cancelled');
+
+    const sales = visibleSales.map(sale => {
       const isStorefront = (sale.source || 'pos') === 'storefront';
 
       return {
