@@ -80,12 +80,17 @@ export default function Layout({ children }: LayoutProps) {
         />
       )}
 
-      {/* Sidebar — fixed, slides in from left on mobile, always visible on desktop */}
-      <aside className={`w-64 bg-[#0f172a] text-white fixed top-0 left-0 shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
+      {/* Sidebar — fixed, slides in from left on mobile, always visible on desktop
+          Deep brand-navy so it matches the platform's blue→purple identity */}
+      <aside className={`w-64 bg-[#0b1736] text-white fixed top-0 left-0 shadow-xl z-40 transform transition-transform duration-300 lg:translate-x-0 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
         style={{ height: '100dvh' }}
       >
+        {/* Brand gradient wash — subtle blue→purple, keeps the navy dark and premium */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600/20 via-blue-900/10 to-purple-700/20" />
+        <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
+
         {/* Header */}
         <div className="px-4 pt-4 pb-2 shrink-0">
           <div className="flex items-center justify-between">
@@ -99,7 +104,7 @@ export default function Layout({ children }: LayoutProps) {
               <X className="w-5 h-5" />
             </button>
           </div>
-          <p className="text-xs text-gray-300 mt-1.5 truncate">{user?.email}</p>
+          <p className="text-xs text-blue-100/70 mt-1.5 truncate">{user?.email}</p>
         </div>
 
         {/* Nav — scrolls internally, never pushes footer off screen */}
@@ -112,7 +117,7 @@ export default function Layout({ children }: LayoutProps) {
                 onClick={() => handleNavigation(item.path)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                   isActive
-                    ? 'bg-white/20 text-white shadow-sm'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
@@ -125,10 +130,9 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
 
         {/* Footer — always visible, never scrolled away */}
-        <div className="shrink-0 px-2 pb-4 pt-2 space-y-1 border-t border-white/10">
-          <div className="flex items-center justify-between px-1">
+        <div className="shrink-0 px-2 pb-4 pt-2 space-y-1 border-t border-white/10">          <div className="flex items-center justify-between px-1">
             <NotificationsBell placement="sidebar" />
-            <span className="text-[11px] text-white/40 truncate">Notifications</span>
+            <span className="text-[11px] text-blue-100/40 truncate">Notifications</span>
           </div>
           {canInstall && (
             <button

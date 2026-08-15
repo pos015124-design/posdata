@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Store, Search, ExternalLink, ShoppingBag, MapPin, Package, ArrowRight, Sparkles } from 'lucide-react';
+import { Store, Search, ExternalLink, ShoppingBag, MapPin, Package, ArrowRight, Sparkles, BadgeCheck } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import Logo from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,48 +33,56 @@ const CATEGORY_COLORS: Record<string, string> = {
 function StoreCard({ store }: { store: StoreInfo }) {
   const catColor = CATEGORY_COLORS[store.category || ''] || 'bg-gray-100 text-gray-600';
   return (
-    <Link to={`/store/${store.slug}`} className="group block">
-      <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-blue-200 h-full flex flex-col">
-        {/* Store banner / logo area */}
-        <div className="h-24 bg-gradient-to-br from-blue-600 to-purple-600 relative overflow-hidden">
+    <Link to={`/store/${store.slug}`} className="group block h-full">
+      <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 border border-gray-100 hover:border-blue-200 h-full flex flex-col">
+        {/* Brand banner — gradient with subtle dot pattern, same language as the page hero */}
+        <div className="h-20 sm:h-24 bg-gradient-to-r from-blue-700 via-blue-600 to-purple-700 relative overflow-hidden">
           <div className="absolute inset-0 opacity-20"
-            style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-white rounded-t-2xl" />
+            style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+          <div className="absolute bottom-0 left-0 right-0 h-7 bg-white rounded-t-2xl" />
         </div>
 
-        {/* Logo */}
-        <div className="px-5 -mt-6 relative z-10">
+        {/* Avatar — overlaps the banner */}
+        <div className="px-4 sm:px-5 -mt-5 relative z-10">
           {store.logo ? (
             <img src={`${BASE}${store.logo}`} alt={store.name}
-              className="w-14 h-14 rounded-xl object-cover border-2 border-white shadow-md" />
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border-2 border-white shadow-md" />
           ) : (
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center border-2 border-white shadow-md">
-              <Store className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center border-2 border-white shadow-md">
+              <Store className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
             </div>
           )}
         </div>
 
         {/* Content */}
-        <div className="px-5 pt-3 pb-5 flex flex-col flex-1">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="font-bold text-gray-900 text-base leading-tight group-hover:text-blue-600 transition-colors">
+        <div className="px-4 sm:px-5 pt-2.5 pb-4 flex flex-col flex-1">
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <h3 className="font-bold text-gray-900 text-[15px] leading-tight group-hover:text-blue-600 transition-colors line-clamp-1">
               {store.name}
             </h3>
             <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors shrink-0 mt-0.5" />
           </div>
 
-          {store.category && (
-            <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full w-fit mb-2 capitalize ${catColor}`}>
-              {store.category}
+          {/* Category + verified seller */}
+          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+            {store.category && (
+              <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize ${catColor}`}>
+                {store.category}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-600 bg-green-50 border border-green-100 rounded-full px-2 py-0.5">
+              <BadgeCheck className="w-3 h-3" />
+              Verified
             </span>
-          )}
+          </div>
 
           {store.description && (
-            <p className="text-sm text-gray-500 line-clamp-2 mb-3 flex-1">{store.description}</p>
+            <p className="text-[13px] text-gray-500 line-clamp-2 mb-3 flex-1">{store.description}</p>
           )}
 
-          <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-50">
-            <div className="flex items-center gap-1 text-xs text-gray-400">
+          {/* Footer — product count + action */}
+          <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <Package className="w-3.5 h-3.5" />
               <span>{store.productCount} {store.productCount === 1 ? 'product' : 'products'}</span>
             </div>
@@ -117,7 +125,7 @@ export default function StoreDirectory() {
     <div className={isInsideLayout ? '' : 'min-h-screen bg-gray-50'}>
       {/* Hero — compact when inside Layout (no Logo, less padding) */}
       <div className={`bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white ${isInsideLayout ? 'rounded-2xl mb-6' : ''}`}>
-        <div className={`px-5 sm:px-8 ${isInsideLayout ? 'py-8' : 'py-14 md:py-20 max-w-7xl mx-auto'}`}>
+        <div className={`px-4 sm:px-8 ${isInsideLayout ? 'py-6 sm:py-8' : 'py-14 md:py-20 max-w-7xl mx-auto'}`}>
           <div className={`${isInsideLayout ? '' : 'text-center max-w-2xl mx-auto'}`}>
             {/* Only show Logo when viewed as a guest (no sidebar) */}
             {!isInsideLayout && (
@@ -125,13 +133,13 @@ export default function StoreDirectory() {
                 <Logo variant="white" className="h-12" />
               </div>
             )}
-            <div className={`inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium mb-4 ${isInsideLayout ? '' : 'mb-5'}`}>
+            <div className={`inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium ${isInsideLayout ? 'mb-3' : 'mb-5'}`}>
               <Sparkles className="w-4 h-4" />
               {stores.length > 0
                 ? `${stores.length} verified sellers · ${totalProducts.toLocaleString()} products`
                 : 'Verified local sellers'}
             </div>
-            <h1 className={`font-extrabold mb-3 leading-tight ${isInsideLayout ? 'text-2xl' : 'text-3xl md:text-5xl mb-4'}`}>
+            <h1 className={`font-extrabold mb-3 leading-tight ${isInsideLayout ? 'text-xl sm:text-2xl' : 'text-3xl md:text-5xl mb-4'}`}>
               {isInsideLayout ? 'All Stores' : <>Shop local.<br />Support real businesses.</>}
             </h1>
             {!isInsideLayout && (
@@ -204,7 +212,7 @@ export default function StoreDirectory() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 max-w-xl mx-auto sm:max-w-none">
             {filtered.map(store => <StoreCard key={store._id} store={store} />)}
           </div>
         )}
