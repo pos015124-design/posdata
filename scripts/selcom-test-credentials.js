@@ -154,7 +154,7 @@ async function main() {
   }
 
   const orderId = `DIAG-${Date.now().toString(36).toUpperCase()}`;
-  const amount = 100; // 100 TZS — smallest realistic order
+  const amount = 200; // 200 TZS — meets Selcom minimum for wallet pushes
 
   const created = await createOrder(orderId, amount, pushPhone);
 
