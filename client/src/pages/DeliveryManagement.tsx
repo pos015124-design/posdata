@@ -5,7 +5,7 @@
  *   1. Orders   — all storefront orders, assign riders, track delivery status
  *   2. Riders   — manage the rider pool (add, edit, deactivate)
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -13,9 +13,9 @@ import { Label } from '../components/ui/label';
 import { useToast } from '../hooks/useToast';
 import { useSmartPolling } from '../hooks/useSmartPolling';
 import {
-  Truck, Users, Plus, Edit, X, RefreshCw, CheckCircle, XCircle,
-  Package, Phone, User, AlertCircle, ChevronDown,
-  ChevronUp, Shield, MapPin, Bike
+  Truck, Users, Plus, Edit, X, RefreshCw, CheckCircle, XCircle, Undo2,
+  Package, Phone, User, AlertCircle, ChevronDown, Archive,
+  ChevronUp, Shield, MapPin, Bike, Search
 } from 'lucide-react';
 
 const BASE    = import.meta.env.VITE_API_URL || '';
@@ -39,7 +39,15 @@ interface DeliveryOrder {
   total: number; status: string; paymentStatus?: string;
   deliveryStatus: string; riderId?: any; riderName?: string; riderPhone?: string;
   assignedAt?: string; collectedAt?: string; deliveredAt?: string;
-  deliveryNotes?: string; notes?: string; createdAt: string;
+  deliveryNotes?: string; notes?: string; refundReason?: string; createdAt: string;
+}
+
+interface ArchivedOrder {
+  _id: string; invoiceNumber: string; source: string;
+  items: Array<{ productName?: string; name?: string; quantity: number; price: number }>;
+  total: number; status: string; notes?: string;
+  customerName?: string; customerPhone?: string;
+  saleCreatedAt?: string; cancelledAt?: string; archivedAt: string;
 }
 
 // ── Delivery status config ────────────────────────────────────────────────────
@@ -56,19 +64,30 @@ const DS: Record<string, { label: string; color: string; icon: React.ElementType
 
 export default function DeliveryManagement() {
   const { toast } = useToast();
-  const [tab, setTab] = useState<'orders' | 'riders'>('orders');
+  const [tab, setTab] = useState<'orders' | 'riders' | 'archived'>('orders');
 
   // ── Orders state ──────────────────────────────────────────────────────────
   const [orders, setOrders]           = useState<DeliveryOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [statusFilter, setStatusFilter]   = useState('all');
   // 'paid' = active pipeline (default). 'failed' = review cancelled/abandoned orders.
-  const [paymentFilter, setPaymentFilter] = useState<'paid' | 'failed'>('paid');
+  // 'refunded' = review refunded orders.
+  const [paymentFilter, setPaymentFilter] = useState<'paid' | 'failed' | 'refunded'>('paid');
   const [expanded, setExpanded]           = useState<string | null>(null);
   const [assigning, setAssigning]         = useState<string | null>(null);  // orderId being assigned
   const [assignRiderId, setAssignRiderId] = useState('');
   const [assignNotes, setAssignNotes]     = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // ── Refund state ─────────────────────────────────────────────────────────
+  const [refunding, setRefunding]         = useState<string | null>(null);  // orderId being refunded
+  const [refundReason, setRefundReason]   = useState('');
+
+  // ── Archived state ───────────────────────────────────────────────────────
+  const [archived, setArchived]           = useState<ArchivedOrder[]>([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [archivedSearch, setArchivedSearch]   = useState('');
+  const [archivedPage, setArchivedPage]       = useState(1);
 
   // ── Riders state ──────────────────────────────────────────────────────────
   const [riders, setRiders]           = useState<Rider[]>([]);
@@ -110,8 +129,30 @@ export default function DeliveryManagement() {
     } finally { setRidersLoading(false); }
   }, [toast]);
 
+  const fetchArchived = useCallback(async (silent = false): Promise<boolean> => {
+    if (!silent) setArchivedLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '50', page: String(archivedPage) });
+      if (archivedSearch.trim()) params.set('search', archivedSearch.trim());
+      const res  = await fetch(`${BASE}/api/delivery/archived?${params}`, { headers: authH() });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      const prev = archived.length;
+      setArchived(json.orders || []);
+      return (json.orders || []).length !== prev;
+    } catch (err: any) {
+      if (!silent) toast({ title: 'Failed to load archived orders', description: err.message, variant: 'destructive' });
+      return false;
+    } finally { setArchivedLoading(false); }
+  }, [archivedSearch, archivedPage, archived.length, toast]);
+
   useSmartPolling(fetchOrders, { baseInterval: 30_000, maxInterval: 120_000 });
   useSmartPolling(fetchRiders, { baseInterval: 60_000, maxInterval: 300_000 });
+
+  // Load archived list when the Archived tab is active
+  useEffect(() => {
+    if (tab === 'archived') fetchArchived(false);
+  }, [tab]);
 
   // ── Order actions ──────────────────────────────────────────────────────────
   const doAction = async (orderId: string, action: 'collect' | 'deliver' | 'fail', extra?: object) => {
@@ -141,6 +182,24 @@ export default function DeliveryManagement() {
       if (!res.ok) throw new Error(json.error || 'Failed');
       toast({ title: json.message || 'Rider assigned' });
       setAssigning(null); setAssignRiderId(''); setAssignNotes('');
+      fetchOrders(true);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally { setActionLoading(null); }
+  };
+
+  const doRefund = async (orderId: string) => {
+    if (!refundReason.trim()) { toast({ title: 'Reason is required', variant: 'destructive' }); return; }
+    setActionLoading(orderId + 'refund');
+    try {
+      const res  = await fetch(`${BASE}/api/delivery/orders/${orderId}/refund`, {
+        method: 'POST', headers: authH(),
+        body: JSON.stringify({ reason: refundReason.trim() })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Refund failed');
+      toast({ title: json.message || 'Order refunded' });
+      setRefunding(null); setRefundReason('');
       fetchOrders(true);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -200,6 +259,11 @@ export default function DeliveryManagement() {
 
   // A sale is cancelled when its payment failed/abandoned — never actionable.
   const isCancelled = (o: DeliveryOrder) => o.status === 'cancelled' || o.paymentStatus === 'failed';
+  // Refundable = paid and not already refunded (delivered/completed orders)
+  const canRefund = (o: DeliveryOrder) =>
+    o.paymentStatus === 'paid' && !isCancelled(o) &&
+    ['delivered', 'completed'].includes(o.status || '') &&
+    o.deliveryStatus === 'delivered';
 
   // ── Filtered orders ────────────────────────────────────────────────────────
   const filteredOrders = statusFilter === 'all'
@@ -260,12 +324,12 @@ export default function DeliveryManagement() {
       )}
 
       {/* ── Tab switcher ── */}
-      <div className="flex gap-2 border-b border-gray-200">
-        {(['orders', 'riders'] as const).map(t => (
+      <div className="flex gap-2 border-b border-gray-200 overflow-x-auto">
+        {(['orders', 'riders', 'archived'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-semibold capitalize border-b-2 transition-colors ${
+            className={`px-4 py-2.5 text-sm font-semibold capitalize border-b-2 transition-colors whitespace-nowrap ${
               tab === t
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -273,8 +337,10 @@ export default function DeliveryManagement() {
           >
             {t === 'orders' ? (
               <span className="flex items-center gap-1.5"><Truck className="w-4 h-4" />Orders</span>
-            ) : (
+            ) : t === 'riders' ? (
               <span className="flex items-center gap-1.5"><Users className="w-4 h-4" />Riders</span>
+            ) : (
+              <span className="flex items-center gap-1.5"><Archive className="w-4 h-4" />Archived</span>
             )}
           </button>
         ))}
@@ -291,11 +357,12 @@ export default function DeliveryManagement() {
             <CardContent className="p-4 flex flex-wrap gap-3 items-center">
               <select
                 value={paymentFilter}
-                onChange={e => { setPaymentFilter(e.target.value as 'paid' | 'failed'); setStatusFilter('all'); }}
+                onChange={e => { setPaymentFilter(e.target.value as 'paid' | 'failed' | 'refunded'); setStatusFilter('all'); }}
                 className="h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="paid">Active orders (paid)</option>
                 <option value="failed">Cancelled (payment failed)</option>
+                <option value="refunded">Refunded</option>
               </select>
               {paymentFilter === 'paid' && (
                 <select
@@ -478,6 +545,50 @@ export default function DeliveryManagement() {
                               </div>
                             )}
 
+                            {/* Refund notice */}
+                            {order.paymentStatus === 'refunded' && (
+                              <div className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+                                <p className="text-xs font-semibold text-orange-700 mb-1">Refunded</p>
+                                <p className="text-xs text-orange-600">
+                                  Stock was restored to the seller.
+                                  {order.refundReason ? ` Reason: ${order.refundReason}` : ''}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Refund form */}
+                            {refunding === order._id && (
+                              <div className="bg-white border border-orange-200 rounded-xl p-4 space-y-3">
+                                <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                  <Undo2 className="w-4 h-4 text-orange-600" />Refund this order
+                                </p>
+                                <input
+                                  type="text"
+                                  placeholder="Reason (required) — e.g. customer returned item"
+                                  value={refundReason}
+                                  onChange={e => setRefundReason(e.target.value)}
+                                  className="w-full h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => doRefund(order._id)}
+                                    disabled={!!busy('refund')}
+                                    className="gap-1.5 bg-orange-600 hover:bg-orange-700 text-white"
+                                  >
+                                    {busy('refund') ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Undo2 className="w-3.5 h-3.5" />}
+                                    Confirm Refund
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => { setRefunding(null); setRefundReason(''); }}>
+                                    Cancel
+                                  </Button>
+                                </div>
+                                <p className="text-xs text-gray-400">
+                                  Restores stock to the seller and reverses revenue. A confirmation email is sent to the buyer.
+                                </p>
+                              </div>
+                            )}
+
                             {/* Assign rider form */}
                             {isAssigning && (
                               <div className="bg-white border border-blue-200 rounded-xl p-4 space-y-3">
@@ -564,6 +675,17 @@ export default function DeliveryManagement() {
                                   </Button>
                                 </>
                               )}
+                              {canRefund(order) && !refunding && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setRefunding(order._id); setRefundReason(''); }}
+                                  disabled={!!busy('refund')}
+                                  className="gap-1.5 border-orange-200 text-orange-600 hover:bg-orange-50"
+                                >
+                                  <Undo2 className="w-3.5 h-3.5" />Refund
+                                </Button>
+                              )}
                               {order.deliveryStatus === 'failed' && (
                                 <Button
                                   size="sm"
@@ -584,6 +706,110 @@ export default function DeliveryManagement() {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          ARCHIVED TAB
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 'archived' && (
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <Archive className="w-5 h-5 text-gray-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Archived cancelled orders</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Failed-payment orders older than the retention window, moved here for the audit
+                trail. Read-only — search by invoice number.
+              </p>
+            </div>
+          </div>
+
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search by invoice number…"
+                  value={archivedSearch}
+                  onChange={e => { setArchivedSearch(e.target.value); setArchivedPage(1); }}
+                  onKeyDown={e => { if (e.key === 'Enter') fetchArchived(false); }}
+                  className="pl-9 h-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-0">
+              <CardTitle className="text-base font-bold flex items-center justify-between">
+                <span>Archived sales</span>
+                <span className="text-sm font-normal text-gray-400">{archived.length} shown</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {archivedLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : archived.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <Archive className="w-14 h-14 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium text-gray-600">No archived orders</p>
+                  <p className="text-sm mt-1">Cancelled sales older than 30 days appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {archived.map(order => (
+                    <div key={order._id} className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-gray-100">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center shrink-0">
+                        <Archive className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-[140px]">
+                        <p className="font-bold text-gray-900 text-sm font-mono">{order.invoiceNumber}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Cancelled {order.cancelledAt ? fmtDate(order.cancelledAt) : '—'}
+                          {' · '}Archived {fmtDate(order.archivedAt)}
+                        </p>
+                      </div>
+                      <div className="flex-1 min-w-[120px]">
+                        {order.customerName ? (
+                          <p className="text-sm font-medium text-gray-900">{order.customerName}</p>
+                        ) : (
+                          <p className="text-sm text-gray-400 italic">No name</p>
+                        )}
+                        {order.notes && (
+                          <p className="text-xs text-gray-400 truncate max-w-[200px]">{order.notes}</p>
+                        )}
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border bg-red-100 text-red-700 border-red-200 shrink-0">
+                        <XCircle className="w-3 h-3" />Cancelled
+                      </span>
+                      <div className="text-right shrink-0 min-w-[90px]">
+                        <p className="font-extrabold text-gray-900 text-sm">{fmt(order.total)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-400">Search then press Enter to load results</p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={archivedPage <= 1}
+                onClick={() => { setArchivedPage(p => p - 1); fetchArchived(false); }}>
+                Prev
+              </Button>
+              <Button size="sm" variant="outline" disabled={archived.length < 50}
+                onClick={() => { setArchivedPage(p => p + 1); fetchArchived(false); }}>
+                Next
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

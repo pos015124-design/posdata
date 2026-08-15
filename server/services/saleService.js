@@ -470,6 +470,102 @@ class SaleService {
   }
 
   /**
+   * Refund a paid storefront sale (super admin initiated): restores stock to
+   * the seller, reverses product + business analytics, and marks the sale
+   * refunded. Idempotent — safe on double-run. Only paid, non-refunded sales
+   * are eligible.
+   */
+  async refundSale(saleId, { reason, refundedBy }) {
+    if (!saleId) throw new Error('Sale id is required');
+
+    const Sale = require('../models/Sale');
+    const Product = require('../models/Product');
+    const Business = require('../models/Business');
+    const mongoose = require('mongoose');
+
+    const sale = await Sale.findById(saleId);
+    if (!sale) throw new Error('Sale not found');
+    if (sale.paymentStatus !== 'paid') {
+      throw new Error('Only paid orders can be refunded');
+    }
+    if (sale.status === 'refunded') {
+      return { sale, alreadyRefunded: true };
+    }
+
+    // Return reserved stock to the seller
+    for (const item of sale.items || []) {
+      if (!item.productId) continue;
+      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+    }
+
+    // Reverse product analytics
+    for (const item of sale.items || []) {
+      if (!item.productId) continue;
+      await Product.findByIdAndUpdate(item.productId, {
+        $inc: {
+          'analytics.sales': -item.quantity,
+          'analytics.revenue': -(item.price * item.quantity)
+        }
+      });
+    }
+
+    // Reverse Business analytics (super admin live numbers)
+    try {
+      await Business.findOneAndUpdate(
+        { userId: new mongoose.Types.ObjectId(String(sale.createdBy)) },
+        { $inc: { 'analytics.orders': -1, 'analytics.revenue': -sale.total } }
+      );
+    } catch { /* non-critical */ }
+
+    sale.paymentStatus = 'refunded';
+    sale.status = 'refunded';
+    sale.refundedAt = new Date();
+    sale.refundedBy = refundedBy || null;
+    sale.refundReason = reason || '';
+    sale.notes = (sale.notes ? sale.notes + ' | ' : '') + 'Refunded' + (reason ? `: ${reason}` : '');
+    await sale.save();
+
+    // Realtime push: tell the seller their order was refunded so the bell + dashboard react.
+    try {
+      const webSocketService = require('./websocketService');
+      webSocketService.emitToUser(sale.createdBy, 'payment-refunded', {
+        saleId: sale._id,
+        invoiceNumber: sale.invoiceNumber,
+        total: sale.total,
+        refundedAt: sale.refundedAt
+      });
+    } catch { /* socket layer is optional */ }
+
+    // In-app notification to the seller (non-blocking)
+    try {
+      const { createNotification } = require('../services/notificationService');
+      await createNotification({
+        userId: sale.createdBy,
+        type: 'payment',
+        title: 'Order refunded',
+        message: `Order ${sale.invoiceNumber} was refunded — TZS ${Number(sale.total || 0).toLocaleString()}. Stock has been returned to your inventory.`,
+        link: '/orders'
+      });
+    } catch (notifErr) {
+      console.error('[Notification] refund notify failed:', notifErr.message);
+    }
+
+    // Buyer refund confirmation email (non-blocking, never throws)
+    if (sale.customerEmail) {
+      const { sendOrderRefundedToBuyer } = require('../utils/emailService');
+      sendOrderRefundedToBuyer({
+        buyerEmail: sale.customerEmail,
+        buyerName: sale.customerName,
+        invoiceNumber: sale.invoiceNumber,
+        total: sale.total,
+        reason: reason || ''
+      }).catch(e => console.error('[Email] refund notify failed:', e.message));
+    }
+
+    return { sale, alreadyRefunded: false };
+  }
+
+  /**
    * Abandoned/failed payment: return reserved stock and cancel the pending sales.
    * Idempotent — safe on double-run.
    */
@@ -701,13 +797,14 @@ class SaleService {
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
     
-    // Get all sales for this user
+    // Get all sales for this user (exclude cancelled + refunded from revenue stats)
     const allSales = await Sale.find(query);
+    const paidSales = allSales.filter(s => !['cancelled', 'refunded'].includes(s.status));
     
     // Calculate summaries
-    const dailySales = allSales.filter(s => new Date(s.createdAt) >= today);
-    const weeklySales = allSales.filter(s => new Date(s.createdAt) >= weekAgo);
-    const monthlySales = allSales.filter(s => new Date(s.createdAt) >= monthAgo);
+    const dailySales = paidSales.filter(s => new Date(s.createdAt) >= today);
+    const weeklySales = paidSales.filter(s => new Date(s.createdAt) >= weekAgo);
+    const monthlySales = paidSales.filter(s => new Date(s.createdAt) >= monthAgo);
     
     const daily = dailySales.reduce((sum, s) => sum + s.total, 0);
     const weekly = weeklySales.reduce((sum, s) => sum + s.total, 0);
@@ -715,7 +812,7 @@ class SaleService {
     
     // Get top products
     const productMap = {};
-    allSales.forEach(sale => {
+    paidSales.forEach(sale => {
       sale.items.forEach(item => {
         if (!productMap[item.name]) {
           productMap[item.name] = { name: item.name, count: 0 };
@@ -728,8 +825,8 @@ class SaleService {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
     
-    const averageTransactionValue = allSales.length > 0 
-      ? allSales.reduce((sum, s) => sum + s.total, 0) / allSales.length 
+    const averageTransactionValue = paidSales.length > 0 
+      ? paidSales.reduce((sum, s) => sum + s.total, 0) / paidSales.length 
       : 0;
     
     return {

@@ -28,6 +28,9 @@ const ArchivedSale = require('../server/models/ArchivedSale');
 
 const RETENTION_DAYS = parseInt(process.env.CANCELLED_RETENTION_DAYS || '30', 10);
 
+// --dry-run: report what would be archived without touching the database.
+const DRY_RUN = process.argv.includes('--dry-run');
+
 async function main() {
   await connectDB();
 
@@ -38,6 +41,18 @@ async function main() {
     status: 'cancelled',
     updatedAt: { $lt: cutoff }
   }).lean();
+
+  if (DRY_RUN) {
+    const total = cancelled.reduce((sum, s) => sum + (s.total || 0), 0);
+    console.log(`[archive-cancelled][dry-run] ${cancelled.length} cancelled sale(s) older than ${RETENTION_DAYS} day(s) would be archived (TZS ${total.toLocaleString()}) — nothing changed.`);
+    if (cancelled.length > 0 && cancelled.length <= 20) {
+      for (const s of cancelled) {
+        console.log(`  - ${s.invoiceNumber} · ${new Date(s.updatedAt).toISOString().slice(0, 10)} · TZS ${(s.total || 0).toLocaleString()}`);
+      }
+    }
+    await mongoose.disconnect();
+    process.exit(0);
+  }
 
   let archived = 0;
   for (const sale of cancelled) {

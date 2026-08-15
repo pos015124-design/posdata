@@ -20,6 +20,8 @@ const express = require('express');
 const router  = express.Router();
 const Rider   = require('../models/Rider');
 const Sale    = require('../models/Sale');
+const ArchivedSale = require('../models/ArchivedSale');
+const SaleService  = require('../services/saleService');
 const { requireUser } = require('./middleware/auth');
 const { logger } = require('../config/logger');
 const {
@@ -99,7 +101,8 @@ router.delete('/riders/:id', requireUser, requireSuperAdmin, async (req, res) =>
 // GET /api/delivery/orders  — storefront orders with delivery info
 //   ?paymentStatus=paid    (default) active pipeline — orders that were paid
 //   ?paymentStatus=failed  cancelled/abandoned orders, review-only
-//   ?paymentStatus=all     everything (pending + paid + failed)
+//   ?paymentStatus=refunded refunded orders, review-only
+//   ?paymentStatus=all     everything (pending + paid + failed + refunded)
 router.get('/orders', requireUser, requireSuperAdmin, async (req, res) => {
   try {
     const { status, riderId, paymentStatus = 'paid', page = 1, limit = 50 } = req.query;
@@ -220,6 +223,54 @@ router.put('/orders/:id/deliver', requireUser, requireSuperAdmin, async (req, re
 
     logger.info('Order delivered', { orderId: order._id, adminId: req.user.userId });
     res.json({ success: true, message: 'Order marked as delivered', order });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/delivery/orders/:id/refund  — refund a paid order, restore stock
+router.post('/orders/:id/refund', requireUser, requireSuperAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const result = await SaleService.refundSale(req.params.id, {
+      reason: (reason || '').trim(),
+      refundedBy: req.user.userId
+    });
+    if (result.alreadyRefunded) {
+      return res.json({ success: true, message: 'Order was already refunded', order: result.sale });
+    }
+    logger.info('Order refunded', { orderId: req.params.id, reason, adminId: req.user.userId });
+    res.json({ success: true, message: 'Order refunded — stock restored', order: result.sale });
+  } catch (err) {
+    logger.error('Refund failed', { error: err.message, orderId: req.params.id });
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /api/delivery/archived — cancelled sales archived after retention (review-only)
+//   ?search=INV-...  partial invoice match
+//   ?page=&limit=    pagination
+router.get('/archived', requireUser, requireSuperAdmin, async (req, res) => {
+  try {
+    const { search, page = 1, limit = 50 } = req.query;
+    const query = {};
+    if (search && String(search).trim()) {
+      query.invoiceNumber = { $regex: String(search).trim(), $options: 'i' };
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [orders, total] = await Promise.all([
+      ArchivedSale.find(query)
+        .sort({ archivedAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      ArchivedSale.countDocuments(query)
+    ]);
+    res.json({
+      success: true,
+      orders,
+      pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

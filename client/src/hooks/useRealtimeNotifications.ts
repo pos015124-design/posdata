@@ -44,6 +44,14 @@ export function useRealtimeNotifications() {
           window.dispatchEvent(new Event('sale-created'));
         });
 
+        // A paid order was refunded (super admin) — refresh the bell feed and
+        // nudge dashboard/orders pages so revenue/stats update.
+        socket.on('payment-refunded', (payload) => {
+          if (cancelled) return;
+          window.dispatchEvent(new CustomEvent('payment-refunded', { detail: payload }));
+          window.dispatchEvent(new Event('sale-created'));
+        });
+
         socket.on('connect_error', () => {
           // Socket unavailable — the polling feed covers us. Give up quietly.
           socket?.disconnect();

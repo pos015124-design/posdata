@@ -54,7 +54,7 @@ const saleSchema = new mongoose.Schema({
   // storefront Selcom sales start 'pending' until the webhook confirms payment.
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'failed'],
+    enum: ['pending', 'paid', 'failed', 'refunded'],
     default: 'pending'
   },
   // Selcom checkout order id this sale belongs to (aggregate payment covering multiple sellers)
@@ -81,10 +81,14 @@ const saleSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'cancelled'],
+    enum: ['pending', 'completed', 'cancelled', 'refunded'],
     default: 'completed'
   },
   notes: String,
+  // Refund metadata (super admin initiated on paid storefront orders)
+  refundedAt: { type: Date },
+  refundedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  refundReason: { type: String, trim: true },
 
   // ── Delivery / middleman fields ───────────────────────────────────────────
   // Only populated for storefront orders managed by BHABY GROUP LTD

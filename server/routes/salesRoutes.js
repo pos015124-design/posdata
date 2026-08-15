@@ -19,11 +19,12 @@ router.get('/', requireUser, async (req, res) => {
     // buyer information. Sellers only see what to prepare and the order total.
     const isSuperAdmin = req.user.role === 'super_admin';
 
-    // Cancelled (failed-payment) sales are not actionable orders — hide them
-    // from the order list for everyone. Super admins review cancelled orders
-    // in the Delivery hub (paymentStatus filter); old ones are archived by
-    // scripts/archive-cancelled-sales.js, so the audit trail is never lost.
-    const visibleSales = result.data.filter(sale => (sale.status || 'completed') !== 'cancelled');
+    // Cancelled (failed-payment) and refunded sales are not actionable orders
+    // — hide them from the order list for everyone. Super admins review
+    // cancelled orders in the Delivery hub (paymentStatus filter); old ones
+    // are archived by scripts/archive-cancelled-sales.js, so the audit trail
+    // is never lost.
+    const visibleSales = result.data.filter(sale => !['cancelled', 'refunded'].includes(sale.status || 'completed'));
 
     const sales = visibleSales.map(sale => {
       const isStorefront = (sale.source || 'pos') === 'storefront';
