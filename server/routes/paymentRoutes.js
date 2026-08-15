@@ -146,8 +146,7 @@ router.post('/selcom/initiate', initiateLimiter, async (req, res) => {
       if (paymentMethod === 'mobile') {
         pushResponse = await selcomService.walletPayment({
           orderId,
-          msisdn: customer.phone,
-          amount: result.total
+          msisdn: customer.phone
         });
         session.result = pushResponse?.result || '';
         session.resultcode = pushResponse?.resultcode || '';
@@ -187,9 +186,12 @@ router.post('/selcom/initiate', initiateLimiter, async (req, res) => {
       session.failedAt = new Date();
       await session.save().catch(() => {});
       logger.error('[Selcom] collection trigger failed', { error: err.message, orderId });
+      // Surface the real cause to the frontend (shown as the modal's detail line)
+      // so a failed push is never a mystery — friendly copy stays in `error`.
       return res.status(502).json({
         error: 'Payment prompt failed. No money was taken — please try again.',
-        message: err.message
+        message: err.message,
+        details: err.message
       });
     }
 

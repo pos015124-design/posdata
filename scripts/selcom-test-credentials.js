@@ -6,7 +6,8 @@
  * the failure is the API user, the vendor, the IP whitelist, or the HMAC.
  *
  * Usage (run on the VPS where server/.env has the real values):
- *   node scripts/selcom-test-credentials.js
+ *   node scripts/selcom-test-credentials.js                 # credentials + order creation only
+ *   node scripts/selcom-test-credentials.js --push 0712345678  # also triggers a real USSD push
  *
  * What each error means:
  *   "API User not found"  → SELCOM_API_KEY is wrong, OR it doesn't belong to
@@ -36,30 +37,13 @@ function endpoint(p) {
   return `${BASE}/${clean.startsWith('v1/') || clean === 'v1' ? clean : `v1/${clean}`}`;
 }
 
-async function main() {
-  const key = process.env.SELCOM_API_KEY;
-  const secret = process.env.SELCOM_API_SECRET;
-  const vendor = process.env.SELCOM_VENDOR;
-
-  console.log('SELCOM_BASE_URL :', process.env.SELCOM_BASE_URL || '(default)');
-  console.log('SELCOM_VENDOR   :', vendor ? `${vendor.slice(0, 4)}...${vendor.slice(-3)} (len ${vendor.length})` : '❌ NOT SET');
-  console.log('SELCOM_API_KEY  :', key ? `set (len ${key.length})` : '❌ NOT SET');
-  console.log('SELCOM_API_SECRET:', secret ? `set (len ${secret.length})` : '❌ NOT SET');
-  console.log('');
-
-  if (!key || !secret || !vendor) {
-    console.error('❌ One or more Selcom env vars are missing in server/.env.');
-    process.exit(1);
-  }
-
-  const orderId = `DIAG-${Date.now().toString(36).toUpperCase()}`;
-  const amount = 100; // 100 TZS — smallest realistic order
+async function createOrder(orderId, amount, buyerPhone) {
   const payload = {
-    vendor,
+    vendor: process.env.SELCOM_VENDOR,
     order_id: orderId,
     buyer_email: 'diag@bhabygroup.co.tz',
     buyer_name: 'Credential Test',
-    buyer_phone: '255700000000',
+    buyer_phone: buyerPhone || '255700000000',
     amount,
     currency: 'TZS',
     no_of_items: 1,
@@ -82,7 +66,9 @@ async function main() {
     console.log(JSON.stringify(res.data, null, 2));
     if (String(res.data?.result || '').toUpperCase() === 'SUCCESS' || String(res.data?.resultcode || '') === '000') {
       console.log('\n✅ Credentials OK — order created (unpaid). This confirms API user + vendor + IP + HMAC are all valid.');
+      return true;
     }
+    return false;
   } catch (err) {
     const status = err?.response?.status;
     const data = err?.response?.data;
@@ -104,6 +90,80 @@ async function main() {
     } else {
       console.log('No response body — check network / DNS / firewall:', err.message);
     }
+    return false;
+  }
+}
+
+/** Trigger the USSD push for an existing order — same 3-field payload as the storefront. */
+async function walletPayment(orderId, phone) {
+  const msisdn = String(phone || '').replace(/[^\d+]/g, '')
+    .replace(/^\+/, '')
+    .replace(/^0/, '255');
+  if (!/^2557\d{8}$/.test(msisdn)) {
+    console.log('⚠ Phone must be a Tanzanian number (e.g. 0712345678) — got:', phone);
+    return;
+  }
+  const transid = `TXDIAG${Date.now().toString(36).toUpperCase()}`;
+  const payload = {
+    transid,
+    order_id: orderId,
+    msisdn
+  };
+  const url = endpoint('checkout/wallet-payment');
+  console.log('\nPOST', url);
+  console.log('Payload :', JSON.stringify({ ...payload, msisdn: msisdn.slice(0, 6) + 'XXXX' + msisdn.slice(-2) }));
+  console.log('');
+  try {
+    const res = await axios.post(url, payload, {
+      headers: generateSelcomHeaders(payload),
+      timeout: 20000
+    });
+    console.log('✅ HTTP', res.status);
+    console.log(JSON.stringify(res.data, null, 2));
+    if (String(res.data?.resultcode || '') === '000' || String(res.data?.result || '').toUpperCase() === 'SUCCESS') {
+      console.log('\n📲 USSD push ACCEPTED — check the phone for the M-Pesa / Tigo / Airtel prompt and approve it.');
+    } else {
+      console.log('\n❌ Push rejected. The message above is Selcom\'s reason — paste it to me and I can pinpoint it.');
+    }
+  } catch (err) {
+    const status = err?.response?.status;
+    const data = err?.response?.data;
+    console.log('❌ HTTP', status || 'no response');
+    if (data) console.log(JSON.stringify(data, null, 2));
+    else console.log('No response body:', err.message);
+    console.log('\nIf this failed, common causes: msisdn format (must be 2557XXXXXXXX) or the order does not exist.');
+  }
+}
+
+async function main() {
+  const key = process.env.SELCOM_API_KEY;
+  const secret = process.env.SELCOM_API_SECRET;
+  const vendor = process.env.SELCOM_VENDOR;
+  const pushPhone = process.argv.find((a) => a.startsWith('--push='))?.split('=')[1]
+    || (process.argv.includes('--push') ? process.argv[process.argv.indexOf('--push') + 1] : '');
+
+  console.log('SELCOM_BASE_URL :', process.env.SELCOM_BASE_URL || '(default)');
+  console.log('SELCOM_VENDOR   :', vendor ? `${vendor.slice(0, 4)}...${vendor.slice(-3)} (len ${vendor.length})` : '❌ NOT SET');
+  console.log('SELCOM_API_KEY  :', key ? `set (len ${key.length})` : '❌ NOT SET');
+  console.log('SELCOM_API_SECRET:', secret ? `set (len ${secret.length})` : '❌ NOT SET');
+  console.log('');
+
+  if (!key || !secret || !vendor) {
+    console.error('❌ One or more Selcom env vars are missing in server/.env.');
+    process.exit(1);
+  }
+
+  const orderId = `DIAG-${Date.now().toString(36).toUpperCase()}`;
+  const amount = 100; // 100 TZS — smallest realistic order
+
+  const created = await createOrder(orderId, amount, pushPhone);
+
+  if (created && pushPhone) {
+    await walletPayment(orderId, pushPhone);
+  } else if (pushPhone) {
+    console.log('\nSkipping wallet push — order creation failed, so there is no order to push against.');
+  } else {
+    console.log('\nTip: add --push 0712345678 to also test the USSD push (creates a real 100 TZS prompt on that phone).');
   }
 }
 

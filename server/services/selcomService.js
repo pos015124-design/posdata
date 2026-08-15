@@ -114,16 +114,22 @@ async function createOrder({ orderId, amount, customer, noOfItems, redirectUrl }
 
 /**
  * Step 2a — trigger the USSD push on the buyer's phone (M-Pesa / Tigo Pesa / Airtel Money).
+ *
+ * Selcom's wallet-payment endpoint accepts EXACTLY three fields
+ * (docs: Signed-Fields: transid,order_id,msisdn) — sending extra fields like
+ * vendor/amount makes Selcom reject the request. The transid is merchant-
+ * generated (same pattern as the official laravel-selcom reference) and must
+ * be unique per push attempt.
+ *
  * @returns {Promise<Object>} Selcom response
  */
-async function walletPayment({ orderId, msisdn, amount }) {
-  const transid = `TX-${orderId}-${Date.now().toString(36).toUpperCase()}`;
+async function walletPayment({ orderId, msisdn }) {
+  // Alphanumeric only — matches the format Selcom's own clients use for transid.
+  const transid = `TX${String(orderId).replace(/[^A-Z0-9]/gi, '').toUpperCase()}${Date.now().toString(36).toUpperCase()}`;
   const payload = {
-    vendor: VENDOR,
+    transid,
     order_id: orderId,
-    msisdn: normalizeMsisdn(msisdn),
-    amount: Number(amount),
-    transid
+    msisdn: normalizeMsisdn(msisdn)
   };
   return post('checkout/wallet-payment', payload);
 }

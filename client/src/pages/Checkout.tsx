@@ -30,7 +30,7 @@ type PayPhase =
   | { name: 'idle' }
   | { name: 'processing' }
   | { name: 'paying'; orderId: string; method: OnlineMethod; redirectUrl?: string | null }
-  | { name: 'error'; message: string };
+  | { name: 'error'; message: string; details?: string };
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLLS = 60; // ~3 minutes before we ask the buyer to check manually
@@ -186,7 +186,11 @@ export default function Checkout() {
         })
       });
       const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || payload.message || 'Could not start payment');
+      if (!res.ok) {
+        const e: any = new Error(payload.error || payload.message || 'Could not start payment');
+        e.details = payload.details || (payload.message !== payload.error ? payload.message : '') || '';
+        throw e;
+      }
 
       setPayPhase({
         name: 'paying',
@@ -200,7 +204,11 @@ export default function Checkout() {
         window.open(payload.redirectUrl, '_blank', 'noopener');
       }
     } catch (err: any) {
-      setPayPhase({ name: 'error', message: err?.message || 'Could not start payment' });
+      setPayPhase({
+        name: 'error',
+        message: err?.message || 'Could not start payment',
+        details: err?.details || err?.cause || ''
+      });
     }
   };
 
@@ -377,6 +385,9 @@ export default function Checkout() {
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Payment couldn't start</h3>
                 <p className="text-sm text-gray-500 mb-2">{payPhase.message}</p>
+                {payPhase.details && (
+                  <p className="text-xs text-gray-400 mb-2 font-mono break-words">{payPhase.details}</p>
+                )}
                 <p className="text-xs text-gray-400 mb-5">No money was taken from your account.</p>
                 <div className="flex gap-3">
                   <Button
