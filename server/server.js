@@ -54,7 +54,10 @@ const skipPreflight = (req) => req.method === 'OPTIONS';
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  // 600 req / 15 min per IP (~40/min). High enough for the SPA's legit polling
+  // (dashboard 30s, notification feed 45s, focus/event refreshes, multi-tab) yet
+  // still blocks scrapers. The old 100/15min tripped 429s in normal use.
+  max: 600,
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
@@ -223,7 +226,14 @@ app.use(mongoSanitize());
 app.use(hpp());
 
 // Rate limiting
-app.use('/api/auth', authLimiter);
+// authLimiter guards ONLY the credential endpoints (the brute-force surface). Mounting
+// it on the whole /api/auth prefix throttled legit traffic — notification-prefs,
+// pending-users, /me — to 10 requests per 15 min, which the SPA trips in normal use.
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
+app.use('/api/auth/change-password', authLimiter);
 app.use('/api/uploads', uploadLimiter);
 app.use('/api', apiLimiter);
 
@@ -268,7 +278,7 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/expenses', expenseRoutes);
 // app.use('/api/staff', staffRoutes);
 app.use('/api/analytics', simpleAnalyticsRoutes);
-// app.use('/api/settings', settingsRoutes);
+app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/categories', simpleCategoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/export', exportRoutes);

@@ -117,6 +117,32 @@ export default function Settings() {
       .catch(() => { /* keep defaults if the endpoint is unavailable */ });
   }, []);
 
+  // Load saved tax / payment preferences into the forms (server is the source of
+  // truth — these used to live only in local state and never persisted)
+  useEffect(() => {
+    settingsApi.getSettings()
+      .then(data => {
+        const s = data.settings || {};
+        if (s.tax) {
+          setTaxSettings({
+            defaultTaxRate: s.tax.defaultTaxRate != null ? String(s.tax.defaultTaxRate) : '18',
+            taxIncluded: !!s.tax.taxIncluded,
+            enableTax: s.tax.enableTax !== false
+          });
+        }
+        if (s.payment) {
+          setPaymentSettings({
+            acceptCash: s.payment.acceptCash !== false,
+            acceptCard: s.payment.acceptCard !== false,
+            acceptMobile: s.payment.acceptMobile !== false,
+            acceptCredit: !!s.payment.acceptCredit,
+            defaultPaymentMethod: s.payment.defaultPaymentMethod || 'cash'
+          });
+        }
+      })
+      .catch(() => { /* keep defaults if the endpoint is unavailable */ });
+  }, []);
+
   const loadSettings = async () => {
     try {
       setLoading(true);

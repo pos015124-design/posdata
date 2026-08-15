@@ -66,6 +66,33 @@ const userSchema = new mongoose.Schema({
     reportFrequency: { type: String, enum: ['daily', 'weekly', 'off'], default: 'daily' }
   },
 
+  // Per-seller store preferences (Settings → Tax / Receipt / Payment tabs)
+  settings: {
+    tax: {
+      defaultTaxRate: { type: String, default: '18' },
+      taxIncluded: { type: Boolean, default: false },
+      enableTax: { type: Boolean, default: true }
+    },
+    receipt: {
+      showLogo: { type: Boolean, default: true },
+      showTaxId: { type: Boolean, default: true },
+      footerText: { type: String, default: '' },
+      receiptPrefix: { type: String, default: 'INV' },
+      printAutomatically: { type: Boolean, default: false }
+    },
+    payment: {
+      acceptCash: { type: Boolean, default: true },
+      acceptCard: { type: Boolean, default: true },
+      acceptMobile: { type: Boolean, default: true },
+      acceptCredit: { type: Boolean, default: false },
+      defaultPaymentMethod: {
+        type: String,
+        enum: ['cash', 'card', 'credit', 'mobile', 'online'],
+        default: 'cash'
+      }
+    }
+  },
+
   // Terms & Conditions acceptance
   termsAccepted: {
     type: Boolean,
