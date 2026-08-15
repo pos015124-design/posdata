@@ -96,14 +96,19 @@ router.delete('/riders/:id', requireUser, requireSuperAdmin, async (req, res) =>
 
 // ── ORDER DELIVERY WORKFLOW ───────────────────────────────────────────────────
 
-// GET /api/delivery/orders  — all storefront orders with delivery info
+// GET /api/delivery/orders  — storefront orders with delivery info
+//   ?paymentStatus=paid    (default) active pipeline — orders that were paid
+//   ?paymentStatus=failed  cancelled/abandoned orders, review-only
+//   ?paymentStatus=all     everything (pending + paid + failed)
 router.get('/orders', requireUser, requireSuperAdmin, async (req, res) => {
   try {
-    const { status, riderId, page = 1, limit = 50 } = req.query;
+    const { status, riderId, paymentStatus = 'paid', page = 1, limit = 50 } = req.query;
     // Only orders that were actually paid belong in the delivery pipeline.
     // Pending (payment in flight) and cancelled/failed (abandoned) sales are
-    // excluded — you don't dispatch a rider for an order nobody paid for.
-    const query = { source: 'storefront', paymentStatus: 'paid' };
+    // excluded from the default view — you don't dispatch a rider for an order
+    // nobody paid for. Super admins can still review failed ones explicitly.
+    const query = { source: 'storefront' };
+    if (paymentStatus !== 'all') query.paymentStatus = paymentStatus;
     if (status)  query.deliveryStatus = status;
     if (riderId) query.riderId = riderId;
 

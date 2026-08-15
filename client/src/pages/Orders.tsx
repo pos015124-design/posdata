@@ -184,7 +184,6 @@ export default function Orders() {
                 <option value="all">All statuses</option>
                 <option value="completed">Completed</option>
                 <option value="pending">Pending</option>
-                <option value="cancelled">Cancelled</option>
               </select>
               <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
                 className="h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">

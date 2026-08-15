@@ -13,7 +13,7 @@ import { Label } from '../components/ui/label';
 import { useToast } from '../hooks/useToast';
 import { useSmartPolling } from '../hooks/useSmartPolling';
 import {
-  Truck, Users, Plus, Edit, X, RefreshCw, CheckCircle,
+  Truck, Users, Plus, Edit, X, RefreshCw, CheckCircle, XCircle,
   Package, Phone, User, AlertCircle, ChevronDown,
   ChevronUp, Shield, MapPin, Bike
 } from 'lucide-react';
@@ -36,10 +36,10 @@ interface DeliveryOrder {
   customerName?: string; customerPhone?: string; customerEmail?: string;
   customerAddress?: string; customerCity?: string;
   items: Array<{ productName?: string; name?: string; quantity: number; price: number }>;
-  total: number; status: string;
+  total: number; status: string; paymentStatus?: string;
   deliveryStatus: string; riderId?: any; riderName?: string; riderPhone?: string;
   assignedAt?: string; collectedAt?: string; deliveredAt?: string;
-  deliveryNotes?: string; createdAt: string;
+  deliveryNotes?: string; notes?: string; createdAt: string;
 }
 
 // ── Delivery status config ────────────────────────────────────────────────────
@@ -62,6 +62,8 @@ export default function DeliveryManagement() {
   const [orders, setOrders]           = useState<DeliveryOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [statusFilter, setStatusFilter]   = useState('all');
+  // 'paid' = active pipeline (default). 'failed' = review cancelled/abandoned orders.
+  const [paymentFilter, setPaymentFilter] = useState<'paid' | 'failed'>('paid');
   const [expanded, setExpanded]           = useState<string | null>(null);
   const [assigning, setAssigning]         = useState<string | null>(null);  // orderId being assigned
   const [assignRiderId, setAssignRiderId] = useState('');
@@ -80,7 +82,7 @@ export default function DeliveryManagement() {
   const fetchOrders = useCallback(async (silent = false): Promise<boolean> => {
     if (!silent) setOrdersLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: '100', paymentStatus: paymentFilter });
       if (statusFilter !== 'all') params.set('status', statusFilter);
       const res  = await fetch(`${BASE}/api/delivery/orders?${params}`, { headers: authH() });
       const json = await res.json().catch(() => ({}));
@@ -92,7 +94,7 @@ export default function DeliveryManagement() {
       if (!silent) toast({ title: 'Failed to load orders', description: err.message, variant: 'destructive' });
       return false;
     } finally { setOrdersLoading(false); }
-  }, [statusFilter, orders.length, toast]);
+  }, [statusFilter, paymentFilter, orders.length, toast]);
 
   const fetchRiders = useCallback(async (silent = false): Promise<boolean> => {
     if (!silent) setRidersLoading(true);
@@ -196,6 +198,9 @@ export default function DeliveryManagement() {
   const inProgressCount = orders.filter(o => ['assigned', 'out_for_delivery'].includes(o.deliveryStatus)).length;
   const deliveredCount  = orders.filter(o => o.deliveryStatus === 'delivered').length;
 
+  // A sale is cancelled when its payment failed/abandoned — never actionable.
+  const isCancelled = (o: DeliveryOrder) => o.status === 'cancelled' || o.paymentStatus === 'failed';
+
   // ── Filtered orders ────────────────────────────────────────────────────────
   const filteredOrders = statusFilter === 'all'
     ? orders
@@ -210,7 +215,22 @@ export default function DeliveryManagement() {
         BHABY GROUP LTD middleman delivery hub — assign riders, track orders
       </p>
 
-      {/* ── Summary stats ── */}
+      {/* ── Review banner (cancelled view) ── */}
+      {paymentFilter === 'failed' && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-900">Cancelled orders — review only</p>
+            <p className="text-xs text-red-700 mt-0.5">
+              These orders had their payment fail or time out; stock was released and they are
+              not actionable. No rider can be assigned. They are archived automatically after 30 days.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Summary stats (active pipeline only) ── */}
+      {paymentFilter === 'paid' && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: 'Unassigned',    value: unassignedCount, icon: Package,     gradient: 'from-gray-500 to-gray-600',    filter: 'unassigned' },
@@ -237,6 +257,7 @@ export default function DeliveryManagement() {
           </Card>
         ))}
       </div>
+      )}
 
       {/* ── Tab switcher ── */}
       <div className="flex gap-2 border-b border-gray-200">
@@ -269,15 +290,25 @@ export default function DeliveryManagement() {
           <Card className="border-0 shadow-sm">
             <CardContent className="p-4 flex flex-wrap gap-3 items-center">
               <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
+                value={paymentFilter}
+                onChange={e => { setPaymentFilter(e.target.value as 'paid' | 'failed'); setStatusFilter('all'); }}
                 className="h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
-                <option value="all">All statuses</option>
-                {Object.entries(DS).map(([key, cfg]) => (
-                  <option key={key} value={key}>{cfg.label}</option>
-                ))}
+                <option value="paid">Active orders (paid)</option>
+                <option value="failed">Cancelled (payment failed)</option>
               </select>
+              {paymentFilter === 'paid' && (
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  className="h-10 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="all">All statuses</option>
+                  {Object.entries(DS).map(([key, cfg]) => (
+                    <option key={key} value={key}>{cfg.label}</option>
+                  ))}
+                </select>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -313,6 +344,7 @@ export default function DeliveryManagement() {
               ) : (
                 <div className="space-y-2">
                   {filteredOrders.map(order => {
+                    const cancelled = isCancelled(order);
                     const ds = DS[order.deliveryStatus] || DS.unassigned;
                     const DsIcon = ds.icon;
                     const isExpanded = expanded === order._id;
@@ -367,9 +399,15 @@ export default function DeliveryManagement() {
                           </div>
 
                           {/* Status badge */}
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${ds.color} shrink-0`}>
-                            <DsIcon className="w-3 h-3" />{ds.label}
-                          </span>
+                          {cancelled ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border bg-red-100 text-red-700 border-red-200 shrink-0">
+                              <XCircle className="w-3 h-3" />Cancelled
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${ds.color} shrink-0`}>
+                              <DsIcon className="w-3 h-3" />{ds.label}
+                            </span>
+                          )}
 
                           <div className="text-right shrink-0 min-w-[90px]">
                             <p className="font-extrabold text-gray-900 text-sm">{fmt(order.total)}</p>
@@ -429,6 +467,17 @@ export default function DeliveryManagement() {
                               </div>
                             )}
 
+                            {/* Cancelled notice */}
+                            {cancelled && (
+                              <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                                <p className="text-xs font-semibold text-red-700 mb-1">Payment failed / abandoned</p>
+                                <p className="text-xs text-red-600">
+                                  Stock was released back to the seller. This order cannot be assigned to a rider.
+                                  {order.notes ? ` Notes: ${order.notes}` : ''}
+                                </p>
+                              </div>
+                            )}
+
                             {/* Assign rider form */}
                             {isAssigning && (
                               <div className="bg-white border border-blue-200 rounded-xl p-4 space-y-3">
@@ -470,6 +519,7 @@ export default function DeliveryManagement() {
                             )}
 
                             {/* Action buttons */}
+                            {!cancelled && (
                             <div className="flex flex-wrap gap-2">
                               {order.deliveryStatus === 'unassigned' && !isAssigning && (
                                 <Button
@@ -524,6 +574,7 @@ export default function DeliveryManagement() {
                                 </Button>
                               )}
                             </div>
+                            )}
                           </div>
                         )}
                       </div>
