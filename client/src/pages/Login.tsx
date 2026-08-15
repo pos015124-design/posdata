@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader } from '../components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { Link } from 'react-router-dom';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import AuthShell from '../components/AuthShell';
-import Logo from '../components/Logo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -47,10 +46,8 @@ export default function Login() {
   return (
     <AuthShell heading="Welcome back to your store." subheading="Sign in to manage your store, sales and inventory.">
       <Card className="w-full shadow-lg border border-gray-200 bg-white">
-        <CardHeader className="space-y-3 text-center pb-6">
-          <div className="flex justify-center">
-            <Logo className="h-14" />
-          </div>
+        <CardHeader className="space-y-2 text-center pb-5">
+          <CardTitle className="text-2xl font-bold text-gray-900">Welcome back</CardTitle>
           <CardDescription className="text-sm text-gray-500">
             Sign in to your seller account
           </CardDescription>

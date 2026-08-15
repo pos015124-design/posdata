@@ -105,9 +105,13 @@ module.exports = {
   				'0%, 100%': { transform: 'translateY(0)' },
   				'50%': { transform: 'translateY(-5px)' }
   			},
-  			float: {
-  				'0%, 100%': { transform: 'translateY(0) rotate(var(--float-rotate, 0deg))' },
-  				'50%': { transform: 'translateY(-14px) rotate(var(--float-rotate, 0deg))' }
+  			/* Random-looking wander: each icon supplies its own path via
+  			   --dx1/2/3, --dy1/2/3, --rot1/2/3 CSS vars (set inline per icon). */
+  			drift: {
+  				'0%, 100%': { transform: 'translate(0, 0) rotate(0deg) scale(1)' },
+  				'25%': { transform: 'translate(var(--dx1, 10px), var(--dy1, -12px)) rotate(var(--rot1, 5deg)) scale(1.04)' },
+  				'50%': { transform: 'translate(var(--dx2, -12px), var(--dy2, 8px)) rotate(var(--rot2, -6deg)) scale(0.97)' },
+  				'75%': { transform: 'translate(var(--dx3, 8px), var(--dy3, -10px)) rotate(var(--rot3, 4deg)) scale(1.02)' }
   			}
   		},
   		animation: {
@@ -118,7 +122,7 @@ module.exports = {
   			'scale-in': 'scaleIn 0.2s ease-out',
   			'bounce-gentle': 'bounceGentle 0.6s ease-in-out',
   			'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-  			'float': 'float 8s ease-in-out infinite'
+  			'drift': 'drift 10s ease-in-out infinite'
   		},
   		boxShadow: {
   			'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',

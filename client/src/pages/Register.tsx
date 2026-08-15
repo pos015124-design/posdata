@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader } from '../components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import AuthShell from '../components/AuthShell';
-import Logo from '../components/Logo';
 
 function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () => void }) {
   return (
@@ -133,45 +132,41 @@ export default function Register() {
       <AuthShell
         heading="Open your store on Tanzania's marketplace."
         subheading="Create your seller account and start selling today"
+        wide
       >
         <Card className="w-full shadow-lg border border-gray-200 bg-white">
-          <CardHeader className="space-y-3 text-center pb-4">
-            <div className="flex justify-center">
-              <Logo className="h-12" />
-            </div>
-            <div>
-              <CardDescription>Create your seller account and start selling today</CardDescription>
-            </div>
+          <CardHeader className="space-y-2 text-center pb-4">
+            <CardTitle className="text-2xl font-bold text-gray-900">Create your account</CardTitle>
+            <CardDescription>Start selling in under two minutes</CardDescription>
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="name">Full Name</Label>
                   <Input id="name" placeholder="Amina Hassan" value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })} required className="h-11" />
+                    onChange={e => setFormData({ ...formData, name: e.target.value })} required className="h-10" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="businessName">Business Name</Label>
                   <Input id="businessName" placeholder="My Store" value={formData.businessName}
-                    onChange={e => setFormData({ ...formData, businessName: e.target.value })} required className="h-11" />
+                    onChange={e => setFormData({ ...formData, businessName: e.target.value })} required className="h-10" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email Address</Label>
                 <Input id="email" type="email" placeholder="seller@example.com" value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })} required className="h-11" />
+                  onChange={e => setFormData({ ...formData, email: e.target.value })} required className="h-10" />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">                <div className="space-y-1.5">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Min 6 chars"
                       value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      required className="h-11 pr-10" />
+                      required className="h-10 pr-10" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -183,7 +178,7 @@ export default function Register() {
                   <div className="relative">
                     <Input id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Repeat"
                       value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      required className="h-11 pr-10" />
+                      required className="h-10 pr-10" />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -216,7 +211,7 @@ export default function Register() {
               </div>
 
               <Button type="submit" disabled={loading || !termsAccepted}
-                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-sm disabled:opacity-50">
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold shadow-sm disabled:opacity-50">
                 {loading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Creating Account…</> : 'Create Seller Account'}
               </Button>
 
