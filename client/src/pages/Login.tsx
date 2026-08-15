@@ -7,6 +7,7 @@ import { Label } from '../components/ui/label';
 import { Link } from 'react-router-dom';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import AuthShell from '../components/AuthShell';
 import Logo from '../components/Logo';
 
 export default function Login() {
@@ -44,11 +45,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      {/* Subtle ambient background — no harsh gradient */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(37,99,235,0.08)_0%,_transparent_60%),radial-gradient(ellipse_at_bottom_right,_rgba(124,58,237,0.06)_0%,_transparent_60%)]" />
-      
-      <Card className="relative w-full max-w-md shadow-lg border border-gray-200 bg-white">
+    <AuthShell heading="Welcome back to your store." subheading="Sign in to manage your store, sales and inventory.">
+      <Card className="w-full shadow-lg border border-gray-200 bg-white">
         <CardHeader className="space-y-3 text-center pb-6">
           <div className="flex justify-center">
             <Logo className="h-14" />
@@ -127,6 +125,6 @@ export default function Login() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }

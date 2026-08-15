@@ -104,6 +104,10 @@ module.exports = {
   			bounceGentle: {
   				'0%, 100%': { transform: 'translateY(0)' },
   				'50%': { transform: 'translateY(-5px)' }
+  			},
+  			float: {
+  				'0%, 100%': { transform: 'translateY(0) rotate(var(--float-rotate, 0deg))' },
+  				'50%': { transform: 'translateY(-14px) rotate(var(--float-rotate, 0deg))' }
   			}
   		},
   		animation: {
@@ -113,7 +117,8 @@ module.exports = {
   			'slide-up': 'slideUp 0.3s ease-out',
   			'scale-in': 'scaleIn 0.2s ease-out',
   			'bounce-gentle': 'bounceGentle 0.6s ease-in-out',
-  			'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+  			'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+  			'float': 'float 8s ease-in-out infinite'
   		},
   		boxShadow: {
   			'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',

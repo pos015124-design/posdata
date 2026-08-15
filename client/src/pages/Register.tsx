@@ -7,6 +7,7 @@ import { Label } from '../components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
+import AuthShell from '../components/AuthShell';
 import Logo from '../components/Logo';
 
 function TermsModal({ onClose, onAccept }: { onClose: () => void; onAccept: () => void }) {
@@ -129,10 +130,11 @@ export default function Register() {
         />
       )}
 
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(37,99,235,0.08)_0%,_transparent_60%),radial-gradient(ellipse_at_bottom_right,_rgba(124,58,237,0.06)_0%,_transparent_60%)]" />
-
-        <Card className="relative w-full max-w-lg shadow-lg border border-gray-200 bg-white">
+      <AuthShell
+        heading="Open your store on Tanzania's marketplace."
+        subheading="Create your seller account and start selling today"
+      >
+        <Card className="w-full shadow-lg border border-gray-200 bg-white">
           <CardHeader className="space-y-3 text-center pb-4">
             <div className="flex justify-center">
               <Logo className="h-12" />
@@ -225,7 +227,7 @@ export default function Register() {
             </form>
           </CardContent>
         </Card>
-      </div>
+      </AuthShell>
     </>
   );
 }
