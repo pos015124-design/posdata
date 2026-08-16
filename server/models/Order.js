@@ -98,13 +98,26 @@ const shippingAddressSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+// Generate a unique order number. Defined as a schema default (not just a
+// pre-save hook) because mongoose runs required-field validation BEFORE user
+// pre('save') hooks, so a hook alone can never satisfy a required field.
+function generateOrderNumber() {
+  const date = new Date();
+  const year = date.getFullYear().toString().slice(-2);
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `ORD-${year}${month}${day}-${random}`;
+}
+
 const orderSchema = new mongoose.Schema({
   // Order identification
   orderNumber: {
     type: String,
     required: true,
     unique: true,
-    index: true
+    index: true,
+    default: generateOrderNumber
   },
 
   // Customer information

@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const Sale = require('../models/Sale');
 const SaleService = require('../services/saleService');
 const { requireUser } = require('./middleware/auth');
+const { requireCustomer } = require('./customerAuthRoutes');
 const {
   saleValidation,
   mongoIdValidation,
@@ -106,6 +108,108 @@ router.get('/recent', requireUser, async (req, res) => {
   } catch (error) {
     console.error('Error fetching recent sales:', error);
     res.status(500).json({ message: error.message });
+  }
+});
+
+// ── CUSTOMER PORTAL (storefront buyers) ───────────────────────────────────────
+// Storefront checkout creates Sale records. Buyers authenticate via
+// /api/customer-auth (customerAccessToken) and see sales linked to their account
+// — matched by customerId, or by email for guest-checkout purchases.
+
+// GET /api/sales/customer/my-orders — customer's orders (requires customer auth)
+router.get('/customer/my-orders', requireCustomer, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const customerId = req.customer.customerId;
+    const email = (req.customer.email || '').toLowerCase();
+
+    const query = {
+      $or: [{ customerId }, { customerEmail: email }]
+    };
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [sales, total] = await Promise.all([
+      Sale.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Sale.countDocuments(query)
+    ]);
+
+    const orders = sales.map(sale => ({
+      _id: sale._id,
+      invoiceNumber: sale.invoiceNumber,
+      status: sale.status,
+      deliveryStatus: sale.deliveryStatus,
+      paymentStatus: sale.paymentStatus,
+      paymentMethod: sale.paymentMethod,
+      total: sale.total,
+      itemsCount: (sale.items || []).reduce((n, i) => n + (i.quantity || 0), 0),
+      createdAt: sale.createdAt
+    }));
+
+    res.json({
+      success: true,
+      orders,
+      pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) }
+    });
+  } catch (error) {
+    console.error('Error fetching customer orders:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/sales/customer/:id — one of the customer's orders (requires customer auth)
+router.get('/customer/:id', requireCustomer, mongoIdValidation('id'), handleValidationErrors, async (req, res) => {
+  try {
+    const customerId = req.customer.customerId;
+    const email = (req.customer.email || '').toLowerCase();
+
+    const sale = await Sale.findOne({
+      _id: req.params.id,
+      $or: [{ customerId }, { customerEmail: email }]
+    }).lean();
+
+    if (!sale) return res.status(404).json({ error: 'Order not found' });
+
+    res.json({
+      success: true,
+      sale: {
+        _id: sale._id,
+        invoiceNumber: sale.invoiceNumber,
+        status: sale.status,
+        deliveryStatus: sale.deliveryStatus,
+        paymentStatus: sale.paymentStatus,
+        paymentMethod: sale.paymentMethod,
+        total: sale.total,
+        subtotal: sale.subtotal,
+        tax: sale.tax,
+        discount: sale.discount,
+        amountPaid: sale.amountPaid,
+        items: (sale.items || []).map(i => ({
+          productName: i.productName || i.name,
+          quantity: i.quantity,
+          price: i.price,
+          total: i.total
+        })),
+        customerName: sale.customerName,
+        customerPhone: sale.customerPhone,
+        customerAddress: sale.customerAddress,
+        customerCity: sale.customerCity,
+        notes: sale.notes,
+        riderName: sale.riderName,
+        riderPhone: sale.riderPhone,
+        assignedAt: sale.assignedAt,
+        collectedAt: sale.collectedAt,
+        deliveredAt: sale.deliveredAt,
+        deliveryNotes: sale.deliveryNotes,
+        createdAt: sale.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching customer order:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

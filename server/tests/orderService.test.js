@@ -3,19 +3,29 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const User = require('../models/User');
+const Business = require('../models/Business');
 const CustomerAccount = require('../models/CustomerAccount');
 
 describe('OrderService', () => {
-  let mockUser, mockCustomer, mockProduct, mockCart;
+  let mockUser, mockCustomer, mockProduct, mockCart, mockBusiness;
 
   beforeEach(async () => {
+    // Create a mock business (OrderService.createOrderFromCart requires a real Business doc)
+    mockBusiness = await Business.create({
+      name: 'Test Business',
+      slug: 'test-business',
+      email: 'business@example.com',
+      category: 'retail',
+      tenantId: 'tenant1'
+    });
+
     // Create a mock user
     mockUser = new User({
       email: 'admin@example.com',
       password: 'Password123!',
       role: 'business_admin',
-      tenantId: 'tenant1',
-      businessId: 'business1',
+      tenantId: mockBusiness.tenantId || 'tenant1',
+      businessId: mockBusiness._id,
       isApproved: true
     });
     await mockUser.save();
@@ -25,8 +35,8 @@ describe('OrderService', () => {
       email: 'customer@example.com',
       firstName: 'John',
       lastName: 'Doe',
-      tenantId: 'tenant1',
-      businessId: 'business1'
+      password: 'Password123!',
+      businessId: mockBusiness._id
     });
     await mockCustomer.save();
 
@@ -35,19 +45,22 @@ describe('OrderService', () => {
       name: 'Test Product',
       code: 'TP001',
       price: 25.99,
+      purchasePrice: 15.00,
       stock: 100,
       category: 'Electronics',
-      tenantId: 'tenant1',
-      businessId: 'business1',
-      trackInventory: true
+      businessId: mockBusiness._id,
+      userId: mockUser._id,
+      trackInventory: true,
+      isPublished: true
     });
     await mockProduct.save();
 
     // Create a mock cart
     mockCart = new Cart({
       customerId: mockCustomer._id,
-      businessId: mockUser.businessId,
-      tenantId: mockUser.tenantId,
+      sessionId: 'test-session',
+      businessId: mockBusiness._id,
+      tenantId: mockBusiness.tenantId || 'tenant1',
       items: [{
         product: mockProduct._id,
         productName: mockProduct.name,
@@ -69,6 +82,7 @@ describe('OrderService', () => {
     await Product.deleteMany({});
     await CustomerAccount.deleteMany({});
     await User.deleteMany({});
+    await Business.deleteMany({});
   });
 
   describe('createOrderFromCart', () => {
@@ -117,6 +131,7 @@ describe('OrderService', () => {
     it('should validate cart is not empty', async () => {
       const emptyCart = new Cart({
         customerId: mockCustomer._id,
+        sessionId: 'test-session',
         businessId: mockUser.businessId,
         tenantId: mockUser.tenantId,
         items: [],
@@ -205,6 +220,7 @@ describe('OrderService', () => {
       // Create another cart and order
       const mockCart2 = new Cart({
         customerId: mockCustomer._id,
+        sessionId: 'test-session',
         businessId: mockUser.businessId,
         tenantId: mockUser.tenantId,
         items: [{
@@ -292,6 +308,7 @@ describe('OrderService', () => {
       // Create another cart and order
       const mockCart2 = new Cart({
         customerId: mockCustomer._id,
+        sessionId: 'test-session',
         businessId: mockUser.businessId,
         tenantId: mockUser.tenantId,
         items: [{
@@ -458,7 +475,9 @@ describe('OrderService', () => {
 
   describe('validateCartItems', () => {
     it('should return valid for valid cart items', async () => {
-      const result = await OrderService.validateCartItems(mockCart);
+      // validateCartItems expects a populated cart (item.product = product doc)
+      const populated = await Cart.findById(mockCart._id).populate('items.product');
+      const result = await OrderService.validateCartItems(populated);
 
       expect(result.isValid).toBe(true);
       expect(result.issues).toHaveLength(0);
@@ -468,6 +487,7 @@ describe('OrderService', () => {
       // Create a cart with a non-existent product
       const invalidCart = new Cart({
         customerId: mockCustomer._id,
+        sessionId: 'test-session',
         businessId: mockUser.businessId,
         tenantId: mockUser.tenantId,
         items: [{
@@ -484,7 +504,8 @@ describe('OrderService', () => {
       });
       await invalidCart.save();
 
-      const result = await OrderService.validateCartItems(invalidCart);
+      const populated = await Cart.findById(invalidCart._id).populate('items.product');
+      const result = await OrderService.validateCartItems(populated);
 
       expect(result.isValid).toBe(false);
       expect(result.issues).toContain('Product Non-existent Product is no longer available');
@@ -494,7 +515,8 @@ describe('OrderService', () => {
       // Update product to have insufficient stock
       await Product.findByIdAndUpdate(mockProduct._id, { stock: 1 }); // Only 1 in stock but cart has 2
 
-      const result = await OrderService.validateCartItems(mockCart);
+      const populated = await Cart.findById(mockCart._id).populate('items.product');
+      const result = await OrderService.validateCartItems(populated);
 
       expect(result.isValid).toBe(false);
       expect(result.issues).toContain(`Insufficient stock for ${mockProduct.name}. Only 1 available.`);

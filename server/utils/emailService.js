@@ -312,7 +312,7 @@ const sendOrderConfirmedToBuyer = async ({ buyerEmail, buyerName, invoiceNumber,
         ${row('Total', `<strong style="color:#2563eb;">TZS ${(total || 0).toLocaleString()}</strong>`)}
       </table>
       ${p('We will notify you when a rider is assigned and your order is on its way.')}
-      ${btn('Track your order', `${FRONTEND}/store`)}
+      ${btn('Track your order', `${FRONTEND}/track?invoice=${encodeURIComponent(invoiceNumber)}`)}
     `),
     text: `Order ${invoiceNumber} confirmed. Total: TZS ${(total || 0).toLocaleString()}. We will notify you when a rider is assigned.`
   });
@@ -337,7 +337,7 @@ const sendRiderAssignedToBuyer = async ({ buyerEmail, buyerName, invoiceNumber, 
       </table>
       <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">The rider will contact you before arriving. Please ensure someone is available to receive the order.</p>
       ${btnOutline(`Call Rider — ${riderPhone}`, `tel:${riderPhone}`)}
-      ${btn('Track Your Order', `${FRONTEND}/orders`)}
+      ${btn('Track Your Order', `${FRONTEND}/track?invoice=${encodeURIComponent(invoiceNumber)}`)}
       ${warning('Only accept delivery from BHABY GROUP LTD riders. Do not pay anyone who is not an official BHABY GROUP LTD rider. If you are unsure, call our support team at <a href="mailto:info@bhabygroup.co.tz" style="color:#92400e;">info@bhabygroup.co.tz</a>.')}
     `),
     text: `Rider ${riderName} (${riderPhone}) has been assigned to deliver your order ${invoiceNumber}.`

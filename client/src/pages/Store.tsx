@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ShoppingCart, Search, Building2, ExternalLink,
+  ShoppingCart, Search, Building2,
   ChevronLeft, ChevronRight, X, Plus, Minus, Trash2,
   SlidersHorizontal, Store as StoreIcon, Star, ShieldCheck
 } from 'lucide-react';
@@ -10,6 +10,8 @@ import Logo from '../components/Logo';
 import { Input } from '../components/ui/input';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../contexts/AuthContext';
+import formatPrice from '../utils/formatPrice';
+import CardSkeleton from '../components/CardSkeleton';
 
 export interface MarketplaceCartLine {
   _id: string;
@@ -48,7 +50,6 @@ const imgUrl = (url?: string | null) => {
   return url;
 };
 
-/* ─── Star rating display ─────────────────────────────────────────── */
 function StarRating({ rating }: { rating: number }) {
   return (
     <div className="flex items-center gap-0.5" aria-label={`Rating: ${rating} out of 5`}>
@@ -167,97 +168,77 @@ function CartDrawer({
 function ProductCard({ product, onAdd }: { product: Product; onAdd: (p: Product) => void }) {
   const image = product.images?.find(i => i.isPrimary)?.url || product.images?.[0]?.url;
   const isOutOfStock = product.stock === 0;
-  // Use real rating/soldCount if the API provides them; otherwise omit the row entirely
-  const hasRating  = typeof product.rating   === 'number' && product.rating   > 0;
-  const hasSold    = typeof product.soldCount === 'number' && product.soldCount > 0;
+  const showRating = typeof product.rating === 'number' && product.rating > 0;
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-200 group flex flex-col border border-gray-100">
-      {/* Image area */}
-      <div className="relative aspect-square bg-gray-50 overflow-hidden">
-        {image
-          ? <img
-              src={imgUrl(image)}
-              alt={product.name}
-              className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${isOutOfStock ? 'opacity-60' : ''}`}
-            />
-          : <div className="w-full h-full flex items-center justify-center">
-              <StoreIcon className="w-12 h-12 text-gray-200" />
-            </div>
-        }
+    <div className="bg-white rounded-xl overflow-hidden shadow-[0_6px_18px_rgba(15,23,42,0.06)] hover:shadow-[0_10px_24px_rgba(37,99,235,0.08)] transition-all duration-200 group flex flex-col border border-gray-100">
+      <div className="relative">
+        <div className="aspect-square bg-slate-50 overflow-hidden">
+          {image
+            ? <img
+                src={imgUrl(image)}
+                alt={product.name}
+                loading="lazy"
+                className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${isOutOfStock ? 'opacity-60' : ''}`}
+              />
+            : <div className="w-full h-full flex items-center justify-center">
+                <StoreIcon className="w-10 h-10 text-gray-200" />
+              </div>
+          }
+        </div>
 
-        {/* Out of stock overlay */}
-        {isOutOfStock && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="bg-white text-gray-800 text-xs font-bold px-3 py-1 rounded-full shadow">
-              Out of stock
-            </span>
-          </div>
-        )}
-
-        {/* Sponsored badge — top right */}
-        {product.isSponsored && (
-          <div className="absolute top-2 right-2">
-            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-              Sponsored
-            </span>
-          </div>
-        )}
-
-        {/* Store name — top left */}
         {product.storeName && (
-          <div className="absolute top-2 left-2 max-w-[55%]">
-            <span className="flex items-center gap-1 bg-white/90 backdrop-blur-sm text-xs font-medium text-gray-700 px-1.5 py-0.5 rounded-full shadow-sm truncate">
-              <ShieldCheck className="w-3 h-3 text-blue-600 shrink-0" aria-hidden="true" />
-              <span className="truncate">{product.storeName}</span>
-            </span>
+          <div className="absolute top-2 left-2 flex max-w-[70%] items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 shadow-sm ring-1 ring-slate-200 backdrop-blur-sm">
+            <ShieldCheck className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
+            <span className="truncate text-[10px] font-semibold text-slate-700">{product.storeName}</span>
           </div>
         )}
       </div>
 
-      {/* Card body */}
       <div className="p-3 flex flex-col flex-1">
-        {/* Product title — clamped to 2 lines */}
-        <h3 className="text-sm font-medium text-gray-900 leading-snug line-clamp-2 mb-1.5 flex-1">
-          {product.name}
-        </h3>
-
-        {/* Ratings + sold count row — only rendered when data exists */}
-        {(hasRating || hasSold) && (
-          <div className="flex items-center gap-2 mb-1.5">
-            {hasRating && <StarRating rating={product.rating!} />}
-            {hasSold && (
-              <span className="text-xs text-gray-400">{product.soldCount!.toLocaleString()}+ sold</span>
+        {(showRating || typeof product.soldCount === 'number') && (
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-medium text-slate-600">
+            {showRating && (
+              <div className="flex items-center gap-1.5">
+                <StarRating rating={product.rating ?? 0} />
+                <span>{product.rating?.toFixed(1)}</span>
+              </div>
+            )}
+            {typeof product.soldCount === 'number' && product.soldCount > 0 && (
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                {product.soldCount.toLocaleString()} sold
+              </span>
             )}
           </div>
         )}
 
-        {/* Price row */}
-        <div className="flex items-center justify-between mt-auto pt-2">
-          <div className="flex flex-col">
-            <span className="text-base font-black text-blue-600 leading-none">
-              TZS {Number(product.price ?? 0).toLocaleString()}
-            </span>
-            {product.storeSlug && (
-              <Link
-                to={`/store/${product.storeSlug}`}
-                className="text-xs text-gray-400 hover:text-blue-600 transition-colors mt-0.5 truncate max-w-[100px]"
-                onClick={e => e.stopPropagation()}
-                title="Visit store"
-              >
-                <ExternalLink className="w-3 h-3 inline mr-0.5" />
-                View store
-              </Link>
-            )}
+        <h3 className="mb-2 text-sm font-medium text-slate-900 line-clamp-2" title={product.name}>
+          {product.name}
+        </h3>
+
+        <div className="flex items-center justify-between mt-auto">
+          <div>
+            <span className="text-base font-bold text-slate-900 leading-none">{formatPrice(product.price)}</span>
           </div>
-          <button
-            onClick={() => onAdd(product)}
-            disabled={isOutOfStock}
-            aria-label={`Add ${product.name} to cart`}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:cursor-not-allowed text-white transition-colors shadow-sm shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/product/${product._id}`}
+              className="text-xs font-medium text-slate-500 hover:text-blue-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
+              onClick={e => e.stopPropagation()}
+            >
+              View
+            </Link>
+
+            <button
+              onClick={() => onAdd(product)}
+              disabled={isOutOfStock}
+              aria-label={`Add ${product.name} to cart`}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:cursor-not-allowed text-white transition-colors shadow-[0_8px_18px_rgba(37,99,235,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -639,14 +620,7 @@ export default function Store() {
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm animate-pulse border border-gray-100">
-                <div className="aspect-square bg-gray-200" />
-                <div className="p-3 space-y-2">
-                  <div className="h-3.5 bg-gray-200 rounded w-3/4" />
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
-                  <div className="h-5 bg-blue-50 rounded w-2/5 mt-2" />
-                </div>
-              </div>
+              <CardSkeleton key={i} />
             ))}
           </div>
         ) : products.length === 0 ? (

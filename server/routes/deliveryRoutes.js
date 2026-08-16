@@ -160,6 +160,19 @@ router.put('/orders/:id/assign', requireUser, requireSuperAdmin, async (req, res
     if (notes) order.deliveryNotes = notes;
     await order.save();
 
+    // Publish SSE update to any subscribers for this invoice
+    try {
+      const { publish } = require('../utils/sse');
+      publish(order.invoiceNumber, 'delivery:update', {
+        deliveryStatus: order.deliveryStatus,
+        riderName: order.riderName,
+        riderPhone: order.riderPhone,
+        assignedAt: order.assignedAt
+      });
+    } catch (e) {
+      logger.error('SSE publish failed', { error: e.message });
+    }
+
     // Increment rider delivery count
     await Rider.findByIdAndUpdate(riderId, { $inc: { totalDeliveries: 1 } });
 
@@ -193,6 +206,8 @@ router.put('/orders/:id/collect', requireUser, requireSuperAdmin, async (req, re
     order.collectedAt    = new Date();
     await order.save();
 
+    try { const { publish } = require('../utils/sse'); publish(order.invoiceNumber, 'delivery:update', { deliveryStatus: order.deliveryStatus, collectedAt: order.collectedAt }); } catch(e){ logger.error('SSE publish failed', { error: e.message }); }
+
     logger.info('Order collected from seller', { orderId: order._id, adminId: req.user.userId });
     res.json({ success: true, message: 'Marked as collected — out for delivery', order });
   } catch (err) {
@@ -210,6 +225,9 @@ router.put('/orders/:id/deliver', requireUser, requireSuperAdmin, async (req, re
     order.deliveredAt    = new Date();
     order.status         = 'completed';
     await order.save();
+
+    // Publish SSE update
+    try { const { publish } = require('../utils/sse'); publish(order.invoiceNumber, 'delivery:update', { deliveryStatus: order.deliveryStatus, deliveredAt: order.deliveredAt }); } catch(e){ logger.error('SSE publish failed', { error: e.message }); }
 
     // Email buyer
     if (order.customerEmail) {
@@ -286,6 +304,8 @@ router.put('/orders/:id/fail', requireUser, requireSuperAdmin, async (req, res) 
     order.deliveryStatus = 'failed';
     if (reason) order.deliveryNotes = reason;
     await order.save();
+
+    try { const { publish } = require('../utils/sse'); publish(order.invoiceNumber, 'delivery:update', { deliveryStatus: order.deliveryStatus, deliveryNotes: order.deliveryNotes }); } catch(e){ logger.error('SSE publish failed', { error: e.message }); }
 
     logger.info('Order delivery failed', { orderId: order._id, reason, adminId: req.user.userId });
     res.json({ success: true, message: 'Delivery marked as failed', order });

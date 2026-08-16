@@ -134,7 +134,7 @@ export default function Register() {
         subheading="Create your seller account and start selling today"
         wide
       >
-        <Card className="w-full shadow-lg border border-gray-200 bg-white">
+        <Card className="w-full shadow-lg border border-gray-200 bg-white/95 backdrop-blur-sm">
           <CardHeader className="space-y-2 text-center pb-4">
             <CardTitle className="text-2xl font-bold text-gray-900">Create your account</CardTitle>
             <CardDescription>Start selling in under two minutes</CardDescription>

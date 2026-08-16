@@ -116,60 +116,61 @@ export default function AuthShell({ children, heading, subheading, wide = false 
   wide?: boolean;
 }) {
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr] bg-slate-50">
-      {/* ── Branded panel (desktop) ─────────────────────────────────────── */}
-      <div className="hidden lg:flex relative flex-col justify-between overflow-hidden bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800 text-white p-12 xl:p-16">
-        <FloatingIconField />
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800 text-white">
+      <FloatingIconField className="z-0" />
 
-        <div className="relative z-10">
-          <Logo variant="white" className="h-12" />
-        </div>
-
-        <div className="relative z-10 space-y-8">
-          <h1 className="text-4xl xl:text-5xl font-extrabold leading-tight max-w-md">
-            {heading || 'Everything your business needs to sell online.'}
-          </h1>
-          <div className="space-y-6">
-            {SELLING_POINTS.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="flex items-start gap-4 max-w-md">
-                <span className="shrink-0 w-11 h-11 rounded-xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-sky-200" strokeWidth={1.8} />
-                </span>
-                <div>
-                  <p className="font-semibold text-white">{title}</p>
-                  <p className="text-sm text-white/70 mt-0.5">{desc}</p>
-                </div>
-              </div>
-            ))}
+      <div className="relative z-10 min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr]">
+        {/* ── Branded panel (desktop) ─────────────────────────────────────── */}
+        <div className="hidden lg:flex relative flex-col justify-between overflow-hidden text-white p-12 xl:p-16">
+          <div className="relative z-10">
+            <Logo variant="white" className="h-12" />
           </div>
-        </div>
 
-        <p className="relative z-10 text-xs text-white/50">
-          © {new Date().getFullYear()} BHABY GROUP LTD · E-Shop Marketplace
-        </p>
-      </div>
+          <div className="relative z-10 space-y-8">
+            <h1 className="text-4xl xl:text-5xl font-extrabold leading-tight max-w-md">
+              {heading || 'Everything your business needs to sell online.'}
+            </h1>
+            <div className="space-y-6">
+              {SELLING_POINTS.map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="flex items-start gap-4 max-w-md">
+                  <span className="shrink-0 w-11 h-11 rounded-xl bg-white/10 ring-1 ring-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-sky-200" strokeWidth={1.8} />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-white">{title}</p>
+                    <p className="text-sm text-white/70 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      {/* ── Form side ───────────────────────────────────────────────────── */}
-      <div className="relative flex flex-col justify-start lg:justify-center items-center min-h-screen p-4 sm:p-8 lg:pt-8">
-        {/* Mobile backdrop: compact branded header strip with drifting icons */}
-        <div className={`lg:hidden absolute inset-x-0 top-0 overflow-hidden bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800 ${wide ? 'h-24' : 'h-32'}`}>
-          <FloatingIconField className="opacity-70" />
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 to-transparent" />
-        </div>
-        {/* Logo centred over the animated strip — full variant so the brand
-            colours (teal + navy) are visible against the dark background */}
-        <div className={`lg:hidden relative z-10 w-full flex justify-center ${wide ? 'pt-5 pb-2' : 'pt-8 pb-3'}`}>
-          <Logo variant="white" className="h-9" />
-        </div>
-
-        {subheading && (
-          <p className="lg:hidden relative z-10 text-center text-[11px] text-gray-400 mb-3 max-w-xs leading-snug">
-            {subheading}
+          <p className="relative z-10 text-xs text-white/50">
+            © {new Date().getFullYear()} BHABY GROUP LTD · E-Shop Marketplace
           </p>
-        )}
+        </div>
 
-        <div className={`relative z-10 w-full ${wide ? 'max-w-2xl' : 'max-w-md'} animate-fade-in`}>
-          {children}
+        {/* ── Form side ───────────────────────────────────────────────────── */}
+        <div className="relative flex flex-col justify-center items-center min-h-screen p-4 sm:p-8 lg:pt-8">
+          <div className={`lg:hidden absolute inset-x-0 top-0 overflow-hidden ${wide ? 'h-24' : 'h-32'}`}>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800" />
+            <FloatingIconField className="opacity-70" />
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 to-transparent" />
+          </div>
+
+          <div className={`lg:hidden relative z-10 w-full flex justify-center ${wide ? 'pt-5 pb-2' : 'pt-8 pb-3'}`}>
+            <Logo variant="white" className="h-9" />
+          </div>
+
+          {subheading && (
+            <p className="lg:hidden relative z-10 text-center text-[11px] text-gray-300 mb-3 max-w-xs leading-snug">
+              {subheading}
+            </p>
+          )}
+
+          <div className={`relative z-10 w-full ${wide ? 'max-w-2xl' : 'max-w-md'} animate-fade-in`}>
+            {children}
+          </div>
         </div>
       </div>
     </div>

@@ -4,13 +4,18 @@
  */
 
 const request = require('supertest');
-const app = require('../server'); // Adjust path as needed
 const mongoose = require('mongoose');
 const { setupTestDB, teardownTestDB } = require('./setup');
 
 describe('Performance and Load Tests', () => {
+  let app;
+
   beforeAll(async () => {
     await setupTestDB();
+    // server.js connects to the DB via DATABASE_URL at require time and exits
+    // the process when it can't — so it must be loaded only after the test DB
+    // is up (setupTestDB sets DATABASE_URL when none is configured).
+    app = require('../server');
   });
 
   afterAll(async () => {

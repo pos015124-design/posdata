@@ -2,6 +2,14 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
+        // Idempotent: reuse an existing connection instead of calling
+        // mongoose.connect() twice with different options (which throws
+        // "Can't call openUri() on an active connection...").
+        if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+            console.log('✅ MongoDB already connected');
+            return;
+        }
+
         console.log('🔄 Attempting to connect to MongoDB...');
         console.log('📍 Database URL:', process.env.DATABASE_URL);
 

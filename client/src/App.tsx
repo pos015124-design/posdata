@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Layout from './components/Layout';
@@ -39,6 +39,9 @@ const LandingPage       = lazy(() => import('./pages/LandingPage'));
 const SellerBilling     = lazy(() => import('./pages/SellerBilling'));
 const DeliveryManagement = lazy(() => import('./pages/DeliveryManagement'));
 const BusinessDashboard = lazy(() => import('./pages/BusinessDashboard'));
+const TrackOrder = lazy(() => import('./pages/TrackOrder'));
+const MyOrders = lazy(() => import('./pages/MyOrders'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail'));
 
 // ── Page loading fallback ──────────────────────────────────────────────────
 // Minimal skeleton — shows instantly while the chunk downloads.
@@ -56,7 +59,8 @@ function PageLoader() {
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
-  if (!user) return <Navigate to="/login" />;
+  const location = useLocation();
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   if (user.isApproved === false && user.role !== 'super_admin') {
     return <WaitingApproval onLogout={logout} />;
   }
@@ -71,7 +75,10 @@ function StorefrontWithOptionalLayout({ children }: { children: React.ReactNode 
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  return user ? <Navigate to="/dashboard" /> : <>{children}</>;
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname;
+  if (user) return from ? <Navigate to={from} replace /> : <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
 }
 
 function App() {
@@ -111,6 +118,13 @@ function App() {
               <Route path="/store/:slug"  element={<StorefrontWithOptionalLayout><IndividualStore /></StorefrontWithOptionalLayout>} />
               <Route path="/cart"         element={<Cart />} />
               <Route path="/checkout"     element={<Checkout />} />
+
+              {/* Public order tracking for buyers (invoice lookup) */}
+              <Route path="/track" element={<StorefrontWithOptionalLayout><TrackOrder /></StorefrontWithOptionalLayout>} />
+
+              {/* Customer portal */}
+              <Route path="/customer/orders" element={<MyOrders />} />
+              <Route path="/customer/orders/:id" element={<OrderDetail />} />
 
               {/* Private — seller */}
               <Route path="/dashboard"  element={<PrivateRoute><Dashboard /></PrivateRoute>} />

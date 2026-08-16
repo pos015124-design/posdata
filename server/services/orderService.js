@@ -340,15 +340,24 @@ class OrderService {
         throw new Error('Invalid order status');
       }
       
+      const oldStatus = order.status;
       await order.updateStatus(newStatus, staffId);
-      
+
       logger.info('Order status updated', {
         orderId,
-        oldStatus: order.status,
+        oldStatus,
         newStatus,
         staffId
       });
-      
+
+      // Publish SSE event for status change
+      try {
+        const { publish } = require('../utils/sse');
+        publish(order.orderNumber, 'order:status', { oldStatus, newStatus, orderId });
+      } catch (e) {
+        logger.error('SSE publish failed', { error: e.message });
+      }
+
       return order;
       
     } catch (error) {
@@ -383,6 +392,14 @@ class OrderService {
         trackingNumber,
         carrier
       });
+
+      // Publish SSE update for tracking info
+      try {
+        const { publish } = require('../utils/sse');
+        publish(order.orderNumber, 'order:tracking', { trackingNumber, carrier });
+      } catch (e) {
+        logger.error('SSE publish failed', { error: e.message });
+      }
       
       return order;
       

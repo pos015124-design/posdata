@@ -8,6 +8,7 @@ const router = express.Router();
 const OrderService = require('../services/orderService');
 const { requireCustomer } = require('./customerAuthRoutes');
 const { requireUser, requireBusinessAdmin } = require('./middleware/auth');
+const { subscribe: sseSubscribe } = require('../utils/sse');
 const { body, validationResult } = require('express-validator');
 const { logger } = require('../config/logger');
 
@@ -134,10 +135,172 @@ router.post('/', optionalCustomer, validateCreateOrder, handleValidationErrors, 
   }
 });
 
+// ── Public order tracking (invoice lookup) ───────────────────────────────────
+// The storefront checkout creates Sale records (invoiceNumber, e.g. INV-...),
+// while the cart-checkout flow creates Order records (orderNumber, e.g. ORD-...).
+// Lookups accept either so buyers can track whatever identifier they received.
+// SSE events are published under the doc's own identifier: delivery routes
+// publish Sale invoiceNumbers, orderService publishes Order orderNumbers.
+
 /**
- * GET /api/orders/:id
- * Get order details
+ * Resolve an invoice identifier to a trackable document (Sale or Order).
+ * @returns {{ model: 'sale'|'order', doc: Object, key: string }|null}
  */
+const findTrackable = async (identifier) => {
+  const Sale = require('../models/Sale');
+  const sale = await Sale.findOne({ invoiceNumber: identifier }).lean();
+  if (sale) return { model: 'sale', doc: sale, key: sale.invoiceNumber };
+
+  const Order = require('../models/Order');
+  const order = await Order.findOne({ orderNumber: identifier }).lean();
+  if (order) return { model: 'order', doc: order, key: order.orderNumber };
+
+  return null;
+};
+
+/** Limited public view — safe to expose without buyer verification. */
+const publicOrderView = ({ doc }) => ({
+  id: doc._id,
+  invoiceNumber: doc.invoiceNumber || doc.orderNumber,
+  status: doc.status,
+  deliveryStatus: doc.deliveryStatus,
+  paymentStatus: doc.paymentStatus,
+  total: doc.total,
+  items: (doc.items || []).map(i => ({ productName: i.productName || i.name, quantity: i.quantity })),
+  riderName: doc.riderName || null,
+  riderPhone: doc.riderPhone || null,
+  trackingNumber: doc.trackingNumber || null,
+  shippingCarrier: doc.shippingCarrier || null,
+  createdAt: doc.createdAt
+});
+
+/** Buyer-verified view — whitelist only, never leak internal fields. */
+const verifiedOrderView = ({ model, doc }) => {
+  const view = {
+    id: doc._id,
+    invoiceNumber: doc.invoiceNumber || doc.orderNumber,
+    status: doc.status,
+    deliveryStatus: doc.deliveryStatus,
+    paymentStatus: doc.paymentStatus,
+    total: doc.total,
+    subtotal: doc.subtotal,
+    tax: doc.tax ?? doc.taxAmount ?? 0,
+    discount: doc.discount ?? doc.discountAmount ?? 0,
+    items: (doc.items || []).map(i => ({
+      productName: i.productName || i.name,
+      quantity: i.quantity,
+      price: i.price,
+      total: i.total
+    })),
+    customerName: doc.customerName || null,
+    customerPhone: doc.customerPhone || null,
+    paymentMethod: doc.paymentMethod || null,
+    notes: doc.notes || null,
+    riderName: doc.riderName || null,
+    riderPhone: doc.riderPhone || null,
+    assignedAt: doc.assignedAt || null,
+    collectedAt: doc.collectedAt || null,
+    deliveredAt: doc.deliveredAt || null,
+    deliveryNotes: doc.deliveryNotes || null,
+    trackingNumber: doc.trackingNumber || null,
+    shippingCarrier: doc.shippingCarrier || null,
+    createdAt: doc.createdAt
+  };
+  if (model === 'sale') {
+    view.customerAddress = doc.customerAddress || null;
+    view.customerCity = doc.customerCity || null;
+  } else {
+    view.shippingAddress = doc.shippingAddress || null;
+  }
+  return view;
+};
+
+/**
+ * GET /api/orders/invoice/:invoiceNumber
+ * Public: return limited public order info by invoice/orderNumber
+ */
+router.get('/invoice/:invoiceNumber', async (req, res) => {
+  try {
+    const { invoiceNumber } = req.params;
+    const found = await findTrackable(invoiceNumber);
+    if (!found) return res.status(404).json({ error: 'Order not found' });
+
+    res.json({ success: true, data: publicOrderView(found) });
+  } catch (error) {
+    logger.error('Failed invoice lookup', { error: error.message, invoice: req.params.invoiceNumber });
+    res.status(500).json({ error: 'Failed to lookup order', message: error.message });
+  }
+});
+
+/**
+ * GET /api/orders/stream/:invoiceNumber
+ * Stream order updates (SSE). Authorization options:
+ *  - Bearer customer token (customer-auth) — subscribe if token matches order.customerId
+ *  - Query param ?token=... — same as Bearer, for EventSource (no headers support)
+ *  - Query param ?email=buyer@example.com — subscribe if email matches order.customerEmail
+ */
+router.get('/stream/:invoiceNumber', async (req, res) => {
+  try {
+    const { invoiceNumber } = req.params;
+    const found = await findTrackable(invoiceNumber);
+    if (!found) return res.status(404).json({ error: 'Order not found' });
+    const { doc, key } = found;
+
+    // Auth: try customer token from header or query param
+    const tokenHeader = req.headers.authorization?.split(' ')[1];
+    const tokenQuery = (req.query.token || '').toString();
+    const token = tokenHeader || tokenQuery || null;
+    if (token) {
+      try {
+        const CustomerAuthService = require('../services/customerAuthService');
+        const customer = await CustomerAuthService.verifyCustomerToken(token);
+        if (customer && doc.customerId && String(customer.customerId) === String(doc.customerId)) {
+          sseSubscribe(key, req, res);
+          return;
+        }
+      } catch (err) {
+        // ignore and fall through to email verification
+      }
+    }
+
+    // Email verification fallback
+    const qEmail = (req.query.email || '').toString().toLowerCase();
+    if (qEmail && qEmail === (doc.customerEmail || '').toLowerCase()) {
+      sseSubscribe(key, req, res);
+      return;
+    }
+
+    return res.status(403).json({ error: 'Not authorized to stream this order' });
+  } catch (error) {
+    logger.error('Failed to open order stream', { error: error.message, invoice: req.params.invoiceNumber });
+    res.status(500).json({ error: 'Failed to open stream', message: error.message });
+  }
+});
+
+/**
+ * GET /api/orders/verify?invoice=...&email=...
+ * Public: verify buyer email and return order details (whitelisted) if matched
+ */
+router.get('/verify', async (req, res) => {
+  try {
+    const { invoice, email } = req.query;
+    if (!invoice || !email) return res.status(400).json({ error: 'invoice and email are required' });
+
+    const found = await findTrackable(invoice.toString());
+    if (!found) return res.status(404).json({ error: 'Order not found' });
+
+    const buyerEmail = (found.doc.customerEmail || '').toLowerCase();
+    if (buyerEmail !== String(email).toLowerCase()) {
+      return res.status(403).json({ error: 'Email does not match order' });
+    }
+
+    res.json({ success: true, data: verifiedOrderView(found) });
+  } catch (error) {
+    logger.error('Failed order verify', { error: error.message, query: req.query });
+    res.status(500).json({ error: 'Failed to verify order', message: error.message });
+  }
+});
+
 router.get('/:id', optionalCustomer, async (req, res) => {
   try {
     const { id } = req.params;
@@ -169,6 +332,7 @@ router.get('/:id', optionalCustomer, async (req, res) => {
     });
   }
 });
+
 
 /**
  * GET /api/orders/customer/my-orders
