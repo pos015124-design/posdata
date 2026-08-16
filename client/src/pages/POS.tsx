@@ -204,7 +204,7 @@ export default function POS() {
                           className="w-full aspect-square object-cover rounded-lg mb-2"
                         />
                       ) : (
-                        <div className="aspect-square bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg mb-2 flex items-center justify-center">
+                        <div className="aspect-square bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg mb-2 flex items-center justify-center">
                           <ShoppingCart className="w-8 h-8 text-blue-600" />
                         </div>
                       )}

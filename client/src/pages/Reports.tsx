@@ -226,7 +226,7 @@ export default function Reports() {
       value: formatTZS(totalExpenses),
       change: totalExpenses > 0 ? 'Tracked' : 'No expenses',
       icon: TrendingDown,
-      color: 'from-red-500 to-pink-600',
+      color: 'from-red-500 to-red-600',
       trend: totalExpenses > 0 ? 'up' as const : 'down' as const
     },
     {
@@ -242,7 +242,7 @@ export default function Reports() {
       value: filteredSales.length.toString(),
       change: filteredSales.length > 0 ? 'Completed' : 'No orders yet',
       icon: ShoppingCart,
-      color: 'from-purple-500 to-indigo-600',
+      color: 'from-blue-600 to-blue-700',
       trend: filteredSales.length > 0 ? 'up' as const : 'down' as const
     },
   ];
@@ -338,7 +338,7 @@ export default function Reports() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
                         <div 
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all"
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all"
                           style={{ width: `${percentage}%` }}
                         ></div>
                       </div>
@@ -371,7 +371,7 @@ export default function Reports() {
                   const colors = [
                     'from-blue-500 to-cyan-600',
                     'from-green-500 to-emerald-600',
-                    'from-purple-500 to-pink-600',
+                    'from-blue-500 to-blue-600',
                     'from-orange-500 to-red-600'
                   ];
                   const colorIdx = Object.keys(paymentMethodBreakdown).indexOf(method) % colors.length;
@@ -416,7 +416,7 @@ export default function Reports() {
                 {salesData.popularItems.slice(0, 8).map((item: any, idx: number) => (
                   <div key={item._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                         {idx + 1}
                       </div>
                       <div>
@@ -490,12 +490,10 @@ export default function Reports() {
                 {Object.entries(expenseByCategory).map(([category, amount]: [string, any]) => {
                   const percentage = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : '0';
                   const colors = [
-                    'from-red-500 to-pink-600',
-                    'from-orange-500 to-yellow-600',
-                    'from-blue-500 to-cyan-600',
+                    'from-blue-500 to-blue-600',
                     'from-green-500 to-emerald-600',
-                    'from-purple-500 to-indigo-600',
-                    'from-pink-500 to-rose-600'
+                    'from-red-500 to-red-600',
+                    'from-orange-500 to-red-600'
                   ];
                   const colorIdx = Object.keys(expenseByCategory).indexOf(category) % colors.length;
                   
@@ -579,7 +577,7 @@ export default function Reports() {
               <p className="text-sm text-gray-600 font-medium">Total Expenses</p>
               <p className="text-xl sm:text-3xl font-bold text-red-700 mt-2 truncate">{formatTZS(totalExpenses)}</p>
             </div>
-            <div className={`p-4 sm:p-6 bg-gradient-to-br ${grossProfit >= 0 ? 'from-blue-50 to-cyan-50 border-blue-200' : 'from-red-50 to-pink-50 border-red-200'} rounded-lg border-2`}>
+            <div className={`p-4 sm:p-6 bg-gradient-to-br ${grossProfit >= 0 ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-red-50 to-red-100 border-red-200'} rounded-lg border-2`}>
               <p className="text-sm text-gray-600 font-medium">Net Profit</p>
               <p className={`text-xl sm:text-3xl font-bold mt-2 truncate ${grossProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                 {formatTZS(grossProfit)}

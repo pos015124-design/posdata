@@ -474,7 +474,7 @@ export default function Inventory() {
                               className="w-9 h-9 object-cover rounded-lg border border-gray-200 shrink-0"
                             />
                           ) : (
-                            <div className="w-9 h-9 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center shrink-0">
                               <Package className="w-4 h-4 text-blue-600" />
                             </div>
                           )}
@@ -623,7 +623,7 @@ export default function Inventory() {
                       />
                       <Label
                         htmlFor="product-image-upload"
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 inline-flex"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700"
                       >
                         <Upload className="w-4 h-4" />
                         {uploadingImage ? 'Uploading...' : productImage ? 'Change Image' : 'Upload Image'}

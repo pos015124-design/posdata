@@ -36,7 +36,7 @@ function StoreCard({ store }: { store: StoreInfo }) {
     <Link to={`/store/${store.slug}`} className="group block h-full">
       <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 border border-gray-100 hover:border-blue-200 h-full flex flex-col">
         {/* Brand banner — gradient with subtle dot pattern, same language as the page hero */}
-        <div className="h-20 sm:h-24 bg-gradient-to-r from-blue-700 via-blue-600 to-purple-700 relative overflow-hidden">
+        <div className="h-20 sm:h-24 bg-gradient-to-b from-blue-900 to-blue-800 relative overflow-hidden">
           <div className="absolute inset-0 opacity-20"
             style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
           <div className="absolute bottom-0 left-0 right-0 h-7 bg-white rounded-t-2xl" />
@@ -48,7 +48,7 @@ function StoreCard({ store }: { store: StoreInfo }) {
             <img src={`${BASE}${store.logo}`} alt={store.name}
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border-2 border-white shadow-md" />
           ) : (
-            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center border-2 border-white shadow-md">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center border-2 border-white shadow-md">
               <Store className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
             </div>
           )}
@@ -124,7 +124,7 @@ export default function StoreDirectory() {
     // Remove max-w-7xl constraints so content fills the full available column.
     <div className={isInsideLayout ? '' : 'min-h-screen bg-gray-50'}>
       {/* Hero — compact when inside Layout (no Logo, less padding) */}
-      <div className={`bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white ${isInsideLayout ? 'rounded-2xl mb-6' : ''}`}>
+      <div className={`bg-gradient-to-b from-blue-900 to-blue-800 text-white ${isInsideLayout ? 'rounded-2xl mb-6' : ''}`}>
         <div className={`px-4 sm:px-8 ${isInsideLayout ? 'py-6 sm:py-8' : 'py-14 md:py-20 max-w-7xl mx-auto'}`}>
           <div className={`${isInsideLayout ? '' : 'text-center max-w-2xl mx-auto'}`}>
             {/* Only show Logo when viewed as a guest (no sidebar) */}
@@ -133,7 +133,7 @@ export default function StoreDirectory() {
                 <Logo variant="white" className="h-12" />
               </div>
             )}
-            <div className={`inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium ${isInsideLayout ? 'mb-3' : 'mb-5'}`}>
+            <div className={`inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 text-sm font-medium ${isInsideLayout ? 'mb-3' : 'mb-5'}`}>
               <Sparkles className="w-4 h-4" />
               {stores.length > 0
                 ? `${stores.length} verified sellers · ${totalProducts.toLocaleString()} products`
@@ -220,7 +220,7 @@ export default function StoreDirectory() {
 
       {/* CTA footer — guests only */}
       {!isInsideLayout && (
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white mt-8">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-800 text-white mt-8">
           <div className="max-w-7xl mx-auto px-4 py-10 text-center">
             <h2 className="text-xl font-bold mb-2">Want to sell on E-Shop?</h2>
             <p className="text-white/80 text-sm mb-5">Join hundreds of local sellers reaching customers across Tanzania.</p>

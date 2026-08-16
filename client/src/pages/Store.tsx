@@ -188,7 +188,7 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: (p: Product)
         </div>
 
         {product.storeName && (
-          <div className="absolute top-2 left-2 flex max-w-[70%] items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 shadow-sm ring-1 ring-slate-200 backdrop-blur-sm">
+          <div className="absolute top-2 left-2 flex max-w-[70%] items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 shadow-sm ring-1 ring-slate-200">
             <ShieldCheck className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
             <span className="truncate text-[10px] font-semibold text-slate-700">{product.storeName}</span>
           </div>
@@ -222,14 +222,6 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: (p: Product)
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              to={`/product/${product._id}`}
-              className="text-xs font-medium text-slate-500 hover:text-blue-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
-              onClick={e => e.stopPropagation()}
-            >
-              View
-            </Link>
-
             <button
               onClick={() => onAdd(product)}
               disabled={isOutOfStock}
@@ -350,7 +342,6 @@ export default function Store() {
       try { localStorage.setItem('cart', JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
-    setCartOpen(true);
     toast({ title: 'Added to cart', description: product.name });
   };
 
@@ -496,7 +487,7 @@ export default function Store() {
 
       {/* ── Guest hero — compact on mobile, hidden when category pills shown ── */}
       {!isInsideLayout && (
-        <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-purple-700 text-white">
+        <div className="bg-gradient-to-b from-blue-900 to-blue-800 text-white">
           <div className="max-w-7xl mx-auto px-4 py-6 sm:py-10 flex items-center justify-between gap-4 flex-wrap">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-200 mb-1">

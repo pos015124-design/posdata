@@ -170,7 +170,7 @@ const SuperAdminDashboard: React.FC = () => {
             icon={Store} gradient="from-blue-500 to-blue-600" />
           <StatCard label="Total users" value={stats.overview.totalUsers}
             sub={`+${stats.growth.newUsersThisMonth} this month · ${stats.overview.pendingUsers || 0} pending`}
-            icon={Users} gradient="from-purple-500 to-purple-600" />
+            icon={Users} gradient="from-blue-600 to-blue-700" />
           <StatCard label="Total orders" value={stats.overview.totalOrders}
             sub={`+${stats.growth.ordersThisMonth} this month`}
             icon={TrendingUp} gradient="from-green-500 to-emerald-600" />
@@ -304,7 +304,7 @@ const SuperAdminDashboard: React.FC = () => {
                     <div className="space-y-3">
                       {stats.topBusinesses.slice(0, 5).map((biz: any, i: number) => (
                         <div key={biz._id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shrink-0">
                             <span className="text-xs font-bold text-white">#{i + 1}</span>
                           </div>
                           <div className="flex-1 min-w-0">

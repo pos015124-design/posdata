@@ -340,7 +340,7 @@ export default function Sellers() {
                 <CardContent className="p-4">
                   <div className="flex flex-wrap items-start gap-3">
                     {/* Avatar */}
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
                       <span className="text-white font-bold text-sm">{supplier.name.charAt(0).toUpperCase()}</span>
                     </div>
 

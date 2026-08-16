@@ -300,7 +300,7 @@ export default function DeliveryManagement() {
           { label: 'Unassigned',    value: unassignedCount, icon: Package,     gradient: 'from-gray-500 to-gray-600',    filter: 'unassigned' },
           { label: 'In progress',   value: inProgressCount, icon: Truck,       gradient: 'from-blue-500 to-blue-600',    filter: 'assigned' },
           { label: 'Delivered',     value: deliveredCount,  icon: CheckCircle, gradient: 'from-green-500 to-emerald-600', filter: 'delivered' },
-          { label: 'Active riders', value: activeRiders.length, icon: Bike,   gradient: 'from-purple-500 to-purple-600', filter: null },
+          { label: 'Active riders', value: activeRiders.length, icon: Bike,   gradient: 'from-blue-600 to-blue-700', filter: null },
         ].map(stat => (
           <Card
             key={stat.label}
@@ -848,7 +848,7 @@ export default function DeliveryManagement() {
                 <Card key={rider._id} className={`border-0 shadow-sm ${!rider.isActive ? 'opacity-60' : ''}`}>
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between gap-2 mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
                         <Bike className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex gap-1">

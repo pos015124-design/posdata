@@ -25,7 +25,7 @@ export function DashboardLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-background via-muted/5 to-primary/5">
       {/* Enhanced Header */}
-      <header className="fixed top-0 right-0 z-50 w-full md:w-[calc(100%-256px)] border-b border-border/50 bg-background/80 backdrop-blur-md shadow-sm">
+      <header className="fixed top-0 right-0 z-50 w-full md:w-[calc(100%-256px)] border-b border-border/50 bg-background/80 shadow-sm">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           {/* Mobile Menu */}
           <div className="flex items-center gap-4 md:hidden">
@@ -101,7 +101,7 @@ export function DashboardLayout() {
       </div>
 
       {/* Enhanced Footer */}
-      <footer className="md:ml-64 border-t border-border/50 bg-card/50 backdrop-blur-sm">
+      <footer className="md:ml-64 border-t border-border/50 bg-card/50 shadow-sm">
         <Footer />
       </footer>
     </div>

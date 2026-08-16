@@ -145,7 +145,7 @@ export default function Orders() {
         {[
           { label: isSuperAdmin ? 'Total orders' : 'Total requests', value: orders.length,       icon: FileText,    gradient: 'from-blue-500 to-blue-600' },
           { label: 'Completed',                                        value: completedCount,      icon: CheckCircle, gradient: 'from-green-500 to-emerald-600' },
-          { label: isSuperAdmin ? 'Online orders' : 'Pending pickup', value: isSuperAdmin ? storefrontCount : pendingCount, icon: isSuperAdmin ? ShoppingBag : Truck, gradient: 'from-purple-500 to-purple-600' },
+          { label: isSuperAdmin ? 'Online orders' : 'Pending pickup', value: isSuperAdmin ? storefrontCount : pendingCount, icon: isSuperAdmin ? ShoppingBag : Truck, gradient: 'from-blue-600 to-blue-700' },
           { label: isSuperAdmin ? 'Total revenue' : 'Your earnings',  value: `TZS ${totalRevenue.toLocaleString()}`, icon: DollarSign, gradient: 'from-orange-500 to-red-500', small: true },
         ].map(stat => (
           <Card key={stat.label} className="border-0 shadow-sm hover:shadow-md transition-shadow">
@@ -234,7 +234,7 @@ export default function Orders() {
                     onClick={() => setSelected(order)}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      isManaged ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                      isManaged ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-blue-600 to-blue-700'
                     }`}>
                       {isManaged ? <Truck className="w-5 h-5 text-white" /> : <FileText className="w-5 h-5 text-white" />}
                     </div>

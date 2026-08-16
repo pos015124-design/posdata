@@ -261,7 +261,7 @@ const LandingPage: React.FC = () => {
                 ))}
               </div>
             </div>
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-8 text-white">
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-8 text-white">
               <div className="text-center">
                 <Globe className="w-16 h-16 mx-auto mb-6 opacity-80" />
                 <h3 className="text-2xl font-bold mb-4">Ready to Go Global?</h3>

@@ -33,7 +33,7 @@ export function Sidebar() {
       icon: Shield,
       permission: "platformManagement",
       badge: "Admin",
-      gradient: "from-red-500 to-pink-600"
+      gradient: "from-red-500 to-red-600"
     },
     {
       href: "/business-management",
@@ -41,7 +41,7 @@ export function Sidebar() {
       icon: Building,
       permission: "tenantManagement",
       badge: null,
-      gradient: "from-purple-500 to-indigo-600"
+      gradient: "from-blue-600 to-blue-700"
     },
     // Platform Analytics and Platform Settings removed from sidebar
   ];
@@ -54,7 +54,7 @@ export function Sidebar() {
       icon: LayoutDashboard,
       permission: "dashboard",
       badge: null,
-      gradient: "from-blue-500 to-purple-600"
+      gradient: "from-blue-500 to-blue-600"
     },
     {
       href: "/pos",
@@ -78,7 +78,7 @@ export function Sidebar() {
       icon: UserCircle,
       permission: "customers",
       badge: null,
-      gradient: "from-pink-500 to-rose-600"
+      gradient: "from-blue-600 to-blue-700"
     },
     {
       href: "/staff",
@@ -86,7 +86,7 @@ export function Sidebar() {
       icon: Users,
       permission: "staff",
       badge: null,
-      gradient: "from-indigo-500 to-blue-600"
+      gradient: "from-blue-500 to-blue-600"
     },
     {
       href: "/expenses",
@@ -102,7 +102,7 @@ export function Sidebar() {
       icon: BarChart3,
       permission: "reports",
       badge: "New",
-      gradient: "from-purple-500 to-pink-600"
+      gradient: "from-blue-600 to-blue-700"
     },
     {
       href: "/settings",
@@ -145,7 +145,7 @@ export function Sidebar() {
   });
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-card/95 backdrop-blur-md border-r border-border/50 shadow-modern animate-slide-up">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-card/95 border-r border-border/50 shadow-modern animate-slide-up">
       {/* Header */}
       <div className="flex h-16 items-center justify-between border-b border-border/50 px-6">
         <div className="flex items-center gap-3">

@@ -194,8 +194,8 @@ export default function Dashboard() {
       title: 'Customers',
       value: stats.totalCustomers.toString(),
       icon: Users,
-      color: 'from-purple-500 to-pink-600',
-      bgColor: 'bg-purple-50'
+      color: 'from-blue-600 to-blue-700',
+      bgColor: 'bg-blue-50'
     },
     {
       title: 'Products',
@@ -240,7 +240,7 @@ export default function Dashboard() {
 
       {/* Store Link Card */}
       {storeUrl && (
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100">
           <CardContent className="p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <div className="flex-1 min-w-0">

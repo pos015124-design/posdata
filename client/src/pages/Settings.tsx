@@ -639,7 +639,7 @@ export default function Settings() {
               {activeTab === 'business' && (
                 <div className="space-y-6">
                   {/* Store URL Preview */}
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
                     <h3 className="font-semibold text-base mb-2">Your Store URL</h3>
                     <div className="flex items-center gap-2">
                       <code className="text-xs sm:text-sm bg-white px-3 py-2 rounded border flex-1 break-all">
@@ -803,7 +803,7 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                         {profileSettings.fullName?.charAt(0).toUpperCase() || 'U'}
                       </div>
                       <div>

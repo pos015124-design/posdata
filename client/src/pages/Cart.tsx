@@ -100,7 +100,7 @@ export default function Cart() {
               <div key={group.slug || group.label} className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 {/* Store header */}
                 <div className="flex items-center gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                     <StoreIcon className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1">

@@ -44,9 +44,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-4">
-      <div className="absolute inset-0 bg-black/20" />
-
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-950 via-blue-800 to-blue-900 p-4">
       <Card className="relative w-full max-w-md shadow-2xl border-0">
         <CardHeader className="space-y-3 text-center pb-4">
           <div className="flex justify-center">

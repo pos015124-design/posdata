@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
         style={{ height: '100dvh' }}
       >
         {/* Brand gradient wash — subtle blue→purple, keeps the navy dark and premium */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600/20 via-blue-900/10 to-purple-700/20" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600/10 via-blue-900/5 to-blue-900/10" />
         <div className="pointer-events-none absolute -top-24 -right-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
 
         {/* Header */}

@@ -442,7 +442,7 @@ export default function IndividualStore() {
                   className="w-12 h-12 rounded-lg object-cover"
                 />
               ) : (
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
                   <Logo variant="icon" />
                 </div>
               )}
@@ -503,7 +503,7 @@ export default function IndividualStore() {
       </header>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-10">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-10">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-2">{business.name}</h2>
           <p className="text-white/80 mb-5 max-w-xl mx-auto text-sm md:text-base">

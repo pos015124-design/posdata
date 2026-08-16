@@ -52,25 +52,24 @@ const WANDER: Wander[] = [
 
 /** Floating icon spec: position, size, delay, duration, tint, wander index. */
 const FLOATING_ICONS = [
-  { Icon: ShoppingBag,  left: '8%',  top: '12%', size: 34, delay: '0s',     duration: '9s',   color: 'text-sky-300/50', ring: true,  wander: 0 },
-  { Icon: Store,        left: '72%', top: '18%', size: 40, delay: '1.2s',   duration: '11s',  color: 'text-indigo-300/40', ring: false, wander: 1 },
-  { Icon: Package,      left: '16%', top: '48%', size: 30, delay: '2.1s',   duration: '8s',   color: 'text-white/35', ring: true,  wander: 2 },
-  { Icon: Truck,        left: '82%', top: '58%', size: 36, delay: '0.6s',   duration: '12s',  color: 'text-sky-300/40', ring: false, wander: 3 },
-  { Icon: CreditCard,   left: '6%',  top: '74%', size: 28, delay: '1.8s',   duration: '9.5s', color: 'text-white/35', ring: false, wander: 4 },
-  { Icon: Smartphone,   left: '64%', top: '80%', size: 32, delay: '2.8s',   duration: '10s',  color: 'text-indigo-300/50', ring: true, wander: 5 },
-  { Icon: BarChart3,    left: '48%', top: '8%',  size: 30, delay: '3.4s',   duration: '8.5s', color: 'text-white/30', ring: false, wander: 6 },
-  { Icon: ShieldCheck,  left: '88%', top: '36%', size: 28, delay: '1.5s',   duration: '11.5s', color: 'text-emerald-300/40', ring: false, wander: 7 },
-  { Icon: Sparkles,     left: '30%', top: '26%', size: 26, delay: '2.6s',   duration: '7.5s', color: 'text-amber-300/40', ring: false, wander: 8 },
-  { Icon: Users,        left: '42%', top: '66%', size: 30, delay: '0.9s',   duration: '10.5s', color: 'text-sky-300/35', ring: true, wander: 9 },
+  { Icon: ShoppingBag,  left: '8%',  top: '10%', size: 34, delay: '0s',     duration: '9s',   color: 'text-sky-300/50', ring: true,  wander: 0 },
+  { Icon: Store,        left: '72%', top: '22%', size: 40, delay: '1.2s',   duration: '11s',  color: 'text-sky-300/45', ring: false, wander: 1 },
+  { Icon: Package,      left: '16%', top: '38%', size: 30, delay: '2.1s',   duration: '8s',   color: 'text-white/35', ring: true,  wander: 2 },
+  { Icon: Truck,        left: '82%', top: '52%', size: 36, delay: '0.6s',   duration: '12s',  color: 'text-sky-300/40', ring: false, wander: 3 },
+  { Icon: CreditCard,   left: '6%',  top: '68%', size: 28, delay: '1.8s',   duration: '9.5s', color: 'text-white/35', ring: false, wander: 4 },
+  { Icon: Smartphone,   left: '64%', top: '78%', size: 32, delay: '2.8s',   duration: '10s',  color: 'text-sky-300/50', ring: true, wander: 5 },
+  { Icon: BarChart3,    left: '48%', top: '28%', size: 30, delay: '3.4s',   duration: '8.5s', color: 'text-white/30', ring: false, wander: 6 },
+  { Icon: ShieldCheck,  left: '88%', top: '42%', size: 28, delay: '1.5s',   duration: '11.5s', color: 'text-sky-300/40', ring: false, wander: 7 },
+  { Icon: Sparkles,     left: '30%', top: '60%', size: 26, delay: '2.6s',   duration: '7.5s', color: 'text-white/30', ring: false, wander: 8 },
+  { Icon: Users,        left: '42%', top: '86%', size: 30, delay: '0.9s',   duration: '10.5s', color: 'text-sky-300/35', ring: true, wander: 9 },
 ];
 
 function FloatingIconField({ className = '' }: { className?: string }) {
   return (
     <div aria-hidden="true" className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}>
-      {/* Ambient glows */}
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-sky-400/20 rounded-full blur-3xl" />
-      <div className="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] bg-purple-500/20 rounded-full blur-3xl" />
-      <div className="absolute top-1/3 left-1/2 w-72 h-72 bg-indigo-400/10 rounded-full blur-3xl" />
+      {/* Ambient glows — subtle blue tones only */}
+      <div className="absolute -top-24 -left-24 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl" />
+      <div className="absolute top-1/3 left-1/2 w-72 h-72 bg-blue-400/8 rounded-full blur-3xl" />
 
       {FLOATING_ICONS.map(({ Icon, left, top, size, delay, duration, color, ring, wander }, i) => {
         const w = WANDER[wander];
@@ -116,7 +115,7 @@ export default function AuthShell({ children, heading, subheading, wide = false 
   wide?: boolean;
 }) {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800 text-white">
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-blue-950 via-blue-800 to-blue-900 text-white">
       <FloatingIconField className="z-0" />
 
       <div className="relative z-10 min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr]">
@@ -153,9 +152,8 @@ export default function AuthShell({ children, heading, subheading, wide = false 
         {/* ── Form side ───────────────────────────────────────────────────── */}
         <div className="relative flex flex-col justify-center items-center min-h-screen p-4 sm:p-8 lg:pt-8">
           <div className={`lg:hidden absolute inset-x-0 top-0 overflow-hidden ${wide ? 'h-24' : 'h-32'}`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0b1736] via-blue-800 to-purple-800" />
+            <div className="absolute inset-0 bg-gradient-to-b from-blue-950 via-blue-800 to-blue-900" />
             <FloatingIconField className="opacity-70" />
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 to-transparent" />
           </div>
 
           <div className={`lg:hidden relative z-10 w-full flex justify-center ${wide ? 'pt-5 pb-2' : 'pt-8 pb-3'}`}>
