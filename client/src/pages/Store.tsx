@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ShoppingCart, Search, Building2,
+  ShoppingCart, Search, Building2, ShoppingBag,
   ChevronLeft, ChevronRight, X, Plus, Minus, Trash2,
   SlidersHorizontal, Store as StoreIcon, Star, ShieldCheck
 } from 'lucide-react';
@@ -387,7 +387,7 @@ export default function Store() {
               )}
             </div>
 
-            {/* Stores link + cart button */}
+            {/* Stores link + Track Order + cart button */}
             <div className="flex items-center gap-2 shrink-0">
               <Link
                 to="/stores"
@@ -395,6 +395,13 @@ export default function Store() {
               >
                 <Building2 className="w-4 h-4" />
                 Stores
+              </Link>
+              <Link
+                to="/track"
+                className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Track Order
               </Link>
               <button
                 onClick={() => setCartOpen(true)}
@@ -673,22 +680,26 @@ export default function Store() {
       {!isInsideLayout && (
         <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg" aria-label="Mobile navigation">
           <div className="flex items-center justify-around h-16 px-2">
-            <Link to="/store" className="flex flex-col items-center gap-1 px-4 py-2 text-blue-600">
+            <Link to="/store" className="flex flex-col items-center gap-1 px-3 py-2 text-blue-600">
               <ShoppingCart className="w-5 h-5" />
               <span className="text-xs font-semibold">Shop</span>
             </Link>
-            <Link to="/stores" className="flex flex-col items-center gap-1 px-4 py-2 text-gray-500 hover:text-blue-600 transition-colors">
+            <Link to="/stores" className="flex flex-col items-center gap-1 px-3 py-2 text-gray-500 hover:text-blue-600 transition-colors">
               <StoreIcon className="w-5 h-5" />
               <span className="text-xs font-medium">Stores</span>
             </Link>
+            <Link to="/track" className="flex flex-col items-center gap-1 px-3 py-2 text-gray-500 hover:text-blue-600 transition-colors">
+              <ShoppingBag className="w-5 h-5" />
+              <span className="text-xs font-medium">Track</span>
+            </Link>
             <button
               onClick={() => setCartOpen(true)}
-              className="flex flex-col items-center gap-1 px-4 py-2 text-gray-500 hover:text-blue-600 transition-colors relative"
+              className="flex flex-col items-center gap-1 px-3 py-2 text-gray-500 hover:text-blue-600 transition-colors relative"
               aria-label={`Cart, ${cartCount} items`}
             >
               <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && (
-                <span className="absolute top-1 right-3 bg-blue-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                <span className="absolute top-1 right-2 bg-blue-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}

@@ -267,13 +267,23 @@ export default function Checkout() {
             )}
           </div>
 
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => navigate('/store')}>
-              <ShoppingBag className="w-4 h-4 mr-2" />Keep shopping
-            </Button>
-            <Button className="flex-1 bg-blue-600" onClick={() => navigate('/store')}>
-              Done
-            </Button>
+          <div className="space-y-3">
+            {invoices[0] && (
+              <Button 
+                className="w-full bg-green-600 hover:bg-green-700 text-white" 
+                onClick={() => navigate(`/track?invoice=${encodeURIComponent(invoices[0])}`)}
+              >
+                Track your order
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => navigate('/store')}>
+                <ShoppingBag className="w-4 h-4 mr-2" />Keep shopping
+              </Button>
+              <Button className="flex-1 bg-blue-600" onClick={() => navigate('/store')}>
+                Done
+              </Button>
+            </div>
           </div>
         </div>
       </div>
