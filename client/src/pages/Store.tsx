@@ -493,22 +493,22 @@ export default function Store() {
             <div className="relative z-10 flex items-center justify-between gap-3">
               <div className="space-y-1.5 max-w-[70%]">
                 <span className="inline-block rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">
-                  Featured offer
+                  Trending now
                 </span>
                 <h1 className="text-base font-bold leading-tight text-white sm:text-lg">
-                  Fresh essentials & local favourites
+                  Premium products from trusted local sellers
                 </h1>
                 <p className="text-[11px] text-slate-300 sm:text-xs">
-                  Fast delivery across Dar es Salaam
+                  Same-day delivery in select areas • Nationwide shipping
                 </p>
               </div>
 
               <Button
                 size="sm"
-                onClick={() => setSelectedCategory('')}
+                onClick={() => { setSelectedCategory(''); searchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                 className="shrink-0 bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold px-3 py-2 text-[11px] rounded-xl shadow-sm"
               >
-                Shop now
+                Explore
               </Button>
             </div>
           </div>
