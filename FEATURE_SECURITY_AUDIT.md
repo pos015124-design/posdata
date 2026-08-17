@@ -359,30 +359,15 @@ if ($scheme != "https") {
 }
 ```
 
-#### **2. Missing Content Security Policy (CSP)**
-**Issue:** No CSP header to prevent XSS attacks  
-**Impact:** Inline scripts or malicious scripts could execute  
-**Recommendation:**
-```javascript
-// In server.js
-app.use(helmet.contentSecurityPolicy({
-  directives: {
-    defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "https://trusted-cdn.com"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
-    imgSrc: ["'self'", "data:", "https:"],
-  },
-}));
-```
+#### **2. Content Security Policy (CSP)** ✅ RESOLVED — ALREADY CONFIGURED
+**Issue:** (Previous audit claimed no CSP header)  
+**Status:** `server/server.js` configures a full CSP via Helmet (`helmet.contentSecurityPolicy`) with `defaultSrc 'self'`, `scriptSrc 'self' + CDNs`, `styleSrc 'self' 'unsafe-inline'`, `imgSrc 'self' data: https:`, etc.  
+**Remaining:** Keep the CSP directive list in sync as new third-party scripts (analytics, payment widgets) are added.
 
-#### **3. Missing CSRF Protection**
+#### **3. CSRF Protection** ✅ MOSTLY N/A — JWT-BEARER AUTH
 **Issue:** No CSRF tokens for state-changing operations  
-**Impact:** Cross-site request forgery attacks possible  
-**Recommendation:**
-```bash
-npm install csurf cookie-parser
-```
-Then add middleware for POST/PUT/DELETE routes.
+**Status:** The app authenticates with JWT bearer tokens in `localStorage` headers (`Authorization: Bearer …`), **not** cookies. The classic CSRF vector (browser auto-attaching cookies cross-origin) does not apply — a cross-site form cannot forge an `Authorization` header.  
+**Remaining:** If session cookies are ever introduced (e.g. HttpOnly cookie sessions), add SameSite=Strict cookies + a synchronizer-token pattern before shipping that change.
 
 #### **4. Session Storage Security**
 **Issue:** JWT tokens stored in localStorage (vulnerable to XSS)  
@@ -418,24 +403,10 @@ Then add middleware for POST/PUT/DELETE routes.
 - Timeout inactive sessions after 30 mins
 - Clear session data after payment completes
 
-#### **8. Missing Input Validation on Checkout**
-**Issue:** Customer data (name, email, phone, address) not sanitized  
-**Recommendation:**
-```javascript
-// Add validation in /api/public/checkout
-const { validationResult } = require('express-validator');
-const { body, validationResult } = require('express-validator');
-
-router.post('/checkout', [
-  body('customer.name').trim().notEmpty(),
-  body('customer.email').isEmail(),
-  body('customer.phone').isMobilePhone(),
-], (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(400).json({ errors });
-  // ... proceed
-});
-```
+#### **8. Input Validation on Checkout** ✅ RESOLVED — ALREADY IMPLEMENTED
+**Issue:** (Previous audit claimed customer data was not sanitized)  
+**Status:** `express-validator` (e.g. `mongoIdValidation`) + Joi schemas are used across routes, including the public checkout flow, and a dedicated checkout rate limiter is applied. `mongoSanitize` + `hpp` strip injection payloads globally.  
+**Remaining:** No action needed; keep validating new fields as they are added.
 
 #### **9. No PII Encryption in Transit**
 **Issue:** Customer data (address, phone) stored in plain text  
@@ -452,11 +423,13 @@ router.post('/checkout', [
 - Subdomain-per-seller for isolation (optional, currently fine)
 - Implement SameSite cookie attribute
 
-#### **11. No Two-Factor Authentication (2FA)**
-**Issue:** Sellers only have password-based auth  
-**Recommendation:**
-- Add 2FA option for admin/super_admin accounts
-- Use TOTP (Google Authenticator) or SMS OTP
+#### **11. Two-Factor Authentication (2FA)** ✅ IMPLEMENTED — TOTP FOR ADMINS
+**Issue:** (Previous audit claimed no 2FA)  
+**Status:** TOTP (Google Authenticator / Authy) 2FA is implemented for `admin`, `super_admin`, and `business_admin` accounts:
+- **Enable/Disable:** Settings → Security tab (seller admins) and the Account Security card on the super admin settings page
+- **Setup:** QR code + manual base32 secret, verified with a live code + current password before activation
+- **Login:** password step returns a short-lived 5-minute challenge token; `/api/auth/2fa/verify` completes login with the TOTP code
+- **Hardening:** enabling/disabling invalidates all existing sessions (forces re-login), failed codes count toward lockout, and `twoFactorSecret` is `select: false` so it never leaves the server
 
 #### **12. Missing API Versioning**
 **Issue:** No /api/v1/ versioning for backward compatibility  
@@ -471,10 +444,12 @@ router.post('/checkout', [
 ```
 AUTHENTICATION & AUTH
   ✅ JWT_SECRET is strong (32+ chars) and unique
-  ✅ Passwords hashed with bcrypt
+  ✅ Passwords hashed with bcrypt (12 rounds)
   ✅ Role-based access control enforced
-  ✅ Token expiry set (recommend 24h for refresh token)
-  ⚠️ CSRF tokens not yet implemented (add for forms)
+  ✅ Token expiry set (24h access + 7d rotating refresh)
+  ✅ 2FA (TOTP) available for admin / super_admin / business_admin
+  ✅ 2FA secret stored select:false — never exposed via API
+  ✅ CSRF not applicable — JWT bearer headers, no session cookies
   
 HTTPS & ENCRYPTION
   ✅ SSL/TLS certificates installed
@@ -482,11 +457,12 @@ HTTPS & ENCRYPTION
   ⚠️ No encryption at rest for PII (recommend)
   
 API SECURITY
-  ✅ Rate limiting enabled
+  ✅ Rate limiting enabled (API / auth / checkout)
   ✅ CORS configured properly
   ✅ Helmet.js security headers enabled
+  ✅ CSP header configured (helmet.contentSecurityPolicy)
   ✅ No SQL injection (using MongoDB/Mongoose)
-  ⚠️ Missing CSP header (add)
+  ✅ mongoSanitize + hpp + express-validator/Joi validation
   
 DATA PROTECTION
   ✅ Sensitive fields excluded from responses
@@ -503,6 +479,7 @@ PAYMENT SECURITY
 LOGGING & MONITORING
   ✅ Security logger for suspicious activity
   ✅ Audit logs for data changes
+  ✅ 2FA enable/disable and login events audited
   ✅ No sensitive data in logs
   ⚠️ No centralized log aggregation (recommend ELK/CloudWatch)
   
@@ -518,20 +495,24 @@ DEPLOYMENT
 
 ## RECOMMENDED PRIORITY FIXES
 
+### Done (Implemented)
+- ✅ **CSP Header** - Configured via Helmet in server.js
+- ✅ **2FA for admin/super_admin** - TOTP with QR setup, enforced on login
+- ✅ **Input Validation** - express-validator + Joi across routes incl. checkout
+- ✅ **CSRF** - N/A for JWT-bearer auth (no session cookies); revisit only if cookies are introduced
+
 ### Must Do (Before Production)
-1. **Add CSRF Protection** - Protects against form hijacking
-2. **Add CSP Header** - Prevents XSS attacks
-3. **Enforce HTTPS** - Protects data in transit
-4. **Implement 2FA** - For admin/super_admin accounts
+1. **Enforce HTTPS** - Protects data in transit
+2. **Encrypt PII** - At rest in database
+3. **Rate Limiting on Order Lookup** - Prevent enumeration (email-verified view already limits exposure)
 
 ### Should Do (Within 1 Month)
-5. **Add Input Validation** - On all form submissions
-6. **Encrypt PII** - At rest in database
-7. **Rate Limiting on Order Lookup** - Prevent enumeration
-8. **API Versioning** - Plan for v2
+4. **API Versioning** - Plan for v2
+5. **Centralized Logging** - ELK or CloudWatch
 
-### Nice to Have (Nice to Have)
-9. **Centralized Logging** - ELK or CloudWatch
+### Nice to Have
+6. **Intrusion detection** - fail2ban on VPS
+7. **Automated security scanning** - GitHub Actions / dependabot
 10. **Security Scanning** - OWASP ZAP in CI/CD
 11. **Subdomain Isolation** - For store separation
 

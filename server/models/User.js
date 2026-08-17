@@ -213,6 +213,19 @@ const userSchema = new mongoose.Schema({
   },
   accountLockedUntil: Date,
 
+  // Two-Factor Authentication (TOTP — Google Authenticator / Authy)
+  // twoFactorSecret is select:false so it is never included in query
+  // results or API responses unless explicitly requested with +twoFactorSecret.
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorSecret: {
+    type: String,
+    select: false
+  },
+  twoFactorSetupAt: Date,
+
   // Password Reset
   passwordResetToken: String,
   passwordResetExpires: Date,

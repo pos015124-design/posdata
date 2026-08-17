@@ -15,6 +15,102 @@ const {
 } = require('./middleware/authEnhanced');
 const { securityLogger, auditLogger } = require('../config/logger');
 const { body: bodyCheck, validationResult: checkResult } = require('express-validator');
+const { authenticator } = require('otplib');
+const QRCode = require('qrcode');
+
+// ── Two-Factor Authentication (TOTP) helpers ──────────────────────────────────
+// Roles allowed to enable 2FA from Settings — admin + super admin only.
+const TWO_FACTOR_ROLES = ['admin', 'super_admin', 'business_admin'];
+const TOTP_ISSUER = 'BHABY E-Shop';
+
+// window: 1 → accept the code from the previous, current, and next 30s step
+// (tolerates small clock drift between the phone and the server).
+authenticator.options = { window: 1 };
+
+/**
+ * Issue the access + refresh token pair, persist the refresh token, log the
+ * login, and respond. Shared by the normal login path and the 2FA verify step
+ * so both flows behave identically.
+ */
+const issueSession = async (user, req, res) => {
+  const clientIP = req.ip;
+  const userAgent = req.get('User-Agent');
+
+  // Clear failed login attempts on successful login
+  clearLoginAttempts(user.email);
+
+  // Generate tokens with enhanced payload
+  const tokenPayload = {
+    userId: user._id,
+    email: user.email,
+    role: user.role,
+    tenantId: user.tenantId,
+    businessId: user.businessId
+  };
+
+  const accessToken = jwt.sign(
+    tokenPayload,
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' } // Extended for better UX, but implement refresh token rotation
+  );
+
+  const refreshToken = jwt.sign(
+    tokenPayload,
+    process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  // Log successful login
+  securityLogger.info('Successful login', {
+    email: user.email,
+    userId: user._id,
+    role: user.role,
+    ip: clientIP,
+    userAgent
+  });
+
+  auditLogger.info('User login', {
+    action: 'LOGIN',
+    userId: user._id,
+    email: user.email,
+    ip: clientIP,
+    timestamp: new Date().toISOString()
+  });
+
+  // Persist the refresh token so the /refresh endpoint can validate it.
+  // Without this save the refresh endpoint always returns 403 because
+  // user.refreshToken is null.
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  // Backfill low-stock alerts for products already below their reorder point
+  // (non-blocking — never delays the login response)
+  setImmediate(async () => {
+    try {
+      const { sweepLowStockNotifications } = require('../services/notificationService');
+      await sweepLowStockNotifications(user._id);
+    } catch (sweepErr) {
+      console.error('[Notification] login sweep failed:', sweepErr.message);
+    }
+  });
+
+  res.json({
+    success: true,
+    accessToken,
+    refreshToken,
+    user: {
+      email: user.email,
+      role: user.role,
+      isApproved: user.isApproved,
+      permissions: user.permissions,
+      tenantId: user.tenantId,
+      businessId: user.businessId,
+      fullName: user.fullName,
+      notificationPrefs: user.notificationPrefs,
+      twoFactorEnabled: !!user.twoFactorEnabled
+    }
+  });
+};
 
 router.post('/login',
   validateLogin,
@@ -55,8 +151,6 @@ router.post('/login',
         });
       }
 
-
-
       // Only super_admin is auto-approved on login.
       // business_admin users must wait for manual admin approval.
       if (user.role === 'super_admin') {
@@ -66,79 +160,25 @@ router.post('/login',
         }
       }
 
-      // Clear failed login attempts on successful login
-      clearLoginAttempts(email);
-
-      // Generate tokens with enhanced payload
-      const tokenPayload = {
-        userId: user._id,
-        email: user.email,
-        role: user.role,
-        tenantId: user.tenantId,
-        businessId: user.businessId
-      };
-
-      const accessToken = jwt.sign(
-        tokenPayload,
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' } // Extended for better UX, but implement refresh token rotation
-      );
-
-      const refreshToken = jwt.sign(
-        tokenPayload,
-        process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      // Log successful login
-      securityLogger.info('Successful login', {
-        email: user.email,
-        userId: user._id,
-        role: user.role,
-        ip: clientIP,
-        userAgent
-      });
-
-      auditLogger.info('User login', {
-        action: 'LOGIN',
-        userId: user._id,
-        email: user.email,
-        ip: clientIP,
-        timestamp: new Date().toISOString()
-      });
-
-      // Persist the refresh token so the /refresh endpoint can validate it.
-      // Without this save the refresh endpoint always returns 403 because
-      // user.refreshToken is null.
-      user.refreshToken = refreshToken;
-      await user.save();
-
-      // Backfill low-stock alerts for products already below their reorder point
-      // (non-blocking — never delays the login response)
-      setImmediate(async () => {
-        try {
-          const { sweepLowStockNotifications } = require('../services/notificationService');
-          await sweepLowStockNotifications(user._id);
-        } catch (sweepErr) {
-          console.error('[Notification] login sweep failed:', sweepErr.message);
-        }
-      });
-
-      res.json({
-        success: true,
-        accessToken,
-        refreshToken,
-        user: {
+      // Two-factor authentication: challenge the TOTP code before issuing
+      // tokens. A short-lived single-purpose token lets the client complete
+      // the second step without exposing any session credentials.
+      if (user.twoFactorEnabled) {
+        const twoFactorToken = jwt.sign(
+          { userId: user._id, purpose: 'two_factor' },
+          process.env.JWT_SECRET,
+          { expiresIn: '5m' }
+        );
+        securityLogger.info('2FA challenge issued', {
           email: user.email,
-          role: user.role,
-          isApproved: user.isApproved,
-          permissions: user.permissions,
-          tenantId: user.tenantId,
-          businessId: user.businessId,
-          fullName: user.fullName,
-          notificationPrefs: user.notificationPrefs
-        }
-      });
+          userId: user._id,
+          ip: clientIP,
+          userAgent
+        });
+        return res.json({ success: true, requiresTwoFactor: true, twoFactorToken });
+      }
+
+      await issueSession(user, req, res);
     } catch (error) {
       securityLogger.error('Login error', {
         error: error.message,
@@ -153,6 +193,171 @@ router.post('/login',
     }
   }
 );
+
+// ── Two-Factor Authentication (TOTP) routes ───────────────────────────────────
+// GET /api/auth/2fa/status — whether 2FA is enabled for the current user
+router.get('/2fa/status', requireUser, async (req, res) => {
+  try {
+    res.json({ success: true, twoFactorEnabled: !!req.userDetails.twoFactorEnabled });
+  } catch (error) {
+    securityLogger.error('2FA status error', { error: error.message, userId: req.user?.userId });
+    res.status(500).json({ error: 'Failed to load 2FA status' });
+  }
+});
+
+// POST /api/auth/2fa/setup — generate a TOTP secret + QR code for the app
+router.post('/2fa/setup', requireUser, async (req, res) => {
+  try {
+    const user = req.userDetails;
+    if (!TWO_FACTOR_ROLES.includes(user.role)) {
+      return res.status(403).json({ message: 'Two-factor authentication is only available for admin accounts.' });
+    }
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({ message: 'Two-factor authentication is already enabled.' });
+    }
+
+    const secret = authenticator.generateSecret();
+    const otpauthUrl = authenticator.keyuri(user.email, TOTP_ISSUER, secret);
+    const qrCode = await QRCode.toDataURL(otpauthUrl);
+
+    // Persist the pending secret so /enable only needs the verification code.
+    // The user is still fully logged in — 2FA is not active until /enable.
+    user.twoFactorSecret = secret;
+    await user.save();
+
+    securityLogger.info('2FA setup initiated', { userId: user._id, email: user.email, ip: req.ip });
+    res.json({ success: true, secret, otpauthUrl, qrCode });
+  } catch (error) {
+    securityLogger.error('2FA setup error', { error: error.message, userId: req.user?.userId });
+    res.status(500).json({ error: 'Failed to start 2FA setup' });
+  }
+});
+
+// POST /api/auth/2fa/enable — verify the TOTP code + password, then enable 2FA
+router.post('/2fa/enable', requireUser, async (req, res) => {
+  try {
+    const user = req.userDetails;
+    if (!TWO_FACTOR_ROLES.includes(user.role)) {
+      return res.status(403).json({ message: 'Two-factor authentication is only available for admin accounts.' });
+    }
+
+    const { code, password } = req.body;
+    if (!code || !password) {
+      return res.status(400).json({ message: 'Verification code and current password are required.' });
+    }
+
+    const fresh = await User.findById(user._id).select('+twoFactorSecret');
+    if (!fresh.twoFactorSecret) {
+      return res.status(400).json({ message: 'No pending setup found. Start 2FA setup first.' });
+    }
+
+    const passwordOk = await bcrypt.compare(password, fresh.password);
+    if (!passwordOk) {
+      securityLogger.warn('2FA enable failed - wrong password', { userId: user._id, email: user.email, ip: req.ip });
+      return res.status(403).json({ message: 'Incorrect password.' });
+    }
+
+    const codeOk = authenticator.check(String(code).replace(/\s+/g, ''), fresh.twoFactorSecret);
+    if (!codeOk) {
+      securityLogger.warn('2FA enable failed - invalid code', { userId: user._id, email: user.email, ip: req.ip });
+      return res.status(400).json({ message: 'Invalid verification code.' });
+    }
+
+    fresh.twoFactorEnabled = true;
+    fresh.twoFactorSetupAt = new Date();
+    // Invalidate existing sessions — they were authenticated without 2FA.
+    fresh.refreshToken = null;
+    await fresh.save();
+
+    auditLogger.info('2FA enabled', { action: '2FA_ENABLE', userId: user._id, email: user.email, ip: req.ip });
+    res.json({ success: true, message: 'Two-factor authentication enabled.' });
+  } catch (error) {
+    securityLogger.error('2FA enable error', { error: error.message, userId: req.user?.userId });
+    res.status(500).json({ error: 'Failed to enable 2FA' });
+  }
+});
+
+// POST /api/auth/2fa/disable — requires the current password, then turns 2FA off
+router.post('/2fa/disable', requireUser, async (req, res) => {
+  try {
+    const user = req.userDetails;
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: 'Current password is required.' });
+    }
+
+    const passwordOk = await bcrypt.compare(password, user.password);
+    if (!passwordOk) {
+      securityLogger.warn('2FA disable failed - wrong password', { userId: user._id, email: user.email, ip: req.ip });
+      return res.status(403).json({ message: 'Incorrect password.' });
+    }
+
+    user.twoFactorEnabled = false;
+    user.twoFactorSecret = undefined;
+    user.twoFactorSetupAt = undefined;
+    user.refreshToken = null; // force a fresh login after disabling
+    await user.save();
+
+    auditLogger.info('2FA disabled', { action: '2FA_DISABLE', userId: user._id, email: user.email, ip: req.ip });
+    res.json({ success: true, message: 'Two-factor authentication disabled.' });
+  } catch (error) {
+    securityLogger.error('2FA disable error', { error: error.message, userId: req.user?.userId });
+    res.status(500).json({ error: 'Failed to disable 2FA' });
+  }
+});
+
+// POST /api/auth/2fa/verify — complete the login with the TOTP code
+router.post('/2fa/verify', async (req, res) => {
+  const { twoFactorToken, code } = req.body;
+  const clientIP = req.ip;
+  const userAgent = req.get('User-Agent');
+
+  if (!twoFactorToken || !code) {
+    return res.status(400).json({ message: 'twoFactorToken and code are required.' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(twoFactorToken, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).json({ message: 'Two-factor session expired. Please log in again.' });
+  }
+  if (decoded.purpose !== 'two_factor') {
+    return res.status(403).json({ message: 'Invalid two-factor session.' });
+  }
+
+  try {
+    const user = await User.findById(decoded.userId).select('+twoFactorSecret');
+    if (!user) return res.status(401).json({ message: 'User not found.' });
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+      return res.status(403).json({ message: 'Two-factor authentication is not enabled for this account.' });
+    }
+
+    const codeOk = authenticator.check(String(code).replace(/\s+/g, ''), user.twoFactorSecret);
+    if (!codeOk) {
+      recordFailedAttempt(user.email);
+      securityLogger.warn('2FA verify failed - invalid code', {
+        email: user.email,
+        userId: user._id,
+        ip: clientIP,
+        userAgent
+      });
+      return res.status(400).json({ message: 'Invalid verification code.' });
+    }
+
+    await issueSession(user, req, res);
+  } catch (error) {
+    securityLogger.error('2FA verify error', {
+      error: error.message,
+      ip: clientIP,
+      userAgent
+    });
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'An error occurred during login'
+    });
+  }
+});
 
 router.post('/register',
   validateRegistration,

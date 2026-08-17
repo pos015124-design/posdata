@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import * as settingsApi from '../api/settings';
 import PendingUsers from './PendingUsers';
 import BusinessManagement from './BusinessManagement';
+import TwoFactorSection from '../components/TwoFactorSection';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
@@ -457,6 +458,7 @@ export default function Settings() {
     { id: 'tax', label: 'Tax', icon: FileText },
     { id: 'payment', label: 'Payment', icon: CreditCard },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'security', label: 'Security', icon: Shield },
   ];
 
   if (loading) {
@@ -488,6 +490,15 @@ export default function Settings() {
             </Button>
           </div>
         </div>
+
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle>Account Security</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TwoFactorSection />
+          </CardContent>
+        </Card>
 
         <Card className="border-0 shadow-lg">
           <CardHeader>
@@ -584,6 +595,7 @@ export default function Settings() {
                 {activeTab === 'tax' && 'Tax Settings'}
                 {activeTab === 'payment' && 'Payment Settings'}
                 {activeTab === 'notifications' && 'Notification Preferences'}
+                {activeTab === 'security' && 'Security Settings'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1103,6 +1115,10 @@ export default function Settings() {
                     Save Preferences
                   </Button>
                 </div>
+              )}
+
+              {activeTab === 'security' && (
+                <TwoFactorSection />
               )}
             </CardContent>
           </Card>

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { login as apiLogin, register as apiRegister, getCurrentUser } from "@/api/auth";
+import { login as apiLogin, register as apiRegister, getCurrentUser, verifyTwoFactor as apiVerifyTwoFactor } from "@/api/auth";
 
 type Permissions = {
   dashboard: boolean;
@@ -26,7 +26,13 @@ type User = {
 type AuthContextType = {
   isAuthenticated: boolean;
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  /**
+   * Login with email + password. When the account has 2FA enabled the server
+   * answers with a short-lived challenge instead of tokens — the caller must
+   * then call verifyTwoFactor(twoFactorToken, code) to complete the login.
+   */
+  login: (email: string, password: string) => Promise<{ requiresTwoFactor: boolean; twoFactorToken?: string }>;
+  verifyTwoFactor: (twoFactorToken: string, code: string) => Promise<void>;
   register: (email: string, password: string, name?: string, businessName?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -76,25 +82,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []); // runs once on mount
 
+  // Store the session returned by the server (shared by login and verifyTwoFactor)
+  const persistSession = (response: any) => {
+    localStorage.setItem("accessToken", response.accessToken);
+    if (response.refreshToken) {
+      localStorage.setItem("refreshToken", response.refreshToken);
+    }
+    localStorage.setItem("user", JSON.stringify(response.user));
+    setIsAuthenticated(true);
+    setUser(response.user);
+  };
+
   const login = async (email: string, password: string) => {
     try {
       const response = await apiLogin(email, password);
-      
+
+      // 2FA-enabled account: server issued a challenge, no tokens yet.
+      if (response?.requiresTwoFactor) {
+        return { requiresTwoFactor: true, twoFactorToken: response.twoFactorToken };
+      }
+
       if (!response?.accessToken || !response?.user) {
         throw new Error("Invalid response from server");
       }
 
+      persistSession(response);
+      return { requiresTwoFactor: false };
+    } catch (error) {
+      handleAuthError(error);
+      throw error;
+    }
+  };
 
-      localStorage.setItem("accessToken", response.accessToken);
-      if (response.refreshToken) {
-        localStorage.setItem("refreshToken", response.refreshToken);
+  const verifyTwoFactor = async (twoFactorToken: string, code: string) => {
+    try {
+      const response = await apiVerifyTwoFactor(twoFactorToken, code);
+      if (!response?.accessToken || !response?.user) {
+        throw new Error("Invalid response from server");
       }
-      
-
-      
-      localStorage.setItem("user", JSON.stringify(response.user));
-      setIsAuthenticated(true);
-      setUser(response.user);
+      persistSession(response);
     } catch (error) {
       handleAuthError(error);
       throw error;
@@ -187,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       user,
       login,
+      verifyTwoFactor,
       register,
       logout,
       refreshUser,

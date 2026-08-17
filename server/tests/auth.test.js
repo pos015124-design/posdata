@@ -1,7 +1,6 @@
 const request = require('supertest');
 const express = require('express');
 const User = require('../models/User');
-const Staff = require('../models/Staff');
 const authRoutes = require('../routes/authRoutes');
 const { helmet, mongoSanitize, hpp, compression } = require('../config/security');
 
@@ -46,10 +45,15 @@ describe('Authentication Routes', () => {
       expect(user).toBeTruthy();
       expect(user.isApproved).toBe(false);
 
-      // Verify staff record was created
-      const staff = await Staff.findOne({ email: userData.email });
-      expect(staff).toBeTruthy();
-      expect(staff.name).toBe(userData.name);
+      // Verify a Business profile was auto-created and linked to the user
+      const Business = require('../models/Business');
+      const business = await Business.findOne({ email: userData.email });
+      expect(business).toBeTruthy();
+      expect(business.name).toContain('Test');
+      expect(business.status).toBe('pending');
+
+      const freshUser = await User.findOne({ email: userData.email });
+      expect(String(freshUser.businessId)).toBe(String(business._id));
     });
 
     it('should reject registration with invalid email', async () => {
@@ -128,7 +132,7 @@ describe('Authentication Routes', () => {
         email: 'test@example.com',
         password: 'TestPass123!',
         isApproved: true,
-        role: 'admin'
+        role: 'super_admin'
       });
       await testUser.save();
     });
@@ -180,13 +184,13 @@ describe('Authentication Routes', () => {
       expect(response.body.message).toBe('Invalid credentials');
     });
 
-    it('should reject login for unapproved user', async () => {
-      // Create unapproved user
+    it('should let an unapproved seller log in (approval gate happens in middleware)', async () => {
+      // Create unapproved seller
       const unapprovedUser = new User({
         email: 'unapproved@example.com',
         password: 'TestPass123!',
         isApproved: false,
-        role: 'user'
+        role: 'business_admin'
       });
       await unapprovedUser.save();
 
@@ -195,13 +199,15 @@ describe('Authentication Routes', () => {
         password: 'TestPass123!'
       };
 
+      // By design the login succeeds so the seller lands on the WaitingApproval
+      // screen; requireUser middleware then blocks API access until approved.
       const response = await request(app)
         .post('/api/auth/login')
         .send(loginData)
-        .expect(403);
+        .expect(200);
 
-      expect(response.body.error).toBe('Account not approved');
-      expect(response.body.pendingApproval).toBe(true);
+      expect(response.body.success).toBe(true);
+      expect(response.body.accessToken).toBeTruthy();
     });
 
     it('should reject login with malformed email', async () => {

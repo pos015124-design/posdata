@@ -234,6 +234,9 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/reset-password', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
+// TOTP codes are 6 digits — without a tight limiter an attacker could brute-force
+// the code space. 10 tries / 15 min per IP makes that infeasible.
+app.use('/api/auth/2fa/verify', authLimiter);
 app.use('/api/uploads', uploadLimiter);
 app.use('/api', apiLimiter);
 
