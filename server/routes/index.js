@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require('mongoose');
 const { logger } = require("../config/logger");
 const { requireUser } = require("./middleware/auth");
 
@@ -25,12 +26,52 @@ router.get("/", (req, res) => {
   });
 });
 
-// Health check
+// Liveness — process is up and serving. No DB dependency, so load balancers
+// and uptime monitors can distinguish "process alive" from "DB unreachable"
+// (which /ready reports).
 router.get("/health", (req, res) => {
   res.status(200).json({
     status: "OK",
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Readiness — process is up AND can reach the database. Returns 503 while
+// the DB is disconnected so PM2 / Nginx / orchestration can restart or
+// stop routing traffic to a degraded instance.
+router.get("/ready", async (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  let dbResponseTimeMs = null;
+  let dbError = null;
+
+  if (dbConnected) {
+    const start = Date.now();
+    try {
+      await mongoose.connection.db.admin().ping();
+      dbResponseTimeMs = Date.now() - start;
+    } catch (err) {
+      dbError = err.message;
+    }
+  } else {
+    dbError = 'Not connected';
+  }
+
+  const ready = dbConnected && dbResponseTimeMs !== null;
+
+  res.status(ready ? 200 : 503).json({
+    status: ready ? 'OK' : 'DEGRADED',
+    database: {
+      connected: dbConnected,
+      responseTimeMs: dbResponseTimeMs,
+      error: dbError
+    },
+    uptime: process.uptime(),
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
   });
 });
 

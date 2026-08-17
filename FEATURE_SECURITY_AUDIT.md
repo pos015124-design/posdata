@@ -408,12 +408,14 @@ if ($scheme != "https") {
 **Status:** `express-validator` (e.g. `mongoIdValidation`) + Joi schemas are used across routes, including the public checkout flow, and a dedicated checkout rate limiter is applied. `mongoSanitize` + `hpp` strip injection payloads globally.  
 **Remaining:** No action needed; keep validating new fields as they are added.
 
-#### **9. No PII Encryption in Transit**
-**Issue:** Customer data (address, phone) stored in plain text  
-**Recommendation:**
-- Encrypt sensitive fields in DB at rest
-- Use AES-256 encryption for PII
-- Consider HIPAA-style data isolation
+#### **9. PII Encryption at Rest** ✅ IMPLEMENTED — AES-256-GCM
+**Issue:** (Previous audit claimed customer data was stored in plain text)  
+**Status:** PII is encrypted at rest with **AES-256-GCM** keyed by `PII_ENCRYPTION_KEY` (32 bytes, hex):
+- Encrypted fields: `Customer.phone/address`, `CustomerAccount.phone` + address sub-docs, `Sale.customerPhone/Address/City`, `Order.customerPhone` + shipping address
+- Lookup keys (`email`) deliberately stay plaintext — encrypted fields cannot be queried
+- `.lean()` reads are decrypted explicitly at every API boundary that exposes these fields
+- Production warns loudly if `PII_ENCRYPTION_KEY` is not set; local dev/CI run in plaintext passthrough
+- In transit: the API is served behind TLS (Nginx + Let's Encrypt)
 
 ### 🟢 LOW SEVERITY
 
@@ -431,11 +433,10 @@ if ($scheme != "https") {
 - **Login:** password step returns a short-lived 5-minute challenge token; `/api/auth/2fa/verify` completes login with the TOTP code
 - **Hardening:** enabling/disabling invalidates all existing sessions (forces re-login), failed codes count toward lockout, and `twoFactorSecret` is `select: false` so it never leaves the server
 
-#### **12. Missing API Versioning**
+#### **12. Missing API Versioning** — DEFERRED (by design)
 **Issue:** No /api/v1/ versioning for backward compatibility  
-**Recommendation:**
-- Plan for v2 API when breaking changes occur
-- Maintain v1 endpoints for 6 months during transition
+**Status:** Deliberately deferred — the API and the SPA deploy together from one repository, and there are no third-party API consumers with a stability contract to preserve. Retrofitting `/api/v1/` now is pure churn with regression risk.  
+**When to revisit:** When an external consumer (mobile app, partner integration, public API) needs a stability guarantee. At that point introduce `/api/v2/` for new routes and keep v1 frozen.
 
 ---
 
@@ -453,8 +454,9 @@ AUTHENTICATION & AUTH
   
 HTTPS & ENCRYPTION
   ✅ SSL/TLS certificates installed
-  ✅ HTTP→HTTPS redirect configured
-  ⚠️ No encryption at rest for PII (recommend)
+  ✅ HTTP→HTTPS redirect configured (Nginx config in VPS_DEPLOYMENT_GUIDE.md)
+  ✅ PII encrypted at rest — AES-256-GCM (PII_ENCRYPTION_KEY)
+  ✅ Backup archives optionally encrypted — AES-256-CBC (BACKUP_ENCRYPTION_KEY)
   
 API SECURITY
   ✅ Rate limiting enabled (API / auth / checkout)
@@ -481,14 +483,17 @@ LOGGING & MONITORING
   ✅ Audit logs for data changes
   ✅ 2FA enable/disable and login events audited
   ✅ No sensitive data in logs
-  ⚠️ No centralized log aggregation (recommend ELK/CloudWatch)
+  ✅ Real request monitoring — response times (avg/p95), error rate, CPU%, memory
+  ✅ /health (liveness) + /ready (DB readiness) endpoints for PM2/uptime monitors
+  ⚠️ No centralized log aggregation (recommend ELK/CloudWatch — optional at this scale)
   
 DEPLOYMENT
   ✅ Environment variables set on VPS
   ✅ PM2 configured for auto-restart
-  ✅ Database backups automated
-  ⚠️ No intrusion detection (consider fail2ban)
-  ⚠️ No automated security scanning (add GitHub Actions)
+  ✅ Database backups automated — gzip archive + optional AES-256 encryption + optional off-site push + verify command
+  ✅ CI/CD — GitHub Actions: server tests, client typecheck/build, npm audit (dependency scanning)
+  ✅ Dependency audit clean — 0 high/critical vulnerabilities (server + client)
+  ⚠️ Intrusion detection — fail2ban config provided in VPS_DEPLOYMENT_GUIDE.md (apply on the VPS)
 ```
 
 ---
@@ -500,21 +505,28 @@ DEPLOYMENT
 - ✅ **2FA for admin/super_admin** - TOTP with QR setup, enforced on login
 - ✅ **Input Validation** - express-validator + Joi across routes incl. checkout
 - ✅ **CSRF** - N/A for JWT-bearer auth (no session cookies); revisit only if cookies are introduced
+- ✅ **PII Encryption at Rest** - AES-256-GCM on customer phone/address (Customer, CustomerAccount, Sale, Order)
+- ✅ **Health/Readiness Endpoints** - `/health` (liveness) and `/ready` (DB ping, 503 when degraded)
+- ✅ **Real Request Monitoring** - response times (avg/p95), error rate, CPU%, slow-request warnings (was placeholder code)
+- ✅ **CI/CD Pipeline** - GitHub Actions: jest (170 tests), client typecheck + build, npm audit on both
+- ✅ **Dependency Scanning** - server + client at 0 high/critical vulnerabilities (removed `xlsx`, upgraded axios/nodemailer/sharp)
+- ✅ **Backup Hardening** - gzip archives, optional AES-256-CBC encryption, optional S3/rclone push, `verify` command (mongorestore --dryRun)
+- ✅ **GDPR Data Rights** - `GET /api/customer-auth/data-export` + `POST /api/customer-auth/data-delete` (password-confirmed erasure with order anonymization), UI in customer portal
+- ✅ **Data-Isolation Fixes** - export service now scopes reports to the requesting seller; websocket dashboard/analytics per-user; analytics previous-period/expense queries scoped
+- ✅ **Business Registration Fix** - `registerBusiness` used a broken per-tenant DB seed + a transaction that crashed on first write; now uses `withTransaction` (retries transient errors)
+- ✅ **HTTP→HTTPS redirect + certbot auto-renew + fail2ban** - exact configs in `VPS_DEPLOYMENT_GUIDE.md`
 
 ### Must Do (Before Production)
-1. **Enforce HTTPS** - Protects data in transit
-2. **Encrypt PII** - At rest in database
-3. **Rate Limiting on Order Lookup** - Prevent enumeration (email-verified view already limits exposure)
+1. **Set `PII_ENCRYPTION_KEY` and `BACKUP_ENCRYPTION_KEY` on the VPS** - without the keys, PII stays plaintext and backups are unencrypted (server warns on boot)
+2. **Apply the Nginx HTTPS-redirect + fail2ban configs** from `VPS_DEPLOYMENT_GUIDE.md`
 
 ### Should Do (Within 1 Month)
-4. **API Versioning** - Plan for v2
-5. **Centralized Logging** - ELK or CloudWatch
+3. **Centralized Logging** - ELK or CloudWatch (optional at current scale)
+4. **API Versioning** - defer until an external API consumer exists (see #12)
 
 ### Nice to Have
-6. **Intrusion detection** - fail2ban on VPS
-7. **Automated security scanning** - GitHub Actions / dependabot
-10. **Security Scanning** - OWASP ZAP in CI/CD
-11. **Subdomain Isolation** - For store separation
+5. **OWASP ZAP in CI** - scheduled DAST scan
+6. **Subdomain Isolation** - For store separation
 
 ---
 

@@ -10,22 +10,22 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Dukani E-commerce API',
+      title: 'E-Shop by BHABY GROUP LTD — API',
       version: '1.0.0',
-      description: 'Comprehensive API for the Dukani multi-tenant e-commerce platform',
+      description: 'API for the E-Shop multi-vendor e-commerce platform (marketplace, seller dashboards, delivery tracking) by BHABY GROUP LTD',
       contact: {
-        name: 'Dukani Support',
-        email: 'support@dukani.com',
-        url: 'https://dukani.com/support',
+        name: 'BHABY GROUP LTD Support',
+        email: 'info@bhabygroup.co.tz',
+        url: 'https://bhabygroup.co.tz',
       },
     },
     servers: [
       {
-        url: 'http://localhost:3000/api',
+        url: 'http://localhost:3001/api',
         description: 'Development server',
       },
       {
-        url: 'https://api.dukani.com',
+        url: 'https://backend.bhabygroup.co.tz/api',
         description: 'Production server',
       },
     ],
@@ -185,7 +185,7 @@ const setupSwagger = (app) => {
       .swagger-ui .info { margin: 20px 0; }
       .swagger-ui .info hgroup.main { margin: 0 0 20px 0; }
     `,
-    customSiteTitle: 'Dukani API Documentation',
+    customSiteTitle: 'E-Shop API Documentation',
     customfavIcon: '/favicon.ico'
   }));
 

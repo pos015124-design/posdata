@@ -1,6 +1,12 @@
 /**
  * Multi-Tenant Service for Organization-Level Data Isolation
- * Provides tenant management and data isolation capabilities
+ * Provides tenant management and data isolation capabilities.
+ *
+ * Data isolation is implemented via tenantId / businessId fields on every
+ * document (single shared database). The legacy per-tenant MongoDB database
+ * approach was removed — it created a separate DB + connection per tenant,
+ * seeded demo products ("Sample Product") that no longer validate, and
+ * contradicted the field-based isolation used everywhere else.
  */
 
 const mongoose = require('mongoose');
@@ -8,61 +14,6 @@ const { logger } = require('../config/logger');
 const { cacheService } = require('../config/cache');
 
 class TenantService {
-  
-  /**
-   * Get tenant-specific database connection
-   * @param {string} tenantId - Tenant identifier
-   * @returns {mongoose.Connection} Tenant-specific connection
-   */
-  static getTenantConnection(tenantId) {
-    if (!tenantId) {
-      throw new Error('Tenant ID is required');
-    }
-
-    const connectionKey = `tenant_${tenantId}`;
-    
-    // Check if connection already exists
-    if (mongoose.connections.find(conn => conn.name === connectionKey)) {
-      return mongoose.connections.find(conn => conn.name === connectionKey);
-    }
-
-    // Create new tenant-specific connection
-    const tenantDbName = `${process.env.DB_NAME || 'dukani'}_${tenantId}`;
-    const connectionString = process.env.DATABASE_URL.replace(/\/[^\/]*$/, `/${tenantDbName}`);
-    
-    const connection = mongoose.createConnection(connectionString, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
-
-    connection.name = connectionKey;
-    
-    logger.info('Created tenant database connection', {
-      tenantId,
-      dbName: tenantDbName
-    });
-
-    return connection;
-  }
-
-  /**
-   * Get tenant-specific model
-   * @param {string} tenantId - Tenant identifier
-   * @param {string} modelName - Model name
-   * @param {mongoose.Schema} schema - Mongoose schema
-   * @returns {mongoose.Model} Tenant-specific model
-   */
-  static getTenantModel(tenantId, modelName, schema) {
-    const connection = this.getTenantConnection(tenantId);
-    
-    // Check if model already exists for this connection
-    if (connection.models[modelName]) {
-      return connection.models[modelName];
-    }
-
-    // Create and return new model
-    return connection.model(modelName, schema);
-  }
 
   /**
    * Create new tenant
@@ -98,11 +49,11 @@ class TenantService {
       while (await Tenant.findOne({ domain: candidateDomain }).lean()) {
         candidateDomain = `${normalizedBaseDomain}-${suffix++}`;
       }
-      
+
       // Generate unique tenant ID
       const tenantId = this.generateTenantId(name);
-      
-      // Create tenant record in main database
+
+      // Create tenant record in the shared database
       const tenant = new Tenant({
         tenantId,
         name,
@@ -119,9 +70,6 @@ class TenantService {
       });
 
       await tenant.save();
-
-      // Initialize tenant database
-      await this.initializeTenantDatabase(tenantId);
 
       logger.info('Tenant created successfully', {
         tenantId,
@@ -145,67 +93,6 @@ class TenantService {
   }
 
   /**
-   * Initialize tenant database with default data
-   * @param {string} tenantId - Tenant identifier
-   */
-  static async initializeTenantDatabase(tenantId) {
-    try {
-      const connection = this.getTenantConnection(tenantId);
-      
-      // Import all model schemas
-      const Product = require('../models/Product');
-      const Sale = require('../models/Sale');
-      const Customer = require('../models/Customer');
-      const Staff = require('../models/Staff');
-      const User = require('../models/User');
-      const Expense = require('../models/Expense');
-      const Inventory = require('../models/Inventory');
-
-      // Create tenant-specific models
-      const TenantProduct = connection.model('Product', Product.schema);
-      const TenantSale = connection.model('Sale', Sale.schema);
-      const TenantCustomer = connection.model('Customer', Customer.schema);
-      const TenantStaff = connection.model('Staff', Staff.schema);
-      const TenantUser = connection.model('User', User.schema);
-      const TenantExpense = connection.model('Expense', Expense.schema);
-      const TenantInventory = connection.model('Inventory', Inventory.schema);
-
-      // Create default categories
-      await TenantProduct.create([
-        {
-          name: 'Sample Product',
-          code: 'SAMPLE001',
-          barcode: '1234567890123',
-          price: 10.00,
-          purchasePrice: 7.00,
-          stock: 100,
-          category: 'General',
-          supplier: 'Default Supplier',
-          reorderPoint: 10
-        }
-      ]);
-
-      // Create default customer
-      await TenantCustomer.create([
-        {
-          name: 'Walk-in Customer',
-          type: 'cash',
-          email: 'walkin@example.com'
-        }
-      ]);
-
-      logger.info('Tenant database initialized', { tenantId });
-
-    } catch (error) {
-      logger.error('Failed to initialize tenant database', { 
-        error: error.message, 
-        tenantId 
-      });
-      throw error;
-    }
-  }
-
-  /**
    * Get tenant information
    * @param {string} tenantId - Tenant identifier
    * @returns {Promise<Object>} Tenant information
@@ -213,7 +100,7 @@ class TenantService {
   static async getTenant(tenantId) {
     try {
       const cacheKey = `tenant:${tenantId}`;
-      
+
       // Try cache first
       const cached = await cacheService.get(cacheKey);
       if (cached) {
@@ -222,14 +109,14 @@ class TenantService {
 
       const Tenant = mongoose.model('Tenant');
       const tenant = await Tenant.findOne({ tenantId }).lean();
-      
+
       if (!tenant) {
         throw new Error('Tenant not found');
       }
 
       // Cache for 1 hour
       await cacheService.set(cacheKey, tenant, 3600);
-      
+
       return tenant;
 
     } catch (error) {
@@ -261,7 +148,7 @@ class TenantService {
       await cacheService.del(`tenant:${tenantId}`);
 
       logger.info('Tenant updated', { tenantId, updates });
-      
+
       return tenant;
 
     } catch (error) {
@@ -271,24 +158,28 @@ class TenantService {
   }
 
   /**
-   * Get tenant usage statistics
+   * Get tenant usage statistics — counted from the shared database, scoped
+   * by the tenantId field on each collection (field-based isolation).
    * @param {string} tenantId - Tenant identifier
    * @returns {Promise<Object>} Usage statistics
    */
   static async getTenantUsage(tenantId) {
     try {
-      const connection = this.getTenantConnection(tenantId);
-      
+      const User = mongoose.model('User');
+      const Product = mongoose.model('Product');
+      const Sale = mongoose.model('Sale');
+      const Customer = mongoose.model('Customer');
+
       const [
         userCount,
         productCount,
         saleCount,
         customerCount
       ] = await Promise.all([
-        connection.model('User').countDocuments(),
-        connection.model('Product').countDocuments(),
-        connection.model('Sale').countDocuments(),
-        connection.model('Customer').countDocuments()
+        User.countDocuments({ tenantId }),
+        Product.countDocuments({ tenantId }),
+        Sale.countDocuments({ tenantId }),
+        Customer.countDocuments({ tenantId })
       ]);
 
       const usage = {
@@ -316,10 +207,10 @@ class TenantService {
     const sanitized = name.toLowerCase()
       .replace(/[^a-z0-9]/g, '')
       .substring(0, 10);
-    
+
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 5);
-    
+
     return `${sanitized}_${timestamp}_${random}`;
   }
 
@@ -349,26 +240,12 @@ class TenantService {
       const tenant = await this.getTenant(tenantId);
       return tenant.settings.features.includes(feature);
     } catch (error) {
-      logger.error('Failed to validate feature access', { 
-        error: error.message, 
-        tenantId, 
-        feature 
+      logger.error('Failed to validate feature access', {
+        error: error.message,
+        tenantId,
+        feature
       });
       return false;
-    }
-  }
-
-  /**
-   * Close tenant database connection
-   * @param {string} tenantId - Tenant identifier
-   */
-  static async closeTenantConnection(tenantId) {
-    const connectionKey = `tenant_${tenantId}`;
-    const connection = mongoose.connections.find(conn => conn.name === connectionKey);
-    
-    if (connection) {
-      await connection.close();
-      logger.info('Tenant connection closed', { tenantId });
     }
   }
 }

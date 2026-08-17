@@ -12,7 +12,7 @@ const customerSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
     index: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.[a-zA-Z]{2,3})+$/, 'Please fill a valid email address']
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please fill a valid email address']
   },
   // PII encrypted at rest (AES-256-GCM). Note: encrypted fields are not
   // searchable — customer search matches name/email only.

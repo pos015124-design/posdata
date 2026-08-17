@@ -75,7 +75,8 @@ class AnalyticsService {
         }
       }
       
-      // Build match stage - CRITICAL: Filter by userId for data isolation
+      // Build match stage - CRITICAL: Filter by owner (createdBy) for data isolation.
+      // Sales belong to a seller via `createdBy` (the User ref), NOT a `userId` field.
       const matchStage = {
         createdAt: {
           $gte: queryStartDate,
@@ -83,9 +84,9 @@ class AnalyticsService {
         }
       };
       
-      // CRITICAL: Filter by userId
+      // CRITICAL: Filter by owner
       if (userId) {
-        matchStage.userId = new mongoose.Types.ObjectId(userId);
+        matchStage.createdBy = new mongoose.Types.ObjectId(userId);
       }
       
       if (staff) matchStage.staff = new mongoose.Types.ObjectId(staff);
@@ -166,13 +167,13 @@ class AnalyticsService {
               { $limit: 30 }
             ],
             
-            // Top selling products
+            // Top selling products — Sale items use productId/productName
             topProducts: [
               { $unwind: '$items' },
               {
                 $group: {
-                  _id: '$items.product',
-                  productName: { $first: '$items.name' },
+                  _id: '$items.productId',
+                  productName: { $first: '$items.productName' },
                   totalQuantity: { $sum: '$items.quantity' },
                   totalRevenue: { $sum: '$items.total' },
                   salesCount: { $sum: 1 }
@@ -213,15 +214,20 @@ class AnalyticsService {
       
       const [result] = await Sale.aggregate(pipeline);
       
-      // Get previous period data for comparison
+      // Get previous period data for comparison — MUST be scoped to the same
+      // owner, otherwise the comparison leaks other sellers' revenue.
+      const previousPeriodMatch = {
+        createdAt: {
+          $gte: previousPeriodStart,
+          $lt: previousPeriodEnd
+        }
+      };
+      if (userId) {
+        previousPeriodMatch.createdBy = new mongoose.Types.ObjectId(userId);
+      }
       const previousPeriodPipeline = [
         {
-          $match: {
-            createdAt: {
-              $gte: previousPeriodStart,
-              $lt: previousPeriodEnd
-            }
-          }
+          $match: previousPeriodMatch
         },
         {
           $group: {
@@ -235,15 +241,19 @@ class AnalyticsService {
       
       const [previousPeriodResult] = await Sale.aggregate(previousPeriodPipeline);
       
-      // Get expense data for the current period
+      // Get expense data for the current period — scoped to the same owner.
+      const expenseMatch = {
+        date: {
+          $gte: queryStartDate,
+          $lte: queryEndDate
+        }
+      };
+      if (userId) {
+        expenseMatch.createdBy = new mongoose.Types.ObjectId(userId);
+      }
       const expenseData = await Expense.aggregate([
         {
-          $match: {
-            date: {
-              $gte: queryStartDate,
-              $lte: queryEndDate
-            }
-          }
+          $match: expenseMatch
         },
         {
           $facet: {

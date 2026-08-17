@@ -20,100 +20,104 @@ class BusinessService {
    */
   static async registerBusiness(businessData, ownerData) {
     const session = await mongoose.startSession();
-    session.startTransaction();
+    let result;
     try {
-      // Validate business data
-      await this.validateBusinessData(businessData);
-      // Check if business name or slug already exists
-      const existingBusiness = await Business.findOne({
-        $or: [
-          { name: businessData.name },
-          { slug: businessData.slug || this.generateSlug(businessData.name) }
-        ]
-      }).session(session);
-      if (existingBusiness) {
-        throw new Error('Business name or URL already exists');
-      }
-      // Create tenant first
-      const tenantData = {
-        name: businessData.name,
-        domain: businessData.slug || this.generateSlug(businessData.name),
-        adminEmail: ownerData.email,
-        plan: businessData.plan || 'basic'
-      };
-      const tenant = await TenantService.createTenant(tenantData);
-      // Create business owner user
-      const businessOwner = new User({
-        email: ownerData.email,
-        password: ownerData.password,
-        firstName: ownerData.firstName,
-        lastName: ownerData.lastName,
-        role: 'business_admin',
-        tenantId: tenant.tenantId,
-        isApproved: false, // Requires admin approval
-        isActive: true
-      });
-      await businessOwner.save({ session });
-      // Create business profile
-      const business = new Business({
-        tenantId: tenant.tenantId,
-        name: businessData.name,
-        slug: businessData.slug || this.generateSlug(businessData.name),
-        description: businessData.description,
-        tagline: businessData.tagline,
-        email: businessData.email || ownerData.email,
-        phone: businessData.phone,
-        website: businessData.website,
-        address: businessData.address,
-        category: businessData.category,
-        businessType: businessData.businessType || 'hybrid',
-        userId: businessOwner._id,   // ObjectId — links business to its owner for product queries
-        status: 'pending', // Requires admin approval
-        isPublic: false,
-        ecommerce: {
-          enabled: true,
-          currency: businessData.currency || 'USD',
-          taxRate: businessData.taxRate || 0,
-          shippingEnabled: businessData.shippingEnabled || false,
-          pickupEnabled: businessData.pickupEnabled || true,
-          minimumOrderAmount: businessData.minimumOrderAmount || 0
-        },
-        businessHours: businessData.businessHours || this.getDefaultBusinessHours(),
-        socialMedia: businessData.socialMedia || []
-      });
-      await business.save({ session });
-      // Update user with business reference
-      businessOwner.businessId = business._id;
-      await businessOwner.save({ session });
-      await session.commitTransaction();
-      session.endSession();
-      logger.info('Business registered successfully', {
-        businessId: business._id,
-        tenantId: tenant.tenantId,
-        ownerEmail: ownerData.email
-      });
-      return {
-        business: {
-          id: business._id,
-          name: business.name,
-          slug: business.slug,
-          status: business.status,
-          tenantId: business.tenantId
-        },
-        owner: {
-          id: businessOwner._id,
-          email: businessOwner.email,
-          fullName: businessOwner.fullName,
-          role: businessOwner.role,
-          isApproved: businessOwner.isApproved
-        },
-        tenant: {
-          tenantId: tenant.tenantId,
-          plan: tenant.plan
+      // withTransaction handles commit/abort AND retries TransientTransactionError
+      // (e.g. the first write creating a not-yet-existing collection), which a
+      // manual startTransaction/commit/abort loop gets wrong.
+      await session.withTransaction(async () => {
+        // Validate business data
+        await this.validateBusinessData(businessData);
+        // Check if business name or slug already exists
+        const existingBusiness = await Business.findOne({
+          $or: [
+            { name: businessData.name },
+            { slug: businessData.slug || this.generateSlug(businessData.name) }
+          ]
+        }).session(session);
+        if (existingBusiness) {
+          throw new Error('Business name or URL already exists');
         }
-      };
+        // Create tenant first
+        const tenantData = {
+          name: businessData.name,
+          domain: businessData.slug || this.generateSlug(businessData.name),
+          adminEmail: ownerData.email,
+          plan: businessData.plan || 'basic'
+        };
+        const tenant = await TenantService.createTenant(tenantData);
+        // Create business owner user
+        const businessOwner = new User({
+          email: ownerData.email,
+          password: ownerData.password,
+          firstName: ownerData.firstName,
+          lastName: ownerData.lastName,
+          role: 'business_admin',
+          tenantId: tenant.tenantId,
+          isApproved: false, // Requires admin approval
+          isActive: true
+        });
+        await businessOwner.save({ session });
+        // Create business profile
+        const business = new Business({
+          tenantId: tenant.tenantId,
+          name: businessData.name,
+          slug: businessData.slug || this.generateSlug(businessData.name),
+          description: businessData.description,
+          tagline: businessData.tagline,
+          email: businessData.email || ownerData.email,
+          phone: businessData.phone,
+          website: businessData.website,
+          address: businessData.address,
+          category: businessData.category,
+          businessType: businessData.businessType || 'hybrid',
+          userId: businessOwner._id,   // ObjectId — links business to its owner for product queries
+          status: 'pending', // Requires admin approval
+          isPublic: false,
+          ecommerce: {
+            enabled: true,
+            currency: businessData.currency || 'USD',
+            taxRate: businessData.taxRate || 0,
+            shippingEnabled: businessData.shippingEnabled || false,
+            pickupEnabled: businessData.pickupEnabled || true,
+            minimumOrderAmount: businessData.minimumOrderAmount || 0
+          },
+          businessHours: businessData.businessHours || this.getDefaultBusinessHours(),
+          socialMedia: businessData.socialMedia || []
+        });
+        await business.save({ session });
+        // Update user with business reference
+        businessOwner.businessId = business._id;
+        await businessOwner.save({ session });
+        logger.info('Business registered successfully', {
+          businessId: business._id,
+          tenantId: tenant.tenantId,
+          ownerEmail: ownerData.email
+        });
+        result = {
+          business: {
+            id: business._id,
+            name: business.name,
+            slug: business.slug,
+            status: business.status,
+            tenantId: business.tenantId
+          },
+          owner: {
+            id: businessOwner._id,
+            email: businessOwner.email,
+            fullName: businessOwner.fullName,
+            role: businessOwner.role,
+            isApproved: businessOwner.isApproved
+          },
+          tenant: {
+            tenantId: tenant.tenantId,
+            plan: tenant.plan
+          }
+        };
+      });
+      session.endSession();
+      return result;
     } catch (error) {
-      await session.abortTransaction();
       session.endSession();
       // Log full error stack and input for debugging
       console.error('BusinessService.registerBusiness failed:', error, { businessData, ownerData });
@@ -278,8 +282,8 @@ class BusinessService {
         throw new Error('User not found');
       }
       
-      if (user.role !== 'super_admin' && 
-          (user.role !== 'business_admin' || user.businessId.toString() !== businessId)) {
+      if (user.role !== 'super_admin' &&
+          (user.role !== 'business_admin' || !user.businessId || user.businessId.toString() !== String(businessId))) {
         throw new Error('Insufficient permissions to update business');
       }
       
@@ -497,7 +501,7 @@ class BusinessService {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
-      .trim('-');
+      .replace(/^-+|-+$/g, ''); // strip leading/trailing hyphens (String.trim only trims whitespace)
   }
   
   /**

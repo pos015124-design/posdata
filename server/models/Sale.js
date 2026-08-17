@@ -142,6 +142,7 @@ const saleSchema = new mongoose.Schema({
 saleSchema.index({ createdAt: -1 });
 saleSchema.index({ tenantId: 1, createdAt: -1 });
 saleSchema.index({ createdBy: 1, createdAt: -1 });
+saleSchema.index({ status: 1, createdAt: -1 }); // platform & analytics date-window queries
 saleSchema.index({ source: 1, createdAt: -1 });
 saleSchema.index({ deliveryStatus: 1, source: 1 });
 saleSchema.index({ paymentStatus: 1, createdAt: -1 });

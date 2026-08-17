@@ -1,7 +1,6 @@
 const csv = require('csv-parser');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const fs = require('fs');
-const path = require('path');
 const Product = require('../models/Product');
 
 class ImportService {
@@ -29,14 +28,40 @@ class ImportService {
   }
 
   /**
-   * Parse Excel file and return products array
+   * Parse Excel file and return products array.
+   * Uses the header row to map columns (robust to column order), matching the
+   * CSV template: name, code, barcode, price, purchasePrice, stock, category,
+   * description, reorderPoint.
    */
   static async parseExcel(filePath) {
-    const workbook = xlsx.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const products = xlsx.utils.sheet_to_json(worksheet);
-    
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new Error('Excel file has no worksheets');
+    }
+
+    // Build header → column index map from the first row
+    const headers = {};
+    worksheet.getRow(1).eachCell((cell, colNumber) => {
+      const name = String(cell.value ?? '').trim().toLowerCase();
+      if (name) headers[name] = colNumber;
+    });
+
+    const products = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // header row
+      // Skip fully-empty rows
+      if (!row.getCell(1).value && !row.getCell(2).value) return;
+
+      const product = {};
+      for (const [key, colNumber] of Object.entries(headers)) {
+        const value = row.getCell(colNumber).value;
+        product[key] = value == null ? undefined : value;
+      }
+      products.push(product);
+    });
+
     fs.unlinkSync(filePath); // Clean up temp file
     return products;
   }
@@ -46,33 +71,34 @@ class ImportService {
    */
   static validateProduct(row, index) {
     const errors = [];
+    const str = (v) => (v == null ? '' : String(v).trim());
     
-    // Required fields validation
-    if (!row.name || row.name.trim() === '') {
+    // Required fields validation (Excel cells can be numbers — coerce to string)
+    if (!str(row.name)) {
       errors.push(`Row ${index + 1}: Product name is required`);
     }
     
-    if (!row.code || row.code.trim() === '') {
+    if (!str(row.code)) {
       errors.push(`Row ${index + 1}: Product code is required`);
     }
     
-    if (!row.barcode || row.barcode.trim() === '') {
+    if (!str(row.barcode)) {
       errors.push(`Row ${index + 1}: Barcode is required`);
     }
     
-    if (!row.price || isNaN(parseFloat(row.price))) {
+    if (row.price == null || isNaN(parseFloat(row.price))) {
       errors.push(`Row ${index + 1}: Valid price is required`);
     }
     
-    if (!row.purchasePrice || isNaN(parseFloat(row.purchasePrice))) {
+    if (row.purchasePrice == null || isNaN(parseFloat(row.purchasePrice))) {
       errors.push(`Row ${index + 1}: Valid purchase price is required`);
     }
     
-    if (!row.stock || isNaN(parseInt(row.stock))) {
+    if (row.stock == null || isNaN(parseInt(row.stock))) {
       errors.push(`Row ${index + 1}: Valid stock quantity is required`);
     }
     
-    if (!row.category || row.category.trim() === '') {
+    if (!str(row.category)) {
       errors.push(`Row ${index + 1}: Category is required`);
     }
 
@@ -84,23 +110,29 @@ class ImportService {
     return {
       valid: true,
       product: {
-        name: row.name.trim(),
-        code: row.code.trim(),
-        barcode: row.barcode.trim(),
+        name: str(row.name),
+        code: str(row.code),
+        barcode: str(row.barcode),
         price: parseFloat(row.price),
         purchasePrice: parseFloat(row.purchasePrice),
         stock: parseInt(row.stock),
-        category: row.category.trim(),
-        description: row.description?.trim() || '',
+        category: str(row.category),
+        description: str(row.description),
         reorderPoint: row.reorderPoint ? parseInt(row.reorderPoint) : 10
       }
     };
   }
 
   /**
-   * Import products from file
+   * Import products from file, owned by the given user (data isolation).
+   * @param {string} filePath - Path to the uploaded file
+   * @param {string} fileType - 'csv' | 'excel'
+   * @param {string} userId - Owner user id (required by the Product model)
    */
-  static async importProducts(filePath, fileType) {
+  static async importProducts(filePath, fileType, userId) {
+    if (!userId) {
+      throw new Error('User ID is required to import products');
+    }
     let rawData;
     
     // Parse file based on type
@@ -130,8 +162,9 @@ class ImportService {
       }
 
       try {
-        // Check if product with same code or barcode already exists
+        // Check if product with same code or barcode already exists for THIS user
         const existingProduct = await Product.findOne({
+          userId,
           $or: [
             { code: validation.product.code },
             { barcode: validation.product.barcode }
@@ -144,8 +177,8 @@ class ImportService {
           continue;
         }
 
-        // Create new product
-        const product = new Product(validation.product);
+        // Create new product owned by the requesting user
+        const product = new Product({ ...validation.product, userId });
         await product.save();
         
         results.success++;

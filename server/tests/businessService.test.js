@@ -1,421 +1,293 @@
+/**
+ * Business Service Tests
+ * Tests business registration, approval, and profile management
+ */
+
+const mongoose = require('mongoose');
 const BusinessService = require('../services/businessService');
 const Business = require('../models/Business');
 const User = require('../models/User');
+const Tenant = require('../models/Tenant');
+
+const validBusinessData = () => ({
+  name: 'Test Business',
+  category: 'retail',
+  email: 'business@test.com',
+  description: 'A test business',
+  tagline: 'Testing',
+  businessType: 'hybrid'
+});
+
+const validOwnerData = () => ({
+  email: 'owner@test.com',
+  password: 'Password123!',
+  firstName: 'Test',
+  lastName: 'Owner'
+});
 
 describe('BusinessService', () => {
-  let mockSuperAdmin, mockBusinessData;
-
-  beforeEach(async () => {
-    // Create a mock super admin user
-    mockSuperAdmin = new User({
-      email: 'superadmin@example.com',
-      password: 'Password123!',
-      role: 'super_admin',
-      isApproved: true
-    });
-    await mockSuperAdmin.save();
-
-    // Mock business data
-    mockBusinessData = {
-      name: 'Test Business',
-      email: 'business@example.com',
-      phone: '+1234567890',
-      category: 'retail',
-      businessType: 'physical',
-      description: 'A test business',
-      address: {
-        street: '123 Main St',
-        city: 'New York',
-        state: 'NY',
-        zipCode: '10001',
-        country: 'US'
-      },
-      owner: {
-        firstName: 'Business',
-        lastName: 'Owner',
-        email: 'owner@example.com',
-        password: 'Password123!'
-      },
-      settings: {
-        taxRate: 0.1,
-        currency: 'USD',
-        timezone: 'UTC'
-      }
-    };
-  });
-
   afterEach(async () => {
     await Business.deleteMany({});
     await User.deleteMany({});
+    await Tenant.deleteMany({});
   });
 
-  describe('createBusiness', () => {
-    it('should create a business successfully', async () => {
-      const result = await BusinessService.createBusiness(mockBusinessData);
+  describe('registerBusiness', () => {
+    it('should register a business successfully', async () => {
+      const result = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
 
-      expect(result).toBeDefined();
-      expect(result.name).toBe(mockBusinessData.name);
-      expect(result.email).toBe(mockBusinessData.email);
-      expect(result.category).toBe(mockBusinessData.category);
-      expect(result.isApproved).toBe(false); // New businesses should not be approved initially
-      expect(result.tenantId).toBeDefined();
-      expect(result.ecommerce).toBeDefined();
-      expect(result.analytics).toBeDefined();
+      expect(result.business.name).toBe('Test Business');
+      expect(result.business.status).toBe('pending');
+      expect(result.owner.email).toBe('owner@test.com');
+      expect(result.owner.role).toBe('business_admin');
+      expect(result.owner.isApproved).toBe(false);
+      expect(result.tenant.tenantId).toBeDefined();
+
+      // Business persisted with pending status
+      const business = await Business.findById(result.business.id);
+      expect(business).not.toBeNull();
+      expect(business.status).toBe('pending');
+      expect(business.slug).toBe('test-business');
+      expect(business.userId.toString()).toBe(String(result.owner.id));
+
+      // Owner linked to the business
+      const owner = await User.findById(result.owner.id);
+      expect(owner.businessId.toString()).toBe(String(result.business.id));
+    });
+
+    it('should reject duplicate business names', async () => {
+      await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+
+      await expect(
+        BusinessService.registerBusiness(
+          { ...validBusinessData(), email: 'other@test.com' },
+          { ...validOwnerData(), email: 'other-owner@test.com' }
+        )
+      ).rejects.toThrow('Business name or URL already exists');
     });
 
     it('should validate required fields', async () => {
-      const invalidBusinessData = {
-        name: '', // Invalid: empty name
-        email: 'business@example.com'
-      };
-
-      await expect(BusinessService.createBusiness(invalidBusinessData))
-        .rejects
-        .toThrow();
+      await expect(
+        BusinessService.registerBusiness({ name: 'Only Name' }, validOwnerData())
+      ).rejects.toThrow('Missing required fields');
     });
 
     it('should validate email format', async () => {
-      const invalidBusinessData = {
-        ...mockBusinessData,
-        email: 'invalid-email' // Invalid email format
-      };
-
-      await expect(BusinessService.createBusiness(invalidBusinessData))
-        .rejects
-        .toThrow();
+      await expect(
+        BusinessService.registerBusiness(
+          { ...validBusinessData(), email: 'not-an-email' },
+          validOwnerData()
+        )
+      ).rejects.toThrow('Invalid email format');
     });
 
     it('should validate business category', async () => {
-      const invalidBusinessData = {
-        ...mockBusinessData,
-        category: 'invalid-category' // Invalid category
-      };
-
-      await expect(BusinessService.createBusiness(invalidBusinessData))
-        .rejects
-        .toThrow();
-    });
-  });
-
-  describe('getBusinessById', () => {
-    let business;
-
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-    });
-
-    it('should return business by ID', async () => {
-      const result = await BusinessService.getBusinessById(business._id.toString());
-
-      expect(result).toBeDefined();
-      expect(result._id.toString()).toBe(business._id.toString());
-      expect(result.name).toBe(mockBusinessData.name);
-    });
-
-    it('should return null for non-existent business', async () => {
-      const result = await BusinessService.getBusinessById('507f1f77bcf86cd799439011');
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('updateBusiness', () => {
-    let business;
-
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-    });
-
-    it('should update business successfully', async () => {
-      const updateData = {
-        name: 'Updated Business Name',
-        phone: '+0987654321',
-        description: 'Updated description'
-      };
-
-      const result = await BusinessService.updateBusiness(business._id.toString(), updateData, mockSuperAdmin);
-
-      expect(result).toBeDefined();
-      expect(result.name).toBe(updateData.name);
-      expect(result.phone).toBe(updateData.phone);
-      expect(result.description).toBe(updateData.description);
-    });
-
-    it('should validate update data', async () => {
-      const invalidUpdateData = {
-        name: '', // Invalid: empty name
-        email: 'invalid-email' // Invalid email format
-      };
-
-      await expect(BusinessService.updateBusiness(business._id.toString(), invalidUpdateData, mockSuperAdmin))
-        .rejects
-        .toThrow();
-    });
-
-    it('should not update non-existent business', async () => {
-      await expect(BusinessService.updateBusiness('507f1f77bcf86cd799439011', { name: 'New Name' }, mockSuperAdmin))
-        .rejects
-        .toThrow();
-    });
-  });
-
-  describe('deleteBusiness', () => {
-    let business;
-
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-    });
-
-    it('should delete business successfully', async () => {
-      const result = await BusinessService.deleteBusiness(business._id.toString(), mockSuperAdmin);
-
-      expect(result).toBe(true);
-
-      // Verify business no longer exists
-      const deletedBusiness = await BusinessService.getBusinessById(business._id.toString());
-      expect(deletedBusiness).toBeNull();
-    });
-
-    it('should return false for non-existent business', async () => {
-      const result = await BusinessService.deleteBusiness('507f1f77bcf86cd799439011', mockSuperAdmin);
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('getBusinesses', () => {
-    beforeEach(async () => {
-      // Create multiple businesses
-      await BusinessService.createBusiness(mockBusinessData);
-      await BusinessService.createBusiness({
-        ...mockBusinessData,
-        name: 'Second Business',
-        email: 'second@example.com'
-      });
-    });
-
-    it('should return all businesses', async () => {
-      const result = await BusinessService.getBusinesses();
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2);
-    });
-
-    it('should filter businesses by category', async () => {
-      const result = await BusinessService.getBusinesses({ category: 'retail' });
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2); // Both businesses are in 'retail' category
-    });
-
-    it('should filter businesses by name', async () => {
-      const result = await BusinessService.getBusinesses({ search: 'Second' });
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toContain('Second');
-    });
-
-    it('should paginate results', async () => {
-      const result = await BusinessService.getBusinesses({}, { page: 1, limit: 1 });
-
-      expect(result).toBeDefined();
-      expect(result.businesses).toHaveLength(1);
-      expect(result.pagination).toBeDefined();
-      expect(result.pagination.page).toBe(1);
-      expect(result.pagination.limit).toBe(1);
-      expect(result.pagination.total).toBe(2);
+      await expect(
+        BusinessService.registerBusiness(
+          { ...validBusinessData(), category: 'not-a-category' },
+          validOwnerData()
+        )
+      ).rejects.toThrow('Invalid business category');
     });
   });
 
   describe('approveBusiness', () => {
-    let business;
+    it('should approve a pending business and its owner', async () => {
+      const { business, owner } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
 
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-      expect(business.isApproved).toBe(false); // Should be false initially
-    });
+      const approved = await BusinessService.approveBusiness(business.id, new mongoose.Types.ObjectId());
 
-    it('should approve business successfully', async () => {
-      const result = await BusinessService.approveBusiness(business._id.toString(), mockSuperAdmin);
+      expect(approved.status).toBe('active');
+      expect(approved.isPublic).toBe(true);
 
-      expect(result).toBeDefined();
-      expect(result._id.toString()).toBe(business._id.toString());
-      expect(result.isApproved).toBe(true);
+      const updatedOwner = await User.findById(owner.id);
+      expect(updatedOwner.isApproved).toBe(true);
     });
 
     it('should return error for non-existent business', async () => {
-      await expect(BusinessService.approveBusiness('507f1f77bcf86cd799439011', mockSuperAdmin))
-        .rejects
-        .toThrow();
+      await expect(
+        BusinessService.approveBusiness(new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId())
+      ).rejects.toThrow('Business not found');
+    });
+
+    it('should reject approval when business is not pending', async () => {
+      const { business } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+      await BusinessService.approveBusiness(business.id, new mongoose.Types.ObjectId());
+
+      await expect(
+        BusinessService.approveBusiness(business.id, new mongoose.Types.ObjectId())
+      ).rejects.toThrow('Business is not pending approval');
     });
   });
 
   describe('rejectBusiness', () => {
-    let business;
+    it('should reject a pending business and deactivate its owner', async () => {
+      const { business, owner } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
 
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-      expect(business.isApproved).toBe(false); // Should be false initially
-    });
+      const rejected = await BusinessService.rejectBusiness(business.id, new mongoose.Types.ObjectId(), 'Policy violation');
 
-    it('should reject business successfully', async () => {
-      const reason = 'Does not meet requirements';
-      const result = await BusinessService.rejectBusiness(business._id.toString(), reason, mockSuperAdmin);
+      expect(rejected.status).toBe('suspended');
+      expect(rejected.isPublic).toBe(false);
 
-      expect(result).toBeDefined();
-      expect(result._id.toString()).toBe(business._id.toString());
-      expect(result.isApproved).toBe(false);
-      expect(result.rejectionReason).toBe(reason);
+      const updatedOwner = await User.findById(owner.id);
+      expect(updatedOwner.isApproved).toBe(false);
+      expect(updatedOwner.isActive).toBe(false);
     });
 
     it('should return error for non-existent business', async () => {
-      await expect(BusinessService.rejectBusiness('507f1f77bcf86cd799439011', 'Reason', mockSuperAdmin))
-        .rejects
-        .toThrow();
+      await expect(
+        BusinessService.rejectBusiness(new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId(), 'nope')
+      ).rejects.toThrow('Business not found');
+    });
+  });
+
+  describe('getBusinessProfile', () => {
+    it('should return a business by ID', async () => {
+      const { business } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+
+      const found = await BusinessService.getBusinessProfile(business.id);
+      expect(found.name).toBe('Test Business');
+    });
+
+    it('should throw for non-existent business', async () => {
+      await expect(
+        BusinessService.getBusinessProfile(new mongoose.Types.ObjectId())
+      ).rejects.toThrow('Business not found');
+    });
+  });
+
+  describe('updateBusinessProfile', () => {
+    it('should let the business owner update their business', async () => {
+      const { business, owner } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+
+      const updated = await BusinessService.updateBusinessProfile(business.id, { description: 'Updated description' }, owner.id);
+
+      expect(updated.description).toBe('Updated description');
+    });
+
+    it('should let a super admin update any business', async () => {
+      const { business } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+
+      const superAdmin = await User.create({
+        email: 'super@test.com',
+        password: 'Password123!',
+        firstName: 'Super',
+        lastName: 'Admin',
+        role: 'super_admin',
+        isApproved: true,
+        isActive: true
+      });
+
+      const updated = await BusinessService.updateBusinessProfile(business.id, { tagline: 'By super admin' }, superAdmin._id);
+      expect(updated.tagline).toBe('By super admin');
+    });
+
+    it('should reject updates from unrelated users', async () => {
+      const { business } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+
+      const stranger = await User.create({
+        email: 'stranger@test.com',
+        password: 'Password123!',
+        firstName: 'Some',
+        lastName: 'Stranger',
+        role: 'business_admin',
+        isApproved: true,
+        isActive: true
+      });
+
+      await expect(
+        BusinessService.updateBusinessProfile(business.id, { name: 'Hacked' }, stranger._id)
+      ).rejects.toThrow('Insufficient permissions');
+    });
+
+    it('should not update a non-existent business', async () => {
+      const owner = await User.create({
+        email: 'owner2@test.com',
+        password: 'Password123!',
+        firstName: 'Test',
+        lastName: 'Owner',
+        role: 'business_admin',
+        isApproved: true,
+        isActive: true
+      });
+
+      await expect(
+        BusinessService.updateBusinessProfile(new mongoose.Types.ObjectId(), { name: 'X' }, owner._id)
+      ).rejects.toThrow('Business not found');
+    });
+  });
+
+  describe('getAllBusinesses', () => {
+    it('should return all businesses with pagination', async () => {
+      await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+      await BusinessService.registerBusiness(
+        { ...validBusinessData(), name: 'Second Business', slug: 'second-business', email: 'second@test.com' },
+        { ...validOwnerData(), email: 'second-owner@test.com' }
+      );
+
+      const result = await BusinessService.getAllBusinesses({}, { page: 1, limit: 10 });
+
+      expect(result.businesses.length).toBe(2);
+      expect(result.pagination.total).toBe(2);
+      expect(result.pagination.pages).toBe(1);
+    });
+
+    it('should filter businesses by status', async () => {
+      const { business } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+      await BusinessService.approveBusiness(business.id, new mongoose.Types.ObjectId());
+
+      const pending = await BusinessService.getAllBusinesses({ status: 'pending' }, {});
+      const active = await BusinessService.getAllBusinesses({ status: 'active' }, {});
+
+      expect(pending.businesses.length).toBe(0);
+      expect(active.businesses.length).toBe(1);
+    });
+
+    it('should search businesses by name', async () => {
+      await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+      await BusinessService.registerBusiness(
+        { ...validBusinessData(), name: 'Acme Supplies', slug: 'acme-supplies', email: 'acme@test.com' },
+        { ...validOwnerData(), email: 'acme-owner@test.com' }
+      );
+
+      const result = await BusinessService.getAllBusinesses({ search: 'acme' }, {});
+      expect(result.businesses.length).toBe(1);
+      expect(result.businesses[0].name).toBe('Acme Supplies');
     });
   });
 
   describe('getPublicBusinesses', () => {
-    beforeEach(async () => {
-      // Create multiple businesses with different approval status
-      await BusinessService.createBusiness(mockBusinessData); // Not approved
-      
-      const approvedBusinessData = {
-        ...mockBusinessData,
-        name: 'Approved Business',
-        email: 'approved@example.com'
-      };
-      const approvedBusiness = await BusinessService.createBusiness(approvedBusinessData);
-      approvedBusiness.isApproved = true;
-      await approvedBusiness.save();
-    });
+    it('should only return active public businesses', async () => {
+      const { business } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+      await BusinessService.approveBusiness(business.id, new mongoose.Types.ObjectId());
 
-    it('should return only approved businesses', async () => {
-      // First approve the first business
-      await BusinessService.approveBusiness(
-        (await Business.findOne({ name: mockBusinessData.name }))._id.toString(), 
-        mockSuperAdmin
+      // Create a second business that stays pending (not public)
+      await BusinessService.registerBusiness(
+        { ...validBusinessData(), name: 'Hidden Store', slug: 'hidden-store', email: 'hidden@test.com' },
+        { ...validOwnerData(), email: 'hidden-owner@test.com' }
       );
 
-      const result = await BusinessService.getPublicBusinesses();
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2); // Both businesses are now approved
+      const result = await BusinessService.getPublicBusinesses({}, {});
+      expect(result.businesses.length).toBe(1);
+      expect(result.businesses[0].name).toBe('Test Business');
     });
 
     it('should filter public businesses by category', async () => {
-      // Approve the first business
-      await BusinessService.approveBusiness(
-        (await Business.findOne({ name: mockBusinessData.name }))._id.toString(), 
-        mockSuperAdmin
-      );
+      const { business } = await BusinessService.registerBusiness(validBusinessData(), validOwnerData());
+      await BusinessService.approveBusiness(business.id, new mongoose.Types.ObjectId());
 
-      const result = await BusinessService.getPublicBusinesses({ category: 'retail' });
+      const matching = await BusinessService.getPublicBusinesses({ category: 'retail' }, {});
+      const nonMatching = await BusinessService.getPublicBusinesses({ category: 'electronics' }, {});
 
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2); // Both businesses are in 'retail' category
-    });
-
-    it('should filter public businesses by search', async () => {
-      // Approve the first business
-      await BusinessService.approveBusiness(
-        (await Business.findOne({ name: mockBusinessData.name }))._id.toString(), 
-        mockSuperAdmin
-      );
-
-      const result = await BusinessService.getPublicBusinesses({ search: 'Approved' });
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toContain('Approved');
+      expect(matching.businesses.length).toBe(1);
+      expect(nonMatching.businesses.length).toBe(0);
     });
   });
 
-  describe('getBusinessAnalytics', () => {
-    let business;
-
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-    });
-
-    it('should return business analytics', async () => {
-      const result = await BusinessService.getBusinessAnalytics(business._id.toString());
-
-      expect(result).toBeDefined();
-      expect(result.businessId).toBe(business._id.toString());
-      expect(result.registrationDate).toBeDefined();
-      expect(result.status).toBe('pending'); // Since business is not approved yet
-      expect(result.tenantId).toBe(business.tenantId);
-    });
-
-    it('should return error for non-existent business', async () => {
-      await expect(BusinessService.getBusinessAnalytics('507f1f77bcf86cd799439011'))
-        .rejects
-        .toThrow();
-    });
-  });
-
-  describe('updateBusinessSettings', () => {
-    let business;
-
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-    });
-
-    it('should update business settings successfully', async () => {
-      const newSettings = {
-        taxRate: 0.15,
-        currency: 'EUR',
-        timezone: 'Europe/Berlin'
-      };
-
-      const result = await BusinessService.updateBusinessSettings(business._id.toString(), newSettings, mockSuperAdmin);
-
-      expect(result).toBeDefined();
-      expect(result._id.toString()).toBe(business._id.toString());
-      expect(result.settings.taxRate).toBe(newSettings.taxRate);
-      expect(result.settings.currency).toBe(newSettings.currency);
-      expect(result.settings.timezone).toBe(newSettings.timezone);
-    });
-
-    it('should validate settings data', async () => {
-      const invalidSettings = {
-        taxRate: -0.1, // Invalid: negative tax rate
-        currency: 'INVALID' // Invalid currency
-      };
-
-      await expect(BusinessService.updateBusinessSettings(business._id.toString(), invalidSettings, mockSuperAdmin))
-        .rejects
-        .toThrow();
-    });
-  });
-
-  describe('getBusinessByTenantId', () => {
-    let business;
-
-    beforeEach(async () => {
-      business = await BusinessService.createBusiness(mockBusinessData);
-    });
-
-    it('should return business by tenant ID', async () => {
-      const result = await BusinessService.getBusinessByTenantId(business.tenantId);
-
-      expect(result).toBeDefined();
-      expect(result._id.toString()).toBe(business._id.toString());
-      expect(result.tenantId).toBe(business.tenantId);
-    });
-
-    it('should return null for non-existent tenant ID', async () => {
-      const result = await BusinessService.getBusinessByTenantId('non-existent-tenant-id');
-
-      expect(result).toBeNull();
+  describe('generateSlug', () => {
+    it('should generate URL-friendly slugs', () => {
+      expect(BusinessService.generateSlug('My Awesome Store!')).toBe('my-awesome-store');
+      expect(BusinessService.generateSlug('  Multiple   Spaces  ')).toBe('multiple-spaces');
     });
   });
 });

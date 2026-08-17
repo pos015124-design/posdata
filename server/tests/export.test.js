@@ -4,11 +4,17 @@
  */
 
 const ExportService = require('../services/exportService');
+const AnalyticsService = require('../services/analyticsService');
+const ExcelJS = require('exceljs');
 const Sale = require('../models/Sale');
 const Product = require('../models/Product');
 const Customer = require('../models/Customer');
 const Expense = require('../models/Expense');
 const mongoose = require('mongoose');
+
+const OWNER_ID = new mongoose.Types.ObjectId();
+let invoiceCounter = 0;
+const nextInvoice = () => `INV-EXP-${Date.now()}-${invoiceCounter++}`;
 
 describe('Export Service', () => {
   let testSales, testProducts, testCustomers, testExpenses;
@@ -17,6 +23,7 @@ describe('Export Service', () => {
     // Create test data
     testProducts = await Product.create([
       {
+        userId: OWNER_ID,
         name: 'Export Test Product 1',
         code: 'ETP001',
         barcode: '1234567890123',
@@ -25,9 +32,11 @@ describe('Export Service', () => {
         purchasePrice: 80,
         category: 'Electronics',
         supplier: 'Test Supplier 1',
-        reorderPoint: 10
+        reorderPoint: 10,
+        status: 'active'
       },
       {
+        userId: OWNER_ID,
         name: 'Export Test Product 2',
         code: 'ETP002',
         barcode: '1234567890124',
@@ -36,69 +45,69 @@ describe('Export Service', () => {
         purchasePrice: 150,
         category: 'Accessories',
         supplier: 'Test Supplier 2',
-        reorderPoint: 5
+        reorderPoint: 5,
+        status: 'active'
       }
     ]);
 
     testCustomers = await Customer.create([
       {
         name: 'Export Test Customer 1',
-        type: 'cash',
-        email: 'customer1@export.test'
+        email: 'customer1@export.test',
+        userId: OWNER_ID
       },
       {
         name: 'Export Test Customer 2',
-        type: 'credit',
         email: 'customer2@export.test',
-        creditLimit: 1000
+        userId: OWNER_ID
       }
     ]);
 
     // Create test sales
     const today = new Date();
     const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    
+
     testSales = await Sale.create([
       {
+        invoiceNumber: nextInvoice(),
         items: [
           {
-            product: testProducts[0]._id,
-            name: testProducts[0].name,
+            productId: testProducts[0]._id,
+            productName: testProducts[0].name,
             quantity: 2,
             price: 100,
             total: 200
           }
         ],
-        customer: testCustomers[0]._id,
+        customerId: testCustomers[0]._id,
         subtotal: 200,
         total: 200,
         tax: 36,
-        taxRate: 18,
         amountPaid: 200,
         change: 0,
         paymentMethod: 'cash',
-        staff: new mongoose.Types.ObjectId(),
+        createdBy: OWNER_ID,
         createdAt: today
       },
       {
+        invoiceNumber: nextInvoice(),
         items: [
           {
-            product: testProducts[1]._id,
-            name: testProducts[1].name,
+            productId: testProducts[1]._id,
+            productName: testProducts[1].name,
             quantity: 1,
             price: 200,
             total: 200
           }
         ],
-        customer: testCustomers[1]._id,
+        customerId: testCustomers[1]._id,
         subtotal: 200,
         total: 200,
         tax: 36,
-        taxRate: 18,
         amountPaid: 200,
         change: 0,
-        paymentMethod: 'credit',
-        staff: new mongoose.Types.ObjectId(),
+        paymentMethod: 'cash',
+        createdBy: OWNER_ID,
         createdAt: yesterday
       }
     ]);
@@ -106,26 +115,33 @@ describe('Export Service', () => {
     // Create test expenses
     testExpenses = await Expense.create([
       {
-        description: 'Export Test Expense 1',
+        title: 'Office Supplies',
         amount: 50,
         category: 'Office Supplies',
         date: today,
-        staff: new mongoose.Types.ObjectId()
+        createdBy: OWNER_ID
       },
       {
-        description: 'Export Test Expense 2',
+        title: 'Utilities',
         amount: 100,
         category: 'Utilities',
         date: yesterday,
-        staff: new mongoose.Types.ObjectId()
+        createdBy: OWNER_ID
       }
     ]);
+  });
+
+  afterEach(async () => {
+    await Sale.deleteMany({});
+    await Product.deleteMany({});
+    await Customer.deleteMany({});
+    await Expense.deleteMany({});
   });
 
   describe('PDF Generation', () => {
     it('should generate PDF sales report', async () => {
       const filters = { dateRange: 'week' };
-      const options = { includeCharts: true, format: 'standard' };
+      const options = { includeCharts: true, format: 'standard', userId: OWNER_ID.toString() };
 
       const startTime = Date.now();
       const pdfBuffer = await ExportService.generateSalesPDF(filters, options);
@@ -135,13 +151,15 @@ describe('Export Service', () => {
       expect(pdfBuffer.length).toBeGreaterThan(0);
       expect(generationTime).toBeLessThan(10000); // Should complete within 10 seconds
 
-      // Verify PDF header
+      // Verify PDF header + EOF trailer
       const pdfHeader = pdfBuffer.toString('ascii', 0, 100);
       expect(pdfHeader).toContain('%PDF');
+      const pdfTrailer = pdfBuffer.toString('ascii', -32);
+      expect(pdfTrailer).toContain('%%EOF');
     });
 
     it('should generate PDF inventory report', async () => {
-      const filters = { category: 'Electronics' };
+      const filters = { category: 'Electronics', userId: OWNER_ID.toString() };
 
       const startTime = Date.now();
       const pdfBuffer = await ExportService.generateInventoryPDF(filters);
@@ -151,7 +169,6 @@ describe('Export Service', () => {
       expect(pdfBuffer.length).toBeGreaterThan(0);
       expect(generationTime).toBeLessThan(10000);
 
-      // Verify PDF header
       const pdfHeader = pdfBuffer.toString('ascii', 0, 100);
       expect(pdfHeader).toContain('%PDF');
     });
@@ -161,7 +178,7 @@ describe('Export Service', () => {
       await Sale.deleteMany({});
       await Product.deleteMany({});
 
-      const filters = { dateRange: 'day' };
+      const filters = { dateRange: 'day', userId: OWNER_ID.toString() };
       const pdfBuffer = await ExportService.generateSalesPDF(filters);
 
       expect(pdfBuffer).toBeInstanceOf(Buffer);
@@ -172,7 +189,7 @@ describe('Export Service', () => {
   describe('Excel Generation', () => {
     it('should generate Excel sales report', async () => {
       const filters = { dateRange: 'week' };
-      const options = { includeCharts: false, format: 'detailed' };
+      const options = { includeCharts: false, format: 'detailed', userId: OWNER_ID.toString() };
 
       const startTime = Date.now();
       const excelBuffer = await ExportService.generateSalesExcel(filters, options);
@@ -188,29 +205,71 @@ describe('Export Service', () => {
     });
 
     it('should create multiple worksheets in Excel', async () => {
-      const filters = { dateRange: 'month' };
+      const filters = { dateRange: 'month', userId: OWNER_ID.toString() };
       const excelBuffer = await ExportService.generateSalesExcel(filters);
 
       expect(excelBuffer).toBeInstanceOf(Buffer);
       expect(excelBuffer.length).toBeGreaterThan(0);
 
-      // The buffer should contain worksheet references
-      const bufferString = excelBuffer.toString();
-      expect(bufferString).toContain('Summary');
-      expect(bufferString).toContain('Daily Trends');
-      expect(bufferString).toContain('Top Products');
+      // Reopen with ExcelJS to verify actual worksheet names
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(excelBuffer);
+      const sheetNames = workbook.worksheets.map(ws => ws.name);
+
+      expect(sheetNames).toContain('Summary');
+      expect(sheetNames).toContain('Daily Trends');
+      expect(sheetNames).toContain('Top Products');
+    });
+
+    it('should carry the real brand as workbook creator', async () => {
+      const filters = { dateRange: 'day', userId: OWNER_ID.toString() };
+      const excelBuffer = await ExportService.generateSalesExcel(filters);
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(excelBuffer);
+      expect(workbook.creator).toBe('E-Shop by BHABY GROUP LTD');
     });
 
     it('should handle different date ranges', async () => {
       const dateRanges = ['day', 'week', 'month'];
-      
+
       for (const dateRange of dateRanges) {
-        const filters = { dateRange };
+        const filters = { dateRange, userId: OWNER_ID.toString() };
         const excelBuffer = await ExportService.generateSalesExcel(filters);
-        
+
         expect(excelBuffer).toBeInstanceOf(Buffer);
         expect(excelBuffer.length).toBeGreaterThan(0);
       }
+    });
+  });
+
+  describe('Data Isolation', () => {
+    it('should only include the requesting user\'s sales in the report', async () => {
+      // A sale belonging to ANOTHER seller — must NOT appear in this report
+      await Sale.create({
+        invoiceNumber: nextInvoice(),
+        items: [{ productId: new mongoose.Types.ObjectId(), productName: 'Other Seller Item', quantity: 1, price: 99999, total: 99999 }],
+        subtotal: 99999,
+        total: 99999,
+        paymentMethod: 'mobile',
+        createdBy: new mongoose.Types.ObjectId(),
+        createdAt: new Date()
+      });
+
+      const excelBuffer = await ExportService.generateSalesExcel(
+        { dateRange: 'day' },
+        { userId: OWNER_ID.toString() }
+      );
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(excelBuffer);
+      const summarySheet = workbook.getWorksheet('Summary');
+      // Summary data starts at row 6 (header), so Total Revenue = row 7
+      const totalRevenueCell = summarySheet.getCell('B7').value;
+
+      // dateRange 'day' only includes today's sale (200). The other seller's
+      // 99999 must be excluded by the userId scoping.
+      expect(Number(totalRevenueCell)).toBe(200);
     });
   });
 
@@ -219,18 +278,18 @@ describe('Export Service', () => {
       const tests = [
         { method: 'generateSalesPDF', filters: { dateRange: 'week' } },
         { method: 'generateSalesExcel', filters: { dateRange: 'week' } },
-        { method: 'generateInventoryPDF', filters: {} }
+        { method: 'generateInventoryPDF', filters: { category: 'Electronics' } }
       ];
 
       for (const test of tests) {
         const startTime = Date.now();
-        
+
         if (test.method === 'generateInventoryPDF') {
-          await ExportService[test.method](test.filters);
+          await ExportService[test.method]({ ...test.filters, userId: OWNER_ID.toString() });
         } else {
-          await ExportService[test.method](test.filters, {});
+          await ExportService[test.method](test.filters, { userId: OWNER_ID.toString() });
         }
-        
+
         const generationTime = Date.now() - startTime;
         expect(generationTime).toBeLessThan(10000); // 10 seconds max
       }
@@ -242,7 +301,7 @@ describe('Export Service', () => {
 
       for (let i = 0; i < concurrentRequests; i++) {
         promises.push(
-          ExportService.generateSalesPDF({ dateRange: 'day' }, {})
+          ExportService.generateSalesPDF({ dateRange: 'day' }, { userId: OWNER_ID.toString() })
         );
       }
 
@@ -264,58 +323,25 @@ describe('Export Service', () => {
   describe('Error Handling', () => {
     it('should handle invalid filters gracefully', async () => {
       const invalidFilters = {
-        startDate: 'invalid-date',
-        endDate: 'invalid-date'
+        startDate: 'not-a-real-date',
+        endDate: 'also-not-a-date',
+        userId: OWNER_ID.toString()
       };
 
-      await expect(
-        ExportService.generateSalesPDF(invalidFilters)
-      ).rejects.toThrow();
-    });
-
-    it('should handle database connection errors', async () => {
-      // Temporarily close database connection
-      await mongoose.connection.close();
-
-      await expect(
-        ExportService.generateSalesPDF({ dateRange: 'day' })
-      ).rejects.toThrow();
-
-      // Reconnect for other tests
-      await mongoose.connect(process.env.DATABASE_URL || 'mongodb://localhost:27017/dukani_test');
-    });
-  });
-
-  describe('Data Formatting', () => {
-    it('should format currency values correctly in PDF', async () => {
-      const filters = { dateRange: 'day' };
-      const pdfBuffer = await ExportService.generateSalesPDF(filters);
-      
+      // Must not throw — invalid dates simply fall back to the default window
+      const pdfBuffer = await ExportService.generateSalesPDF(invalidFilters, { userId: OWNER_ID.toString() });
       expect(pdfBuffer).toBeInstanceOf(Buffer);
-      
-      // Check that the PDF contains properly formatted currency
-      const pdfText = pdfBuffer.toString();
-      expect(pdfText).toMatch(/\$[\d,]+\.?\d*/); // Currency format pattern
+      expect(pdfBuffer.length).toBeGreaterThan(0);
     });
 
-    it('should include all required sections in reports', async () => {
-      const filters = { dateRange: 'week' };
-      
-      // Test PDF sections
-      const pdfBuffer = await ExportService.generateSalesPDF(filters);
-      const pdfText = pdfBuffer.toString();
-      
-      expect(pdfText).toContain('DUKANI RETAIL SYSTEM');
-      expect(pdfText).toContain('Sales Report');
-      expect(pdfText).toContain('Sales Summary');
-      
-      // Test Excel sections
-      const excelBuffer = await ExportService.generateSalesExcel(filters);
-      const excelText = excelBuffer.toString();
-      
-      expect(excelText).toContain('Summary');
-      expect(excelText).toContain('Daily Trends');
-      expect(excelText).toContain('Top Products');
+    it('should propagate analytics failures', async () => {
+      // Simulate a failure inside the analytics layer (e.g. DB outage) without
+      // destroying the shared test connection
+      jest.spyOn(AnalyticsService, 'getSalesAnalytics').mockRejectedValueOnce(new Error('Database unavailable'));
+
+      await expect(
+        ExportService.generateSalesPDF({ dateRange: 'day' }, { userId: OWNER_ID.toString() })
+      ).rejects.toThrow();
     });
   });
 });

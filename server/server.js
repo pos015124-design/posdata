@@ -22,6 +22,9 @@ const { connectDB } = require("./config/database");
 // Import error handling
 const { globalErrorHandler } = require('./utils/errorHandler');
 
+// Real-time request/response monitoring (response times, error rates, CPU)
+const { monitoringSystem, requestTrackingMiddleware, errorTrackingMiddleware } = require('./utils/monitoring');
+
 // Import routes
 const basicRoutes = require("./routes/index");
 const authRoutes = require("./routes/authRoutes");
@@ -232,6 +235,9 @@ app.use(compression());
 app.use(mongoSanitize());
 app.use(hpp());
 
+// Track every request: response times, request volume, slow-request warnings
+app.use(requestTrackingMiddleware());
+
 // Rate limiting
 // authLimiter guards ONLY the credential endpoints (the brute-force surface). Mounting
 // it on the whole /api/auth prefix throttled legit traffic — notification-prefs,
@@ -314,10 +320,9 @@ app.use('/api/delivery', require('./routes/deliveryRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
+// Health check endpoints (/health liveness, /ready readiness) are defined in
+// routes/index.js — mounted at root before the API routes so uptime monitors
+// and load balancers never hit the API rate limiter.
 
 // Setup API documentation
 try {
@@ -359,6 +364,9 @@ app.use((req, res) => {
     path: req.url
   });
 });
+
+// Count failures before the centralized error handler responds
+app.use(errorTrackingMiddleware());
 
 // Use centralized error handler
 app.use(globalErrorHandler);
@@ -403,6 +411,9 @@ const startServer = async () => {
     } catch (err) {
       console.error('WebSocket init failed (non-fatal):', err.message);
     }
+
+    // Start the 60s health-check / metric-snapshot loop
+    monitoringSystem.startMonitoring();
 
     return server;
   } else {

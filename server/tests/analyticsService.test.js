@@ -1,482 +1,224 @@
 const mongoose = require('mongoose');
 const AnalyticsService = require('../services/analyticsService');
-const Order = require('../models/Order');
-const Product = require('../models/Product');
 const User = require('../models/User');
-
-// Shared valid ObjectId for fixtures — mongoose 8 rejects bare strings.
-const TEST_BUSINESS_ID = new mongoose.Types.ObjectId();
-const CustomerAccount = require('../models/CustomerAccount');
+const Product = require('../models/Product');
 const Sale = require('../models/Sale');
 const Expense = require('../models/Expense');
 
+const DAY = 24 * 60 * 60 * 1000;
+let invoiceCounter = 0;
+const nextInvoice = () => `INV-TEST-${Date.now()}-${invoiceCounter++}`;
+
+const makeSale = (userId, overrides = {}) => ({
+  invoiceNumber: nextInvoice(),
+  items: [{
+    productId: new mongoose.Types.ObjectId(),
+    productName: 'Test Product',
+    quantity: 2,
+    price: 100,
+    total: 200
+  }],
+  subtotal: 200,
+  total: 200,
+  paymentMethod: 'cash',
+  status: 'completed',
+  createdBy: userId,
+  ...overrides
+});
+
 describe('AnalyticsService', () => {
-  let mockUser, mockCustomer, mockProduct;
+  let mockUser, otherUser;
 
   beforeEach(async () => {
-    // Create a mock user
-    mockUser = new User({
+    mockUser = await User.create({
       email: 'admin@example.com',
       password: 'Password123!',
+      firstName: 'Admin',
+      lastName: 'One',
       role: 'business_admin',
-      tenantId: 'tenant1',
-      businessId: TEST_BUSINESS_ID,
-      isApproved: true
+      isApproved: true,
+      isActive: true
     });
-    await mockUser.save();
-
-    // Create a mock customer
-    mockCustomer = new CustomerAccount({
-      email: 'customer@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      tenantId: 'tenant1',
-      businessId: TEST_BUSINESS_ID
+    otherUser = await User.create({
+      email: 'other@example.com',
+      password: 'Password123!',
+      firstName: 'Other',
+      lastName: 'Admin',
+      role: 'business_admin',
+      isApproved: true,
+      isActive: true
     });
-    await mockCustomer.save();
-
-    // Create a mock product
-    mockProduct = new Product({
-      name: 'Test Product',
-      code: 'TP001',
-      price: 25.99,
-      stock: 100,
-      category: 'Electronics',
-      tenantId: 'tenant1',
-      businessId: TEST_BUSINESS_ID
-    });
-    await mockProduct.save();
   });
 
   afterEach(async () => {
-    await Order.deleteMany({});
-    await Product.deleteMany({});
-    await CustomerAccount.deleteMany({});
     await User.deleteMany({});
+    await Product.deleteMany({});
     await Sale.deleteMany({});
     await Expense.deleteMany({});
   });
 
   describe('getSalesAnalytics', () => {
-    beforeEach(async () => {
-      // Create multiple orders for analytics
-      const baseDate = new Date();
-      
-      // Create orders for different periods
-      await new Order({
-        customerId: mockCustomer._id,
-        customerEmail: 'customer@example.com',
-        customerName: 'John Doe',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        items: [{
-          product: mockProduct._id,
-          productName: mockProduct.name,
-          productCode: mockProduct.code,
-          price: mockProduct.price,
-          quantity: 2,
-          subtotal: mockProduct.price * 2
-        }],
-        subtotal: mockProduct.price * 2,
-        taxAmount: (mockProduct.price * 2) * 0.1,
-        total: (mockProduct.price * 2) + ((mockProduct.price * 2) * 0.1),
-        currency: 'USD',
-        status: 'completed',
-        orderDate: new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() - 1) // Yesterday
-      }).save();
+    it('should return sales analytics for the default 30-day period', async () => {
+      await Sale.create([
+        makeSale(mockUser._id, { total: 500, subtotal: 500, items: [{ productId: new mongoose.Types.ObjectId(), productName: 'A', quantity: 5, price: 100, total: 500 }] }),
+        makeSale(mockUser._id, { total: 300, subtotal: 300, items: [{ productId: new mongoose.Types.ObjectId(), productName: 'B', quantity: 3, price: 100, total: 300 }] })
+      ]);
 
-      await new Order({
-        customerId: mockCustomer._id,
-        customerEmail: 'customer@example.com',
-        customerName: 'John Doe',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        items: [{
-          product: mockProduct._id,
-          productName: mockProduct.name,
-          productCode: mockProduct.code,
-          price: mockProduct.price,
-          quantity: 1,
-          subtotal: mockProduct.price
-        }],
-        subtotal: mockProduct.price,
-        taxAmount: mockProduct.price * 0.1,
-        total: mockProduct.price + (mockProduct.price * 0.1),
-        currency: 'USD',
-        status: 'completed',
-        orderDate: new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate()) // Today
-      }).save();
+      const analytics = await AnalyticsService.getSalesAnalytics({}, mockUser._id.toString());
+
+      expect(analytics.summary.totalSales).toBe(2);
+      expect(analytics.summary.totalRevenue).toBe(800);
+      expect(analytics.summary.averageOrderValue).toBe(400);
+      expect(analytics.summary.netProfit).toBe(800);
+      expect(analytics.topProducts).toHaveLength(2);
+      expect(analytics.period.startDate).toBeDefined();
+      expect(analytics.period.endDate).toBeDefined();
     });
 
-    it('should return sales analytics for default period', async () => {
-      const result = await AnalyticsService.getSalesAnalytics({}, mockUser);
+    it('should only count the requesting user\'s sales (data isolation)', async () => {
+      await Sale.create([
+        makeSale(mockUser._id, { total: 500 }),
+        makeSale(otherUser._id, { total: 9999 })
+      ]);
 
-      expect(result).toBeDefined();
-      expect(result.currentPeriod).toBeDefined();
-      expect(result.previousPeriod).toBeDefined();
-      expect(result.currentPeriod.totalSales).toBeGreaterThan(0);
-      expect(result.currentPeriod.totalRevenue).toBeGreaterThan(0);
-      expect(result.currentPeriod.averageOrderValue).toBeGreaterThan(0);
-      expect(result.currentPeriod.topProducts).toBeDefined();
-      expect(Array.isArray(result.currentPeriod.topProducts)).toBe(true);
+      const analytics = await AnalyticsService.getSalesAnalytics({}, mockUser._id.toString());
+
+      expect(analytics.summary.totalSales).toBe(1);
+      expect(analytics.summary.totalRevenue).toBe(500);
     });
 
-    it('should filter analytics by date range', async () => {
-      const today = new Date();
-      const result = await AnalyticsService.getSalesAnalytics({
-        dateRange: 'today'
-      }, mockUser);
+    it('should filter analytics by explicit date range', async () => {
+      const now = Date.now();
+      await Sale.create([
+        // Inside the requested window
+        makeSale(mockUser._id, { total: 200, createdAt: new Date(now - 2 * DAY) }),
+        // Outside (older than the window)
+        makeSale(mockUser._id, { total: 999, createdAt: new Date(now - 20 * DAY) })
+      ]);
 
-      expect(result).toBeDefined();
-      expect(result.currentPeriod.totalSales).toBe(2); // Should include today's order
+      const analytics = await AnalyticsService.getSalesAnalytics({
+        startDate: new Date(now - 5 * DAY).toISOString(),
+        endDate: new Date(now).toISOString()
+      }, mockUser._id.toString());
+
+      expect(analytics.summary.totalSales).toBe(1);
+      expect(analytics.summary.totalRevenue).toBe(200);
     });
 
-    it('should filter analytics by specific dates', async () => {
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+    it('should calculate growth percentages against the previous period', async () => {
+      const now = Date.now();
+      // Previous period: 60-30 days ago (outside default 30d window)
+      await Sale.create([
+        makeSale(mockUser._id, { total: 500, createdAt: new Date(now - 40 * DAY) }),
+        makeSale(mockUser._id, { total: 500, createdAt: new Date(now - 35 * DAY) })
+      ]);
+      // Current period: within last 30 days
+      await Sale.create([
+        makeSale(mockUser._id, { total: 1000, createdAt: new Date(now - 3 * DAY) })
+      ]);
 
-      const result = await AnalyticsService.getSalesAnalytics({
-        startDate: yesterday.toISOString(),
-        endDate: today.toISOString()
-      }, mockUser);
+      const analytics = await AnalyticsService.getSalesAnalytics({}, mockUser._id.toString());
 
-      expect(result).toBeDefined();
-      expect(result.currentPeriod.totalSales).toBe(2); // Both orders
-    });
-  });
-
-  describe('getCustomerAnalytics', () => {
-    beforeEach(async () => {
-      // Create multiple customers
-      await new CustomerAccount({
-        email: 'customer1@example.com',
-        firstName: 'John',
-        lastName: 'Doe',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
-
-      await new CustomerAccount({
-        email: 'customer2@example.com',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
-
-      // Create orders for customer analytics
-      await new Order({
-        customerId: mockCustomer._id,
-        customerEmail: 'customer@example.com',
-        customerName: 'John Doe',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        items: [{
-          product: mockProduct._id,
-          productName: mockProduct.name,
-          productCode: mockProduct.code,
-          price: mockProduct.price,
-          quantity: 2,
-          subtotal: mockProduct.price * 2
-        }],
-        subtotal: mockProduct.price * 2,
-        total: (mockProduct.price * 2) + ((mockProduct.price * 2) * 0.1),
-        currency: 'USD',
-        status: 'completed'
-      }).save();
+      // Previous revenue 1000 → current 1000 → 0% growth
+      expect(analytics.summary.totalRevenue).toBe(1000);
+      expect(analytics.summary.revenueGrowth).toBeCloseTo(0, 5);
+      expect(analytics.comparison.previous.totalRevenue).toBe(1000);
     });
 
-    it('should return customer analytics', async () => {
-      const result = await AnalyticsService.getCustomerAnalytics({}, mockUser);
+    it('should break down sales by payment method', async () => {
+      await Sale.create([
+        makeSale(mockUser._id, { total: 200, paymentMethod: 'cash' }),
+        makeSale(mockUser._id, { total: 300, paymentMethod: 'mobile' })
+      ]);
 
-      expect(result).toBeDefined();
-      expect(result.totalCustomers).toBe(3); // 3 customers total
-      expect(result.activeCustomers).toBeGreaterThanOrEqual(1); // At least 1 with orders
-      expect(result.customerGrowth).toBeDefined();
-      expect(result.customerSegments).toBeDefined();
-      expect(result.topCustomers).toBeDefined();
-      expect(Array.isArray(result.topCustomers)).toBe(true);
+      const analytics = await AnalyticsService.getSalesAnalytics({}, mockUser._id.toString());
+
+      const methods = analytics.paymentMethods;
+      expect(methods).toHaveLength(2);
+      const cash = methods.find(m => m._id === 'cash');
+      expect(cash.count).toBe(1);
+      expect(cash.total).toBe(200);
+    });
+
+    it('should include expense totals in the summary', async () => {
+      await Sale.create(makeSale(mockUser._id, { total: 1000 }));
+      await Expense.create({
+        title: 'Rent',
+        amount: 250,
+        category: 'Rent',
+        date: new Date(),
+        createdBy: mockUser._id
+      });
+
+      const analytics = await AnalyticsService.getSalesAnalytics({}, mockUser._id.toString());
+
+      expect(analytics.summary.totalExpenses).toBe(250);
+      expect(analytics.summary.netProfit).toBe(750);
     });
   });
 
   describe('getInventoryAnalytics', () => {
-    beforeEach(async () => {
-      // Create multiple products with different categories
-      await new Product({
-        name: 'Product 1',
-        code: 'P1',
-        price: 10,
-        stock: 50,
-        category: 'Electronics',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
+    it('should return inventory analytics for the user\'s products', async () => {
+      await Product.create([
+        {
+          userId: mockUser._id,
+          name: 'In Stock', code: 'IS001', price: 100, purchasePrice: 80,
+          stock: 50, category: 'Electronics', reorderPoint: 10, status: 'active'
+        },
+        {
+          userId: mockUser._id,
+          name: 'Low Stock', code: 'LS001', price: 50, purchasePrice: 30,
+          stock: 5, category: 'Electronics', reorderPoint: 10, status: 'active'
+        },
+        {
+          userId: mockUser._id,
+          name: 'Out', code: 'OO001', price: 20, purchasePrice: 10,
+          stock: 0, category: 'Clothing', reorderPoint: 5, status: 'active'
+        }
+      ]);
 
-      await new Product({
-        name: 'Product 2',
-        code: 'P2',
-        price: 15,
-        stock: 30,
-        category: 'Clothing',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
+      const analytics = await AnalyticsService.getInventoryAnalytics({}, mockUser._id.toString());
 
-      await new Product({
-        name: 'Product 3',
-        code: 'P3',
-        price: 20,
-        stock: 10,
-        category: 'Electronics',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
+      expect(analytics.stockOverview.totalProducts).toBe(3);
+      // 50*80 + 5*30 + 0*10
+      expect(analytics.stockOverview.totalStockValue).toBe(4150);
+      expect(analytics.stockOverview.lowStockItems).toBe(2); // Low + Out
+      expect(analytics.stockOverview.outOfStockItems).toBe(1);
+      expect(analytics.lowStockItems).toHaveLength(2);
+      expect(analytics.categoryBreakdown).toHaveLength(2);
     });
 
-    it('should return inventory analytics', async () => {
-      const result = await AnalyticsService.getInventoryAnalytics({}, mockUser);
+    it('should exclude other users\' products (data isolation)', async () => {
+      await Product.create({
+        userId: mockUser._id, name: 'Mine', code: 'M001', price: 10, purchasePrice: 5,
+        stock: 10, category: 'General', reorderPoint: 2, status: 'active'
+      });
+      await Product.create({
+        userId: otherUser._id, name: 'Theirs', code: 'T001', price: 10, purchasePrice: 5,
+        stock: 9999, category: 'General', reorderPoint: 2, status: 'active'
+      });
 
-      expect(result).toBeDefined();
-      expect(result.totalProducts).toBe(4); // 4 products total
-      expect(result.totalStockValue).toBeGreaterThan(0);
-      expect(result.productsByCategory).toBeDefined();
-      expect(result.lowStockItems).toBeDefined();
-      expect(Array.isArray(result.lowStockItems)).toBe(true);
-      expect(result.outOfStockItems).toBeDefined();
-      expect(Array.isArray(result.outOfStockItems)).toBe(true);
+      const analytics = await AnalyticsService.getInventoryAnalytics({}, mockUser._id.toString());
+
+      expect(analytics.stockOverview.totalProducts).toBe(1);
     });
 
-    it('should filter by category', async () => {
-      const result = await AnalyticsService.getInventoryAnalytics({ category: 'Electronics' }, mockUser);
+    it('should filter inventory by category', async () => {
+      await Product.create([
+        {
+          userId: mockUser._id, name: 'Elec', code: 'E001', price: 10, purchasePrice: 5,
+          stock: 10, category: 'Electronics', reorderPoint: 2, status: 'active'
+        },
+        {
+          userId: mockUser._id, name: 'Book', code: 'B001', price: 10, purchasePrice: 5,
+          stock: 10, category: 'Books', reorderPoint: 2, status: 'active'
+        }
+      ]);
 
-      expect(result).toBeDefined();
-      expect(result.totalProducts).toBe(3); // 3 electronics products
-    });
-  });
+      const analytics = await AnalyticsService.getInventoryAnalytics({ category: 'Books' }, mockUser._id.toString());
 
-  describe('getFinancialAnalytics', () => {
-    beforeEach(async () => {
-      // Create orders for financial analytics
-      await new Order({
-        customerId: mockCustomer._id,
-        customerEmail: 'customer@example.com',
-        customerName: 'John Doe',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        items: [{
-          product: mockProduct._id,
-          productName: mockProduct.name,
-          productCode: mockProduct.code,
-          price: mockProduct.price,
-          quantity: 2,
-          subtotal: mockProduct.price * 2
-        }],
-        subtotal: mockProduct.price * 2,
-        taxAmount: (mockProduct.price * 2) * 0.1,
-        total: (mockProduct.price * 2) + ((mockProduct.price * 2) * 0.1),
-        currency: 'USD',
-        status: 'completed'
-      }).save();
-
-      // Create expenses for financial analytics
-      await new Expense({
-        description: 'Office Supplies',
-        amount: 100,
-        category: 'Office',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        date: new Date()
-      }).save();
-
-      await new Expense({
-        description: 'Marketing',
-        amount: 200,
-        category: 'Marketing',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        date: new Date()
-      }).save();
-    });
-
-    it('should return financial analytics', async () => {
-      const result = await AnalyticsService.getFinancialAnalytics({}, mockUser);
-
-      expect(result).toBeDefined();
-      expect(result.totalRevenue).toBeGreaterThan(0);
-      expect(result.totalExpenses).toBe(300); // 100 + 200
-      expect(result.netProfit).toBeDefined();
-      expect(result.expenseByCategory).toBeDefined();
-      expect(result.revenueTrends).toBeDefined();
-    });
-
-    it('should filter by date range', async () => {
-      const result = await AnalyticsService.getFinancialAnalytics({
-        dateRange: 'today'
-      }, mockUser);
-
-      expect(result).toBeDefined();
-      expect(result.totalRevenue).toBeGreaterThan(0);
-    });
-  });
-
-  describe('getDashboardAnalytics', () => {
-    beforeEach(async () => {
-      // Create data for all analytics
-      await new Order({
-        customerId: mockCustomer._id,
-        customerEmail: 'customer@example.com',
-        customerName: 'John Doe',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        items: [{
-          product: mockProduct._id,
-          productName: mockProduct.name,
-          productCode: mockProduct.code,
-          price: mockProduct.price,
-          quantity: 2,
-          subtotal: mockProduct.price * 2
-        }],
-        subtotal: mockProduct.price * 2,
-        taxAmount: (mockProduct.price * 2) * 0.1,
-        total: (mockProduct.price * 2) + ((mockProduct.price * 2) * 0.1),
-        currency: 'USD',
-        status: 'completed'
-      }).save();
-
-      await new CustomerAccount({
-        email: 'customer1@example.com',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
-
-      await new Product({
-        name: 'Inventory Product',
-        code: 'IP001',
-        price: 30,
-        stock: 25,
-        category: 'Electronics',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
-
-      await new Expense({
-        description: 'Office Supplies',
-        amount: 100,
-        category: 'Office',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId
-      }).save();
-    });
-
-    it('should return comprehensive dashboard analytics', async () => {
-      const result = await AnalyticsService.getDashboardAnalytics({}, mockUser);
-
-      expect(result).toBeDefined();
-      expect(result.sales).toBeDefined();
-      expect(result.customers).toBeDefined();
-      expect(result.inventory).toBeDefined();
-      expect(result.financial).toBeDefined();
-      expect(result.trends).toBeDefined();
-      expect(result.alerts).toBeDefined();
-    });
-  });
-
-  describe('getTrendAnalytics', () => {
-    beforeEach(async () => {
-      const baseDate = new Date();
-      
-      // Create orders for different days to show trends
-      for (let i = 0; i < 5; i++) {
-        const orderDate = new Date(baseDate);
-        orderDate.setDate(orderDate.getDate() - i);
-        
-        await new Order({
-          customerId: mockCustomer._id,
-          customerEmail: 'customer@example.com',
-          customerName: 'John Doe',
-          businessId: mockUser.businessId,
-          tenantId: mockUser.tenantId,
-          items: [{
-            product: mockProduct._id,
-            productName: mockProduct.name,
-            productCode: mockProduct.code,
-            price: mockProduct.price,
-            quantity: i + 1, // Different quantities for different trends
-            subtotal: mockProduct.price * (i + 1)
-          }],
-          subtotal: mockProduct.price * (i + 1),
-          total: (mockProduct.price * (i + 1)) + ((mockProduct.price * (i + 1)) * 0.1),
-          currency: 'USD',
-          status: 'completed',
-          orderDate
-        }).save();
-      }
-    });
-
-    it('should return trend analytics', async () => {
-      const result = await AnalyticsService.getTrendAnalytics({
-        period: 'week'
-      }, mockUser);
-
-      expect(result).toBeDefined();
-      expect(result.dailyTrends).toBeDefined();
-      expect(Array.isArray(result.dailyTrends)).toBe(true);
-      expect(result.weeklyTrends).toBeDefined();
-      expect(result.monthlyTrends).toBeDefined();
-      expect(result.growthRate).toBeDefined();
-    });
-  });
-
-  describe('getAlerts', () => {
-    beforeEach(async () => {
-      // Create a product with low stock
-      await new Product({
-        name: 'Low Stock Product',
-        code: 'LSP001',
-        price: 25,
-        stock: 2, // Below reorder point of 5
-        reorderPoint: 5,
-        category: 'Electronics',
-        tenantId: 'tenant1',
-        businessId: TEST_BUSINESS_ID
-      }).save();
-
-      // Create an old order that might be considered late
-      await new Order({
-        customerId: mockCustomer._id,
-        customerEmail: 'customer@example.com',
-        customerName: 'John Doe',
-        businessId: mockUser.businessId,
-        tenantId: mockUser.tenantId,
-        items: [{
-          product: mockProduct._id,
-          productName: mockProduct.name,
-          productCode: mockProduct.code,
-          price: mockProduct.price,
-          quantity: 1,
-          subtotal: mockProduct.price
-        }],
-        subtotal: mockProduct.price,
-        total: mockProduct.price + (mockProduct.price * 0.1),
-        currency: 'USD',
-        status: 'pending',
-        orderDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) // 10 days ago
-      }).save();
-    });
-
-    it('should return system alerts', async () => {
-      const result = await AnalyticsService.getAlerts(mockUser);
-
-      expect(result).toBeDefined();
-      expect(result.lowStock).toBeDefined();
-      expect(Array.isArray(result.lowStock)).toBe(true);
-      expect(result.pendingOrders).toBeDefined();
-      expect(Array.isArray(result.pendingOrders)).toBe(true);
-      expect(result.systemAlerts).toBeDefined();
-      expect(Array.isArray(result.systemAlerts)).toBe(true);
+      expect(analytics.stockOverview.totalProducts).toBe(1);
+      expect(analytics.categoryBreakdown[0]._id).toBe('Books');
     });
   });
 });

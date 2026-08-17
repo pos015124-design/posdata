@@ -12,6 +12,9 @@ export default function MyOrders() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => { if (token) fetchOrders(token); }, [token]);
@@ -41,6 +44,40 @@ export default function MyOrders() {
   };
 
   const logout = () => { localStorage.removeItem('customerAccessToken'); setToken(null); setOrders([]); };
+
+  const authHeaders = () => ({ Authorization: `Bearer ${token}` });
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const res = await api.get('/api/customer-auth/data-export', { headers: authHeaders() });
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Export failed');
+    } finally { setExporting(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) return;
+    if (!window.confirm('Delete your account permanently? Your order history will be anonymized and your account removed. This cannot be undone.')) return;
+    setDeleting(true);
+    try {
+      await api.post('/api/customer-auth/data-delete', { password: deletePassword }, { headers: authHeaders() });
+      localStorage.removeItem('customerAccessToken');
+      setToken(null);
+      setOrders([]);
+      setDeletePassword('');
+      alert('Your account has been deleted.');
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Account deletion failed');
+    } finally { setDeleting(false); }
+  };
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -88,6 +125,39 @@ export default function MyOrders() {
           )}
         </CardContent>
       </Card>
+
+      {token && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Privacy & your data</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-600">
+              You can download everything we hold about you, or permanently delete your account.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" onClick={handleExportData} disabled={exporting}>
+                {exporting ? 'Preparing…' : 'Download my data'}
+              </Button>
+            </div>
+            <div className="pt-2 border-t border-gray-100">
+              <p className="text-sm font-medium text-gray-800 mb-2">Delete my account</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="password"
+                  placeholder="Enter your password to confirm"
+                  className="max-w-xs"
+                  value={deletePassword}
+                  onChange={e => setDeletePassword(e.target.value)}
+                />
+                <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleDeleteAccount} disabled={deleting || !deletePassword}>
+                  {deleting ? 'Deleting…' : 'Delete my account'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

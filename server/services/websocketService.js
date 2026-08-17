@@ -5,6 +5,7 @@
 
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const { logger } = require('../config/logger');
 const Product = require('../models/Product');
 const Sale = require('../models/Sale');
@@ -128,8 +129,8 @@ class WebSocketService {
       // Join dashboard room for targeted updates
       socket.join('dashboard');
 
-      // Send initial dashboard data
-      const initialData = await this.getDashboardData();
+      // Send initial dashboard data — scoped to the connected user's own data
+      const initialData = await this.getDashboardData(socket.userId);
       socket.emit('dashboard-data', initialData);
 
       logger.info('User joined dashboard', {
@@ -169,26 +170,20 @@ class WebSocketService {
    */
   async handleAnalyticsRequest(socket, filters) {
     try {
-      // Simplified analytics response for now
-      const mockAnalytics = {
-        totalSales: 0,
-        totalRevenue: 0,
-        salesCount: 0,
-        averageOrderValue: 0,
-        topProducts: [],
-        salesTrends: [],
-        period: filters.dateRange || 'day'
-      };
+      // Real per-user analytics — same data the REST dashboard endpoints return,
+      // scoped to the connected user's own sales and inventory.
+      const data = await this.getDashboardData(socket.userId, filters);
 
       socket.emit('analytics-data', {
         type: 'sales',
-        data: mockAnalytics,
+        data,
+        period: filters?.dateRange || 'day',
         timestamp: new Date().toISOString()
       });
 
       logger.debug('Analytics data sent', {
         userId: socket.userId,
-        filters: filters
+        filters
       });
 
     } catch (error) {
@@ -239,33 +234,62 @@ class WebSocketService {
   }
 
   /**
-   * Get comprehensive dashboard data
+   * Get comprehensive dashboard data for a user — real queries, scoped to the
+   * user's own products and sales (data isolation).
+   * @param {string|null} userId - Owner user id; null = unscoped (used only by
+   *   super-admin/global views).
+   * @param {Object} [filters] - Optional period filter (not yet applied to sales).
    * @returns {Promise<Object>} Dashboard data
    */
-  async getDashboardData() {
+  async getDashboardData(userId = null, filters = {}) {
     try {
-      // Simplified dashboard data for now (avoiding analytics service issues)
-      const lowStockItems = await this.getLowStockAlerts();
+      const ownerId = userId ? new mongoose.Types.ObjectId(String(userId)) : null;
+      const productMatch = ownerId ? { userId: ownerId } : {};
+      const saleMatch = ownerId
+        ? { createdBy: ownerId, status: { $ne: 'cancelled' } }
+        : { status: { $ne: 'cancelled' } };
+      const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+
+      const [productAgg, saleAgg, todayAgg, lowStockItems] = await Promise.all([
+        Product.aggregate([
+          { $match: productMatch },
+          { $group: { _id: null, totalProducts: { $sum: 1 }, totalValue: { $sum: { $multiply: ['$stock', '$purchasePrice'] } } } }
+        ]),
+        Sale.aggregate([
+          { $match: saleMatch },
+          { $group: { _id: null, totalRevenue: { $sum: '$total' }, salesCount: { $sum: 1 } } }
+        ]),
+        Sale.aggregate([
+          { $match: { ...saleMatch, createdAt: { $gte: todayStart } } },
+          { $group: { _id: null, revenue: { $sum: '$total' }, sales: { $sum: 1 } } }
+        ]),
+        this.getLowStockAlerts(userId)
+      ]);
+
+      const products = productAgg[0] || { totalProducts: 0, totalValue: 0 };
+      const sales = saleAgg[0] || { totalRevenue: 0, salesCount: 0 };
+      const today = todayAgg[0] || { revenue: 0, sales: 0 };
 
       return {
         sales: {
-          totalSales: 0,
-          totalRevenue: 0,
-          averageOrderValue: 0,
-          salesCount: 0
+          totalSales: sales.salesCount,
+          totalRevenue: sales.totalRevenue,
+          averageOrderValue: sales.salesCount > 0 ? sales.totalRevenue / sales.salesCount : 0,
+          todayRevenue: today.revenue,
+          todaySales: today.sales
         },
         inventory: {
-          totalProducts: 0,
+          totalProducts: products.totalProducts,
           lowStockCount: lowStockItems.length,
-          totalValue: 0
+          totalValue: products.totalValue
         },
         alerts: lowStockItems,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      logger.error('Error getting dashboard data', { error: error.message });
+      logger.error('Error getting dashboard data', { error: error.message, userId });
       return {
-        sales: { totalSales: 0, totalRevenue: 0, averageOrderValue: 0, salesCount: 0 },
+        sales: { totalSales: 0, totalRevenue: 0, averageOrderValue: 0, todayRevenue: 0, todaySales: 0 },
         inventory: { totalProducts: 0, lowStockCount: 0, totalValue: 0 },
         alerts: [],
         timestamp: new Date().toISOString()
@@ -274,14 +298,18 @@ class WebSocketService {
   }
 
   /**
-   * Get low stock alerts
+   * Get low stock alerts for a user's own products (data isolation).
+   * @param {string|null} userId - Owner user id
    * @returns {Promise<Array>} Low stock items
    */
-  async getLowStockAlerts() {
+  async getLowStockAlerts(userId = null) {
     try {
-      const lowStockItems = await Product.find({
-        $expr: { $lte: ['$stock', '$reorderPoint'] }
-      })
+      const query = { $expr: { $lte: ['$stock', '$reorderPoint'] } };
+      if (userId) {
+        query.userId = new mongoose.Types.ObjectId(String(userId));
+      }
+
+      const lowStockItems = await Product.find(query)
       .select('name category stock reorderPoint supplier')
       .sort({ stock: 1 })
       .limit(10);
@@ -302,7 +330,8 @@ class WebSocketService {
   }
 
   /**
-   * Start periodic dashboard updates
+   * Start periodic dashboard updates — each active user receives their OWN
+   * scoped data (no cross-tenant leakage through a shared room broadcast).
    */
   startDashboardUpdates() {
     // Update dashboard every 30 seconds
@@ -312,10 +341,12 @@ class WebSocketService {
           .filter(user => user.dashboardActive);
 
         if (dashboardUsers.length > 0) {
-          const dashboardData = await this.getDashboardData();
-          this.io.to('dashboard').emit('dashboard-update', dashboardData);
+          await Promise.all(dashboardUsers.map(async (user) => {
+            const dashboardData = await this.getDashboardData(user.userId);
+            this.emitToUser(user.userId, 'dashboard-update', dashboardData);
+          }));
 
-          logger.debug('Dashboard update sent', {
+          logger.debug('Dashboard updates sent', {
             activeUsers: dashboardUsers.length,
             timestamp: new Date().toISOString()
           });
@@ -387,17 +418,26 @@ class WebSocketService {
     const notification = {
       type: 'sale',
       title: 'New Sale',
-      message: `Sale of $${saleData.total} completed`,
+      message: `Sale of ${saleData.total} completed`,
       data: {
         saleId: saleData._id,
         total: saleData.total,
         paymentMethod: saleData.paymentMethod,
-        items: saleData.items.length
+        items: saleData.items?.length || 0
       },
       priority: saleData.total > 1000 ? 'high' : 'normal'
     };
 
-    this.broadcastNotification(notification);
+    // Deliver to the owning user's sockets when known (data isolation),
+    // otherwise fall back to the dashboard room broadcast.
+    if (saleData.createdBy) {
+      this.emitToUser(saleData.createdBy, 'notification', {
+        ...notification,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      this.broadcastNotification(notification);
+    }
   }
 
   /**
@@ -418,7 +458,14 @@ class WebSocketService {
       priority: productData.stock === 0 ? 'critical' : 'high'
     };
 
-    this.broadcastNotification(notification);
+    if (productData.userId) {
+      this.emitToUser(productData.userId, 'notification', {
+        ...notification,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      this.broadcastNotification(notification);
+    }
   }
 
   /**

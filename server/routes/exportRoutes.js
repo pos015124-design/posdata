@@ -41,7 +41,10 @@ router.get('/sales/pdf',
 
       const options = {
         includeCharts: req.query.includeCharts === 'true',
-        format: req.query.format || 'standard'
+        format: req.query.format || 'standard',
+        // CRITICAL: scope the report to THIS user — without it the export
+        // includes every seller's data.
+        userId: req.user.userId
       };
 
       logger.info('Generating PDF sales report', {
@@ -101,7 +104,10 @@ router.get('/sales/excel',
 
       const options = {
         includeCharts: req.query.includeCharts === 'true',
-        format: req.query.format || 'detailed'
+        format: req.query.format || 'detailed',
+        // CRITICAL: scope the report to THIS user — without it the export
+        // includes every seller's data.
+        userId: req.user.userId
       };
 
       logger.info('Generating Excel sales report', {
@@ -153,7 +159,10 @@ router.get('/inventory/pdf',
     try {
       const filters = {
         category: req.query.category,
-        lowStockOnly: req.query.lowStockOnly === 'true'
+        lowStockOnly: req.query.lowStockOnly === 'true',
+        // CRITICAL: scope the report to THIS user — without it the export
+        // includes every seller's inventory.
+        userId: req.user.userId
       };
 
       logger.info('Generating PDF inventory report', {

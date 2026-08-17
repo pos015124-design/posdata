@@ -166,6 +166,10 @@ class PlatformService {
       
       // Get uptime
       const uptime = process.uptime();
+
+      // Live request/response metrics collected by the monitoring middleware
+      const { monitoringSystem } = require('../utils/monitoring');
+      const mon = monitoringSystem.getMetrics();
       
       return {
         database: {
@@ -181,6 +185,14 @@ class PlatformService {
           },
           nodeVersion: process.version,
           platform: process.platform
+        },
+        performance: {
+          requests: mon.requests,
+          errors: mon.errors,
+          errorRate: +(mon.errorRate || 0).toFixed(4),
+          avgResponseTimeMs: mon.avgResponseTime,
+          p95ResponseTimeMs: mon.p95ResponseTime,
+          cpuUsagePercent: +((mon.cpuUsage || 0)).toFixed(2)
         },
         timestamp: new Date().toISOString()
       };

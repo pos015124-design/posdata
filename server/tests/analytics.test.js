@@ -1,189 +1,150 @@
-const request = require('supertest');
-const express = require('express');
+/**
+ * Sales Analytics Tests
+ * Focused coverage for getSalesAnalytics: period defaults, growth math,
+ * top-product naming, and expense netting.
+ */
+
 const mongoose = require('mongoose');
-const Sale = require('../models/Sale');
-const Product = require('../models/Product');
-const Customer = require('../models/Customer');
-const Expense = require('../models/Expense');
 const AnalyticsService = require('../services/analyticsService');
+const User = require('../models/User');
+const Sale = require('../models/Sale');
+const Expense = require('../models/Expense');
+
+const DAY = 24 * 60 * 60 * 1000;
+let invoiceCounter = 0;
+const nextInvoice = () => `INV-ANA-${Date.now()}-${invoiceCounter++}`;
+
+const makeSale = (userId, overrides = {}) => ({
+  invoiceNumber: nextInvoice(),
+  items: [{
+    productId: new mongoose.Types.ObjectId(),
+    productName: 'Analytics Product',
+    quantity: 2,
+    price: 100,
+    total: 200
+  }],
+  subtotal: 200,
+  total: 200,
+  paymentMethod: 'cash',
+  status: 'completed',
+  createdBy: userId,
+  ...overrides
+});
 
 describe('Analytics Service', () => {
-  let testSales, testProducts, testCustomers, testExpenses;
+  let user;
 
   beforeEach(async () => {
-    // Create test data
-    testProducts = await Product.create([
-      {
-        name: 'Test Product 1',
-        code: 'TP001',
-        barcode: '1234567890123',
-        price: 100,
-        stock: 50,
-        purchasePrice: 80,
-        category: 'Electronics',
-        supplier: 'Test Supplier 1',
-        reorderPoint: 10
-      },
-      {
-        name: 'Test Product 2',
-        code: 'TP002',
-        barcode: '1234567890124',
-        price: 200,
-        stock: 30,
-        purchasePrice: 150,
-        category: 'Accessories',
-        supplier: 'Test Supplier 2',
-        reorderPoint: 5
-      }
-    ]);
-
-    testCustomers = await Customer.create([
-      {
-        name: 'Test Customer 1',
-        type: 'cash',
-        email: 'customer1@test.com'
-      },
-      {
-        name: 'Test Customer 2',
-        type: 'credit',
-        email: 'customer2@test.com',
-        creditLimit: 1000
-      }
-    ]);
-
-    // Create test sales
-    const today = new Date();
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-
-    testSales = await Sale.create([
-      {
-        items: [
-          {
-            product: testProducts[0]._id,
-            name: testProducts[0].name,
-            quantity: 2,
-            price: 100,
-            total: 200
-          }
-        ],
-        customer: testCustomers[0]._id,
-        subtotal: 200,
-        total: 200,
-        tax: 36,
-        taxRate: 18,
-        amountPaid: 200,
-        change: 0,
-        paymentMethod: 'cash',
-        staff: new mongoose.Types.ObjectId(),
-        createdAt: today
-      },
-      {
-        items: [
-          {
-            product: testProducts[1]._id,
-            name: testProducts[1].name,
-            quantity: 1,
-            price: 200,
-            total: 200
-          }
-        ],
-        customer: testCustomers[1]._id,
-        subtotal: 200,
-        total: 200,
-        tax: 36,
-        taxRate: 18,
-        amountPaid: 200,
-        change: 0,
-        paymentMethod: 'credit',
-        staff: new mongoose.Types.ObjectId(),
-        createdAt: yesterday
-      }
-    ]);
-
-    // Create test expenses
-    testExpenses = await Expense.create([
-      {
-        description: 'Test Expense 1',
-        amount: 50,
-        category: 'Office Supplies',
-        date: today,
-        staff: new mongoose.Types.ObjectId()
-      },
-      {
-        description: 'Test Expense 2',
-        amount: 100,
-        category: 'Utilities',
-        date: yesterday,
-        staff: new mongoose.Types.ObjectId()
-      }
-    ]);
-  });
-
-  describe('getSalesAnalytics', () => {
-    it('should return comprehensive sales analytics', async () => {
-      const analytics = await AnalyticsService.getSalesAnalytics({
-        dateRange: 'week'
-      });
-
-      expect(analytics).toHaveProperty('summary');
-      expect(analytics).toHaveProperty('comparison');
-      expect(analytics).toHaveProperty('paymentMethods');
-      expect(analytics).toHaveProperty('dailyTrend');
-      expect(analytics).toHaveProperty('topProducts');
-      expect(analytics).toHaveProperty('staffPerformance');
-      expect(analytics).toHaveProperty('generatedAt');
-
-      // Check summary data
-      expect(analytics.summary.totalRevenue).toBeGreaterThanOrEqual(0);
-      expect(analytics.summary.totalSales).toBeGreaterThanOrEqual(0);
-      expect(analytics.summary.averageOrderValue).toBeGreaterThanOrEqual(0);
-
-      // Check payment methods breakdown
-      expect(Array.isArray(analytics.paymentMethods)).toBe(true);
-
-      // Check daily trend
-      expect(Array.isArray(analytics.dailyTrend)).toBe(true);
-
-      // Check top products
-      expect(Array.isArray(analytics.topProducts)).toBe(true);
-    });
-
-    it('should handle date range filters correctly', async () => {
-      const analytics = await AnalyticsService.getSalesAnalytics({
-        startDate: new Date().toISOString(),
-        endDate: new Date().toISOString()
-      });
-
-      expect(analytics).toHaveProperty('summary');
-      expect(analytics.period.startDate).toBeDefined();
-      expect(analytics.period.endDate).toBeDefined();
-    });
-
-    it('should calculate growth percentages correctly', async () => {
-      const analytics = await AnalyticsService.getSalesAnalytics({
-        dateRange: 'day'
-      });
-
-      expect(analytics.summary).toHaveProperty('revenueGrowth');
-      expect(analytics.summary).toHaveProperty('salesGrowth');
-      expect(typeof analytics.summary.revenueGrowth).toBe('number');
-      expect(typeof analytics.summary.salesGrowth).toBe('number');
+    user = await User.create({
+      email: 'analytics@test.com',
+      password: 'Password123!',
+      firstName: 'Ana',
+      lastName: 'Lytics',
+      role: 'business_admin',
+      isApproved: true,
+      isActive: true
     });
   });
 
-  describe('Performance', () => {
-    it('should complete analytics query within acceptable time', async () => {
-      const startTime = Date.now();
+  afterEach(async () => {
+    await User.deleteMany({});
+    await Sale.deleteMany({});
+    await Expense.deleteMany({});
+  });
 
-      await AnalyticsService.getSalesAnalytics({
-        dateRange: 'month'
-      });
+  it('should return comprehensive sales analytics', async () => {
+    await Sale.create([
+      makeSale(user._id, { total: 600, subtotal: 600, items: [{ productId: new mongoose.Types.ObjectId(), productName: 'Laptop', quantity: 1, price: 600, total: 600 }] }),
+      makeSale(user._id, { total: 400, subtotal: 400, items: [{ productId: new mongoose.Types.ObjectId(), productName: 'Mouse', quantity: 2, price: 200, total: 400 }] })
+    ]);
 
-      const endTime = Date.now();
-      const duration = endTime - startTime;
+    const analytics = await AnalyticsService.getSalesAnalytics({}, user._id.toString());
 
-      // Should complete within 2 seconds
-      expect(duration).toBeLessThan(2000);
+    expect(analytics.summary.totalRevenue).toBe(1000);
+    expect(analytics.summary.totalSales).toBe(2);
+    expect(analytics.summary.averageOrderValue).toBe(500);
+    expect(analytics.summary.totalTax).toBe(0);
+    expect(analytics.summary.netProfit).toBe(1000);
+    expect(analytics.dailyTrend.length).toBeGreaterThan(0);
+    expect(analytics.hourlySales.length).toBeGreaterThan(0);
+    expect(analytics.generatedAt).toBeDefined();
+  });
+
+  it('should report top products with real product names', async () => {
+    await Sale.create([
+      makeSale(user._id, { total: 200, items: [{ productId: new mongoose.Types.ObjectId(), productName: 'Wireless Mouse', quantity: 2, price: 100, total: 200 }] }),
+      makeSale(user._id, { total: 1200, items: [{ productId: new mongoose.Types.ObjectId(), productName: 'Gaming Laptop', quantity: 1, price: 1200, total: 1200 }] })
+    ]);
+
+    const analytics = await AnalyticsService.getSalesAnalytics({}, user._id.toString());
+
+    expect(analytics.topProducts).toHaveLength(2);
+    // Highest revenue first, with the correct product name
+    expect(analytics.topProducts[0].productName).toBe('Gaming Laptop');
+    expect(analytics.topProducts[0].totalRevenue).toBe(1200);
+    expect(analytics.topProducts[1].productName).toBe('Wireless Mouse');
+  });
+
+  it('should handle date range filters correctly', async () => {
+    const now = Date.now();
+    await Sale.create([
+      makeSale(user._id, { total: 100, createdAt: new Date(now - 1 * DAY) }),
+      makeSale(user._id, { total: 100, createdAt: new Date(now - 2 * DAY) }),
+      makeSale(user._id, { total: 900, createdAt: new Date(now - 10 * DAY) })
+    ]);
+
+    const analytics = await AnalyticsService.getSalesAnalytics({
+      startDate: new Date(now - 3 * DAY).toISOString(),
+      endDate: new Date(now).toISOString()
+    }, user._id.toString());
+
+    expect(analytics.summary.totalSales).toBe(2);
+    expect(analytics.summary.totalRevenue).toBe(200);
+  });
+
+  it('should calculate growth percentages correctly', async () => {
+    const now = Date.now();
+    // Previous period (outside the default 30d window): 1 sale, 1000 revenue
+    await Sale.create([
+      makeSale(user._id, { total: 1000, createdAt: new Date(now - 35 * DAY) })
+    ]);
+    // Current period: 1500 revenue → 50% growth
+    await Sale.create([
+      makeSale(user._id, { total: 1000, createdAt: new Date(now - 2 * DAY) }),
+      makeSale(user._id, { total: 500, createdAt: new Date(now - 1 * DAY) })
+    ]);
+
+    const analytics = await AnalyticsService.getSalesAnalytics({}, user._id.toString());
+
+    expect(analytics.summary.totalRevenue).toBe(1500);
+    expect(analytics.summary.revenueGrowth).toBeCloseTo(50, 5);
+    expect(analytics.summary.salesGrowth).toBeCloseTo(100, 5); // 2 vs 1 sale
+  });
+
+  it('should net expenses against revenue', async () => {
+    await Sale.create(makeSale(user._id, { total: 1000 }));
+    await Expense.create({
+      title: 'Packaging',
+      amount: 300,
+      category: 'Supplies',
+      date: new Date(),
+      createdBy: user._id
     });
+
+    const analytics = await AnalyticsService.getSalesAnalytics({}, user._id.toString());
+
+    expect(analytics.summary.totalExpenses).toBe(300);
+    expect(analytics.summary.netProfit).toBe(700);
+    expect(analytics.expenseCategories).toHaveLength(1);
+  });
+
+  it('should return zeros when there is no data', async () => {
+    const analytics = await AnalyticsService.getSalesAnalytics({}, user._id.toString());
+
+    expect(analytics.summary.totalRevenue).toBe(0);
+    expect(analytics.summary.totalSales).toBe(0);
+    expect(analytics.summary.netProfit).toBe(0);
+    expect(analytics.topProducts).toHaveLength(0);
+    expect(analytics.dailyTrend).toHaveLength(0);
   });
 });

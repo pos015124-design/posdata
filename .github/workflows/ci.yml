@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server-tests:
+    name: Server tests (${{ matrix.node-version }}) + audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run server tests
+        working-directory: server
+        # --runInBand: each suite boots its own in-memory MongoDB; serializing
+        # keeps memory use predictable on shared CI runners.
+        run: npm test -- --runInBand
+
+      - name: Dependency audit (server)
+        working-directory: server
+        run: npm audit --audit-level=high
+
+  client-build:
+    name: Client typecheck + build + audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: client
+        run: npm run type-check
+
+      - name: Production build (incl. PWA precache)
+        working-directory: client
+        run: npm run build
+
+      - name: Dependency audit (client)
+        working-directory: client
+        run: npm audit --audit-level=high

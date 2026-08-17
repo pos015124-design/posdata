@@ -426,7 +426,156 @@ lsof -i :443
 
 ---
 
-## 12. Security Checklist
+## 12. Production Hardening
+
+### 12.1 HTTP → HTTPS redirect
+
+Add a permanent redirect to your Nginx server block (in the `server {}` block that listens on port 80):
+
+```nginx
+server {
+    listen 80;
+    server_name e-shop.bhabygroup.co.tz backend.bhabygroup.co.tz;
+
+    # Enforce HTTPS — no plaintext traffic
+    if ($scheme != "https") {
+        return 301 https://$host$request_uri;
+    }
+
+    # Let's Encrypt HTTP-01 challenge (comment out once certs renew via the timer below)
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+}
+```
+
+Reload after editing: `nginx -t && systemctl reload nginx`
+
+### 12.2 SSL certificate auto-renewal
+
+Let's Encrypt certificates expire every 90 days. Install the renewal timer once:
+
+```bash
+# Stop the old standalone web server used during initial issuance
+systemctl stop nginx
+certbot certonly --standalone -d e-shop.bhabygroup.co.tz -d backend.bhabygroup.co.tz
+systemctl start nginx
+
+# Auto-renewal (systemd timer — better than cron)
+cat > /etc/systemd/system/certbot-renew.service <<'EOF'
+[Unit]
+Description=Renew Let's Encrypt certificates
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --quiet --deploy-hook "systemctl reload nginx"
+EOF
+
+cat > /etc/systemd/system/certbot-renew.timer <<'EOF'
+[Unit]
+Description=Twice-daily Let's Encrypt renewal check
+
+[Timer]
+OnCalendar=*-*-* 00,12:00:00
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now certbot-renew.timer
+systemctl list-timers certbot-renew.timer
+```
+
+Verify renewal works: `certbot renew --dry-run`
+
+### 12.3 Fail2Ban (intrusion detection)
+
+```bash
+apt install -y fail2ban
+
+cat > /etc/fail2ban/jail.local <<'EOF'
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+
+# Protect SSH — your only admin entry point
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+
+# Ban IPs that hammer the login endpoints (JWT auth is header-based, but
+# scrapers/brute-force bots still hit the API)
+[nginx-http-auth]
+enabled = true
+filter = nginx-http-auth
+logpath = /var/log/nginx/error.log
+maxretry = 5
+
+[nginx-botsearch]
+enabled = true
+filter = nginx-botsearch
+logpath = /var/log/nginx/access.log
+maxretry = 10
+EOF
+
+systemctl enable --now fail2ban
+fail2ban-client status
+fail2ban-client status sshd
+```
+
+### 12.4 Backups: encryption, verification, off-site copy
+
+The in-repo backup script (`server/scripts/backup-database.js`) creates a single
+gzip archive, optionally encrypts it (AES-256-CBC), can push it to S3/rclone,
+and can verify a restore before you ever need it:
+
+```bash
+cd /var/www/posdata/server
+
+# Generate an encryption key (set BACKUP_ENCRYPTION_KEY in server/.env)
+openssl rand -base64 32
+
+# Cron: daily backup at 02:30, keep 14 days, push to S3
+cat > /etc/cron.d/dukani-backup <<'EOF'
+30 2 * * * root cd /var/www/posdata/server && node scripts/backup-database.js create >> /var/log/dukani-backup.log 2>&1
+EOF
+chmod 644 /etc/cron.d/dukani-backup
+
+# Verify the latest backup (dry-run restore) — run this monthly
+node scripts/backup-database.js list
+node scripts/backup-database.js verify <backup_name>
+
+# Push a backup off-site (set BACKUP_S3_BUCKET or BACKUP_RCLONE_REMOTE)
+node scripts/backup-database.js push <backup_name>
+
+# Test a real restore in a scratch database before trusting it
+node scripts/backup-database.js restore <backup_name>
+```
+
+### 12.5 Required secrets on the VPS
+
+| Variable | Purpose | Generate with |
+|---|---|---|
+| `PII_ENCRYPTION_KEY` | AES-256-GCM key for customer PII at rest | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `BACKUP_ENCRYPTION_KEY` | AES-256-CBC key for backup archives | `openssl rand -base64 32` |
+| `JWT_SECRET` | Access-token signing | `openssl rand -base64 48` |
+| `REFRESH_TOKEN_SECRET` | Refresh-token signing | `openssl rand -base64 48` |
+| `SELCOM_API_KEY` / `SELCOM_SECRET` | Selcom payment signing | Selcom dashboard |
+
+Without `PII_ENCRYPTION_KEY`, the server logs a warning on boot and customer PII
+stays plaintext — set it before going live.
+
+---
+
+## 13. Security Checklist
 
 - [ ] Change all default credentials
 - [ ] Enable SSH key-based authentication (disable password)
@@ -437,16 +586,18 @@ lsof -i :443
   ufw allow 443/tcp
   ufw enable
   ```
-- [ ] Enable fail2ban for brute force protection
-- [ ] Set up automated backups
-- [ ] Enable SSL/TLS certificates
-- [ ] Keep npm packages updated
+- [ ] Enable fail2ban for brute force protection (config in §12.3)
+- [ ] Set up automated backups (script in §12.4)
+- [ ] Enable SSL/TLS certificates with auto-renewal (§12.2)
+- [ ] Enforce HTTP→HTTPS redirect (§12.1)
+- [ ] Set `PII_ENCRYPTION_KEY` and `BACKUP_ENCRYPTION_KEY` (§12.5)
+- [ ] Keep npm packages updated (CI runs `npm audit`)
 - [ ] Monitor logs regularly
 - [ ] Use environment variables for secrets (not hardcoded)
 
 ---
 
-## 13. Quick Commands Reference
+## 14. Quick Commands Reference
 
 ```bash
 # Deployment

@@ -60,7 +60,7 @@ router.post('/', requireUser, upload.single('file'), async (req, res) => {
     const fileExt = path.extname(req.file.originalname).toLowerCase();
     const fileType = fileExt === '.csv' ? 'csv' : 'excel';
 
-    const results = await ImportService.importProducts(filePath, fileType);
+    const results = await ImportService.importProducts(filePath, fileType, req.user.userId);
 
     res.json({
       success: true,

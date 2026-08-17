@@ -315,6 +315,164 @@ router.put('/profile', requireCustomer, async (req, res) => {
 });
 
 /**
+ * GET /api/customer-auth/data-export
+ * Export all personal data (GDPR right of access / data portability).
+ * Returns the customer's profile, addresses, preferences, wishlist, and
+ * every order tied to their email.
+ */
+router.get('/data-export', requireCustomer, async (req, res) => {
+  try {
+    const CustomerAccount = require('../models/CustomerAccount');
+    const Sale = require('../models/Sale');
+    const Order = require('../models/Order');
+
+    const customer = await CustomerAccount.findById(req.customer.customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const email = customer.email.toLowerCase();
+
+    const [sales, orders] = await Promise.all([
+      Sale.find({ customerEmail: email, source: 'storefront' })
+        .select('invoiceNumber createdAt status deliveryStatus paymentMethod paymentStatus total items deliveryNotes')
+        .sort({ createdAt: -1 })
+        .lean(),
+      Order.find({ customerEmail: email })
+        .select('invoiceNumber createdAt status paymentMethod paymentStatus total items')
+        .sort({ createdAt: -1 })
+        .lean()
+    ]);
+
+    const toOrderView = (o) => ({
+      orderNumber: o.orderNumber || o.invoiceNumber,
+      createdAt: o.createdAt || o.orderDate,
+      status: o.status,
+      deliveryStatus: o.deliveryStatus || null,
+      paymentMethod: o.paymentMethod,
+      paymentStatus: o.paymentStatus,
+      total: o.total,
+      items: (o.items || []).map((i) => ({
+        name: i.productName || i.name,
+        quantity: i.quantity,
+        price: i.price,
+        total: i.total
+      }))
+    });
+
+    logger.info('Customer data exported', { customerId: customer._id });
+
+    res.json({
+      success: true,
+      data: {
+        exportedAt: new Date().toISOString(),
+        profile: {
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone || null,
+          dateOfBirth: customer.dateOfBirth || null,
+          gender: customer.gender || null,
+          isVerified: customer.isVerified,
+          createdAt: customer.createdAt,
+          updatedAt: customer.updatedAt
+        },
+        addresses: customer.addresses || [],
+        preferences: customer.preferences || {},
+        wishlist: customer.wishlist || [],
+        orderHistory: customer.orderHistory || {},
+        orders: [...sales.map(toOrderView), ...orders.map(toOrderView)]
+      }
+    });
+
+  } catch (error) {
+    logger.error('Customer data export failed', {
+      error: error.message,
+      customerId: req.customer.customerId
+    });
+    res.status(500).json({ error: 'Data export failed', message: error.message });
+  }
+});
+
+/**
+ * POST /api/customer-auth/data-delete
+ * Erase the customer account and anonymize order records (GDPR right to erasure).
+ * Requires the account password to prevent token theft from deleting accounts.
+ * Financial records (invoice number, totals, dates, items) are retained for
+ * accounting obligations, but all personal data is removed.
+ */
+router.post('/data-delete', requireCustomer, [
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required to delete your account')
+], handleValidationErrors, async (req, res) => {
+  try {
+    const CustomerAccount = require('../models/CustomerAccount');
+    const Customer = require('../models/Customer');
+    const Sale = require('../models/Sale');
+    const Order = require('../models/Order');
+    const { auditLogger } = require('../config/logger');
+
+    const customer = await CustomerAccount.findById(req.customer.customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Confirm the password — a stolen session token must not be enough to erase an account
+    const passwordValid = await customer.comparePassword(req.body.password);
+    if (!passwordValid) {
+      return res.status(400).json({ error: 'Incorrect password' });
+    }
+
+    const email = customer.email.toLowerCase();
+    // Sale.customerEmail is optional — blank it fully.
+    const saleEraseFields = {
+      customerName: 'Deleted User',
+      customerPhone: '',
+      customerAddress: '',
+      customerCity: '',
+      customerEmail: ''
+    };
+    // Order requires customerEmail/customerName — pseudonymize instead.
+    const orderEraseFields = {
+      customerName: 'Deleted User',
+      customerPhone: '',
+      customerAddress: '',
+      customerCity: '',
+      customerEmail: 'deleted@erased.local'
+    };
+
+    // Anonymize order/sale records (retain financial data for accounting)
+    await Promise.all([
+      Sale.updateMany({ customerEmail: email }, { $set: saleEraseFields }),
+      Order.updateMany({ customerEmail: email }, { $set: orderEraseFields }),
+      // Remove the customer profile row (seller CRM record)
+      Customer.deleteMany({ email }),
+      // Remove the account itself
+      CustomerAccount.deleteOne({ _id: customer._id })
+    ]);
+
+    auditLogger.info('Customer account erased (GDPR)', {
+      customerId: customer._id,
+      email,
+      ip: req.ip
+    });
+
+    res.json({
+      success: true,
+      message: 'Your account and personal data have been deleted.'
+    });
+
+  } catch (error) {
+    logger.error('Customer data deletion failed', {
+      error: error.message,
+      customerId: req.customer.customerId
+    });
+    res.status(500).json({ error: 'Account deletion failed', message: error.message });
+  }
+});
+
+/**
  * POST /api/customer-auth/change-password
  * Change customer password
  */
