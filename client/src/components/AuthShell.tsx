@@ -151,20 +151,15 @@ export default function AuthShell({ children, heading, subheading, wide = false 
 
         {/* ── Form side ───────────────────────────────────────────────────── */}
         <div className="relative flex flex-col justify-center items-center min-h-screen p-4 sm:p-8 lg:pt-8">
-          <div className={`lg:hidden absolute inset-x-0 top-0 overflow-hidden ${wide ? 'h-24' : 'h-32'}`}>
-            <div className="absolute inset-0 bg-gradient-to-b from-blue-950 via-blue-800 to-blue-900" />
-            <FloatingIconField className="opacity-70" />
-          </div>
-
-          <div className={`lg:hidden relative z-10 w-full flex justify-center ${wide ? 'pt-5 pb-2' : 'pt-8 pb-3'}`}>
+          {/* Mobile header (no fixed height boundary — flows naturally with background) */}
+          <div className={`lg:hidden relative z-10 w-full flex flex-col items-center ${wide ? 'pt-5 pb-4' : 'pt-8 pb-6'}`}>
             <Logo variant="white" className="h-9" />
+            {subheading && (
+              <p className="text-center text-[11px] text-gray-300 mt-3 max-w-xs leading-snug">
+                {subheading}
+              </p>
+            )}
           </div>
-
-          {subheading && (
-            <p className="lg:hidden relative z-10 text-center text-[11px] text-gray-300 mb-3 max-w-xs leading-snug">
-              {subheading}
-            </p>
-          )}
 
           <div className={`relative z-10 w-full ${wide ? 'max-w-2xl' : 'max-w-md'} animate-fade-in`}>
             {children}
