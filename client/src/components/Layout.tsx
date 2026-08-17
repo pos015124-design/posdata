@@ -38,10 +38,11 @@ export default function Layout({ children }: LayoutProps) {
   useRealtimeNotifications();
 
   const isSuperAdmin = user?.role === 'super_admin';
+  // Administrative functions (users, businesses, billing, platform config) are
+  // centralized under Settings — the sidebar stays a short list of destinations.
   const menuItems = isSuperAdmin
     ? [
         { icon: LayoutDashboard, label: 'Super Admin', path: '/super-admin' },
-        { icon: Store, label: 'Businesses', path: '/business-management' },
         { icon: ShoppingBag, label: 'Marketplace', path: '/store' },
         { icon: Building2, label: 'All stores', path: '/stores' },
         { icon: Truck, label: 'Delivery', path: '/delivery' },

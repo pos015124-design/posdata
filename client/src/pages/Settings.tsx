@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText,  Loader2, Eye, EyeOff, CheckCircle, Ban, Clock } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, User, Bell, Globe, Shield, CreditCard, FileText, Users, Server, Loader2, Eye, EyeOff, CheckCircle, Ban, Clock } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../contexts/AuthContext';
 import * as settingsApi from '../api/settings';
 import PendingUsers from './PendingUsers';
 import BusinessManagement from './BusinessManagement';
+import AdminBilling from './AdminBilling';
+import PlatformSettings from './PlatformSettings';
 import TwoFactorSection from '../components/TwoFactorSection';
+import SystemHealth from '../components/SystemHealth';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
@@ -18,7 +20,6 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const [generalSettings, setGeneralSettings] = useState({
@@ -473,50 +474,116 @@ export default function Settings() {
   }
 
   if (user?.role === 'super_admin') {
+    // ── Centralized admin console ────────────────────────────────────────────
+    // All platform administration lives here, grouped into clear sections:
+    // security, users & approvals, businesses, billing, platform config, and
+    // system health. The sidebar's standalone admin links now point here.
+    const adminTabs = [
+      { id: 'security', label: 'Security', icon: Shield },
+      { id: 'users', label: 'Users', icon: Users },
+      { id: 'businesses', label: 'Businesses', icon: Store },
+      { id: 'billing', label: 'Billing', icon: CreditCard },
+      { id: 'platform', label: 'Platform', icon: SettingsIcon },
+      { id: 'system', label: 'System', icon: Server },
+    ];
+
+    const adminTitles: Record<string, { title: string; description: string }> = {
+      security:   { title: 'Account Security', description: 'Two-factor authentication for your platform account' },
+      users:      { title: 'Users & Approvals', description: 'Approve new sellers and manage user accounts' },
+      businesses: { title: 'Business Management', description: 'Review, approve and manage seller businesses' },
+      billing:    { title: 'Platform Billing', description: 'Registration fees, collections and outstanding balances' },
+      platform:   { title: 'Platform Settings', description: 'Platform-wide configuration and preferences' },
+      system:     { title: 'System Health', description: 'Database and server health at a glance' },
+    };
+
+    const activeAdmin = adminTabs.find(t => t.id === activeTab) ?? adminTabs[0];
+    const header = adminTitles[activeAdmin.id];
+
     return (
       <div className="space-y-4 md:space-y-6">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <p className="text-sm text-gray-500 mt-0.5">Approve and manage users and businesses</p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => navigate('/super-admin')}>
-              Super Admin
-            </Button>
-            <Button
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => navigate('/business-management')}
-            >
-              Businesses
-            </Button>
-          </div>
+        <p className="text-sm text-gray-500">
+          Centralized platform administration — security, users, businesses, billing and configuration.
+        </p>
+
+        {/* Mobile Tab Selector */}
+        <div className="md:hidden">
+          <Button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="w-full bg-blue-600"
+          >
+            <SettingsIcon className="w-4 h-4 mr-2" />
+            {activeAdmin.label}
+          </Button>
+
+          {showMobileMenu && (
+            <Card className="mt-2 border-0 shadow-lg">
+              <CardContent className="p-2 space-y-1">
+                {adminTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setShowMobileMenu(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    <tab.icon className="w-5 h-5" />
+                    <span className="font-medium">{tab.label}</span>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle>Account Security</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TwoFactorSection />
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+          {/* Desktop Sidebar */}
+          <div className="hidden md:block md:col-span-3 lg:col-span-2">
+            <Card className="border-0 shadow-lg sticky top-6">
+              <CardContent className="p-4 space-y-2">
+                {adminTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm ${
+                      activeTab === tab.id
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    <tab.icon className="w-5 h-5" />
+                    <span className="font-medium">{tab.label}</span>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
 
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle>Pending User Approvals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PendingUsers />
-          </CardContent>
-        </Card>
+          {/* Content */}
+          <div className="md:col-span-9 lg:col-span-10 space-y-4">
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900">{header.title}</h2>
+              <p className="text-sm text-gray-500 mt-0.5">{header.description}</p>
+            </div>
 
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle>Business Approvals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BusinessManagement />
-          </CardContent>
-        </Card>
+            {activeTab === 'security' && (
+              <Card className="border-0 shadow-lg">
+                <CardContent className="p-5">
+                  <TwoFactorSection />
+                </CardContent>
+              </Card>
+            )}
+            {activeTab === 'users' && <PendingUsers />}
+            {activeTab === 'businesses' && <BusinessManagement />}
+            {activeTab === 'billing' && <AdminBilling />}
+            {activeTab === 'platform' && <PlatformSettings />}
+            {activeTab === 'system' && <SystemHealth />}
+          </div>
+        </div>
       </div>
     );
   }

@@ -4,6 +4,10 @@ const Sale = require('../models/Sale');
 const SaleService = require('../services/saleService');
 const { requireUser } = require('./middleware/auth');
 const { requireCustomer } = require('./customerAuthRoutes');
+const { decryptFields } = require('../utils/fieldEncryption');
+
+// PII encrypted at rest on Sale — decrypt after .lean() reads (lean bypasses getters).
+const SALE_PII = ['customerPhone', 'customerAddress', 'customerCity'];
 const {
   saleValidation,
   mongoIdValidation,
@@ -136,6 +140,7 @@ router.get('/customer/my-orders', requireCustomer, async (req, res) => {
         .lean(),
       Sale.countDocuments(query)
     ]);
+    sales.forEach(sale => decryptFields(sale, SALE_PII));
 
     const orders = sales.map(sale => ({
       _id: sale._id,
@@ -172,6 +177,8 @@ router.get('/customer/:id', requireCustomer, mongoIdValidation('id'), handleVali
     }).lean();
 
     if (!sale) return res.status(404).json({ error: 'Order not found' });
+
+    decryptFields(sale, SALE_PII);
 
     res.json({
       success: true,

@@ -10,6 +10,10 @@ const Product = require('../models/Product');
 const Business = require('../models/Business');
 const CustomerAccount = require('../models/CustomerAccount');
 const { logger } = require('../config/logger');
+const { decryptFields } = require('../utils/fieldEncryption');
+
+// PII encrypted at rest on Order — decrypt after .lean() reads (lean bypasses getters).
+const ORDER_PII = ['customerPhone', 'shippingAddress.street', 'shippingAddress.city', 'shippingAddress.state', 'shippingAddress.zipCode', 'shippingAddress.phone'];
 
 class OrderService {
   
@@ -248,6 +252,7 @@ class OrderService {
           .lean(),
         Order.countDocuments(query)
       ]);
+      orders.forEach(o => decryptFields(o, ORDER_PII));
       
       return {
         orders,
@@ -297,6 +302,7 @@ class OrderService {
           .lean(),
         Order.countDocuments(query)
       ]);
+      orders.forEach(o => decryptFields(o, ORDER_PII));
       
       return {
         orders,

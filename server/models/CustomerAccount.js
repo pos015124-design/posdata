@@ -6,6 +6,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { encrypt, decrypt } = require('../utils/fieldEncryption');
 
 const addressSchema = new mongoose.Schema({
   type: {
@@ -31,37 +32,54 @@ const addressSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // Address PII — encrypted at rest (AES-256-GCM).
   street: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   city: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   state: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   zipCode: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   country: {
     type: String,
     required: true,
     trim: true,
-    default: 'US'
+    default: 'US',
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   phone: {
     type: String,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   }
-}, { _id: true });
+}, {
+  _id: true,
+  toJSON: { getters: true },
+  toObject: { getters: true }
+});
 
 const customerAccountSchema = new mongoose.Schema({
   // Basic Information
@@ -87,7 +105,9 @@ const customerAccountSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   dateOfBirth: {
     type: Date
@@ -205,7 +225,9 @@ const customerAccountSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { getters: true },
+  toObject: { getters: true }
 });
 
 // Indexes for performance

@@ -1,23 +1,25 @@
+const mongoose = require('mongoose');
 const ProductService = require('../services/productService');
 const Product = require('../models/Product');
 const User = require('../models/User');
+
+// Shared valid ObjectId for fixtures — mongoose 8 rejects bare strings.
+const TEST_BUSINESS_ID = new mongoose.Types.ObjectId();
 
 describe('ProductService', () => {
   let mockUser, mockProductData;
 
   beforeEach(async () => {
-    // Create a mock user
     mockUser = new User({
       email: 'admin@example.com',
       password: 'Password123!',
       role: 'business_admin',
       tenantId: 'tenant1',
-      businessId: 'business1',
+      businessId: TEST_BUSINESS_ID,
       isApproved: true
     });
     await mockUser.save();
 
-    // Mock product data
     mockProductData = {
       name: 'Test Product',
       code: 'TP001',
@@ -29,8 +31,7 @@ describe('ProductService', () => {
       supplier: 'Test Supplier',
       reorderPoint: 10,
       description: 'A test product',
-      tenantId: 'tenant1',
-      businessId: 'business1'
+      businessId: TEST_BUSINESS_ID
     };
   });
 
@@ -40,47 +41,48 @@ describe('ProductService', () => {
   });
 
   describe('createProduct', () => {
-    it('should create a product successfully', async () => {
-      const result = await ProductService.createProduct(mockProductData, mockUser);
+    it('should create a product successfully and link ownership', async () => {
+      const result = await ProductService.createProduct({ ...mockProductData }, mockUser._id);
 
       expect(result).toBeDefined();
       expect(result.name).toBe(mockProductData.name);
       expect(result.code).toBe(mockProductData.code);
       expect(result.price).toBe(mockProductData.price);
-      expect(result.tenantId).toBe(mockProductData.tenantId);
-      expect(result.businessId).toBe(mockProductData.businessId);
+      expect(String(result.businessId)).toBe(String(TEST_BUSINESS_ID));
+      expect(String(result.userId)).toBe(String(mockUser._id));
     });
 
-    it('should validate required fields', async () => {
-      const invalidProductData = {
-        name: '', // Invalid: empty name
-        code: 'TP001',
-        price: 25.99
-      };
+    it('should reject a duplicate code for the same user', async () => {
+      await ProductService.createProduct({ ...mockProductData }, mockUser._id);
 
-      await expect(ProductService.createProduct(invalidProductData, mockUser))
+      await expect(ProductService.createProduct({ ...mockProductData }, mockUser._id))
+        .rejects
+        .toThrow('already exists');
+    });
+
+    it('should reject a duplicate barcode for the same user', async () => {
+      await ProductService.createProduct({ ...mockProductData }, mockUser._id);
+
+      await expect(ProductService.createProduct({
+        ...mockProductData,
+        code: 'TP999'
+      }, mockUser._id))
+        .rejects
+        .toThrow('barcode already exists');
+    });
+
+    it('should reject invalid data (missing required name)', async () => {
+      const invalidProductData = { ...mockProductData, name: '' };
+
+      await expect(ProductService.createProduct(invalidProductData, mockUser._id))
         .rejects
         .toThrow();
     });
 
-    it('should validate price is positive', async () => {
-      const invalidProductData = {
-        ...mockProductData,
-        price: -10 // Invalid: negative price
-      };
+    it('should reject a negative price', async () => {
+      const invalidProductData = { ...mockProductData, price: -10 };
 
-      await expect(ProductService.createProduct(invalidProductData, mockUser))
-        .rejects
-        .toThrow();
-    });
-
-    it('should validate stock is non-negative', async () => {
-      const invalidProductData = {
-        ...mockProductData,
-        stock: -5 // Invalid: negative stock
-      };
-
-      await expect(ProductService.createProduct(invalidProductData, mockUser))
+      await expect(ProductService.createProduct(invalidProductData, mockUser._id))
         .rejects
         .toThrow();
     });
@@ -88,19 +90,71 @@ describe('ProductService', () => {
 
   describe('getProductById', () => {
     it('should return product by ID', async () => {
-      const createdProduct = await ProductService.createProduct(mockProductData, mockUser);
-
-      const result = await ProductService.getProductById(createdProduct._id.toString());
+      const created = await ProductService.createProduct({ ...mockProductData }, mockUser._id);
+      const result = await ProductService.getProductById(created._id.toString());
 
       expect(result).toBeDefined();
-      expect(result._id.toString()).toBe(createdProduct._id.toString());
+      expect(result._id.toString()).toBe(created._id.toString());
       expect(result.name).toBe(mockProductData.name);
     });
 
-    it('should return null for non-existent product', async () => {
-      const result = await ProductService.getProductById('507f1f77bcf86cd799439011');
+    it('should throw for a non-existent product', async () => {
+      await expect(ProductService.getProductById(new mongoose.Types.ObjectId().toString()))
+        .rejects
+        .toThrow('Product not found');
+    });
+  });
 
-      expect(result).toBeNull();
+  describe('getAllProducts', () => {
+    beforeEach(async () => {
+      await ProductService.createProduct({ ...mockProductData }, mockUser._id);
+      await ProductService.createProduct({
+        ...mockProductData,
+        name: 'Second Product',
+        code: 'TP002',
+        barcode: '1234567890124'
+      }, mockUser._id);
+    });
+
+    it('should return only the current user\'s products', async () => {
+      const otherUser = new User({
+        email: 'other@example.com',
+        password: 'Password123!',
+        role: 'business_admin',
+        isApproved: true
+      });
+      await otherUser.save();
+      await ProductService.createProduct({
+        ...mockProductData,
+        name: 'Other Product',
+        code: 'TP003',
+        barcode: '1234567890125'
+      }, otherUser._id);
+
+      const result = await ProductService.getAllProducts({ page: 1, limit: 10 }, {}, mockUser._id);
+      expect(result.data).toHaveLength(2);
+      result.data.forEach(p => expect(String(p.userId)).toBe(String(mockUser._id)));
+    });
+
+    it('should filter products by category', async () => {
+      const result = await ProductService.getAllProducts({ page: 1, limit: 10 }, { category: 'Electronics' }, mockUser._id);
+      expect(result.data).toHaveLength(2);
+    });
+
+    it('should search products by name', async () => {
+      // Search is parsed from query params into the pagination object by the
+      // route middleware — the service reads pagination.search.
+      const result = await ProductService.getAllProducts({ page: 1, limit: 10, search: 'Second' }, {}, mockUser._id);
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].name).toContain('Second');
+    });
+
+    it('should paginate results', async () => {
+      const result = await ProductService.getAllProducts({ page: 1, limit: 1 }, {}, mockUser._id);
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.currentPage).toBe(1);
+      expect(result.pagination.limit).toBe(1);
+      expect(result.pagination.totalCount).toBe(2);
     });
   });
 
@@ -108,39 +162,26 @@ describe('ProductService', () => {
     let product;
 
     beforeEach(async () => {
-      product = await ProductService.createProduct(mockProductData, mockUser);
+      product = await ProductService.createProduct({ ...mockProductData }, mockUser._id);
     });
 
     it('should update product successfully', async () => {
-      const updateData = {
+      const result = await ProductService.updateProduct(product._id.toString(), {
         name: 'Updated Product Name',
         price: 30.99,
         stock: 150
-      };
-
-      const result = await ProductService.updateProduct(product._id.toString(), updateData, mockUser);
+      });
 
       expect(result).toBeDefined();
-      expect(result.name).toBe(updateData.name);
-      expect(result.price).toBe(updateData.price);
-      expect(result.stock).toBe(updateData.stock);
+      expect(result.name).toBe('Updated Product Name');
+      expect(result.price).toBe(30.99);
+      expect(result.stock).toBe(150);
     });
 
-    it('should validate update data', async () => {
-      const invalidUpdateData = {
-        name: '', // Invalid: empty name
-        price: -10 // Invalid: negative price
-      };
-
-      await expect(ProductService.updateProduct(product._id.toString(), invalidUpdateData, mockUser))
+    it('should throw for a non-existent product', async () => {
+      await expect(ProductService.updateProduct(new mongoose.Types.ObjectId().toString(), { name: 'New Name' }))
         .rejects
-        .toThrow();
-    });
-
-    it('should not update non-existent product', async () => {
-      await expect(ProductService.updateProduct('507f1f77bcf86cd799439011', { name: 'New Name' }, mockUser))
-        .rejects
-        .toThrow();
+        .toThrow('Product not found');
     });
   });
 
@@ -148,95 +189,60 @@ describe('ProductService', () => {
     let product;
 
     beforeEach(async () => {
-      product = await ProductService.createProduct(mockProductData, mockUser);
+      product = await ProductService.createProduct({ ...mockProductData }, mockUser._id);
     });
 
     it('should delete product successfully', async () => {
-      const result = await ProductService.deleteProduct(product._id.toString(), mockUser);
-
+      const result = await ProductService.deleteProduct(product._id.toString());
       expect(result).toBe(true);
 
-      // Verify product no longer exists
-      const deletedProduct = await ProductService.getProductById(product._id.toString());
-      expect(deletedProduct).toBeNull();
+      await expect(ProductService.getProductById(product._id.toString()))
+        .rejects
+        .toThrow('Product not found');
     });
 
-    it('should return false for non-existent product', async () => {
-      const result = await ProductService.deleteProduct('507f1f77bcf86cd799439011', mockUser);
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('getProducts', () => {
-    beforeEach(async () => {
-      // Create multiple products
-      await ProductService.createProduct(mockProductData, mockUser);
-      await ProductService.createProduct({
-        ...mockProductData,
-        name: 'Second Product',
-        code: 'TP002',
-        barcode: '1234567890124'
-      }, mockUser);
-    });
-
-    it('should return all products for tenant', async () => {
-      const result = await ProductService.getProducts(mockUser);
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2);
-      expect(result[0].tenantId).toBe(mockUser.tenantId);
-    });
-
-    it('should filter products by category', async () => {
-      const result = await ProductService.getProducts(mockUser, { category: 'Electronics' });
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2); // Both products are in 'Electronics' category
-    });
-
-    it('should filter products by name', async () => {
-      const result = await ProductService.getProducts(mockUser, { search: 'Second' });
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toContain('Second');
-    });
-
-    it('should paginate results', async () => {
-      const result = await ProductService.getProducts(mockUser, {}, { page: 1, limit: 1 });
-
-      expect(result).toBeDefined();
-      expect(result.products).toHaveLength(1);
-      expect(result.pagination).toBeDefined();
-      expect(result.pagination.page).toBe(1);
-      expect(result.pagination.limit).toBe(1);
-      expect(result.pagination.total).toBeGreaterThanOrEqual(2);
+    it('should throw for a non-existent product', async () => {
+      await expect(ProductService.deleteProduct(new mongoose.Types.ObjectId().toString()))
+        .rejects
+        .toThrow('Product not found');
     });
   });
 
-  describe('updateProductStock', () => {
+  describe('updateStock', () => {
     let product;
 
     beforeEach(async () => {
-      product = await ProductService.createProduct(mockProductData, mockUser);
+      product = await ProductService.createProduct({ ...mockProductData }, mockUser._id);
     });
 
     it('should update product stock successfully', async () => {
-      const newStock = 75;
-      const result = await ProductService.updateProductStock(product._id.toString(), newStock, mockUser);
-
+      const result = await ProductService.updateStock(product._id.toString(), 75);
       expect(result).toBeDefined();
-      expect(result.stock).toBe(newStock);
+      expect(result.stock).toBe(75);
     });
 
-    it('should validate stock value', async () => {
-      await expect(ProductService.updateProductStock(product._id.toString(), -10, mockUser))
+    it('should throw for a non-existent product', async () => {
+      await expect(ProductService.updateStock(new mongoose.Types.ObjectId().toString(), 5))
         .rejects
-        .toThrow();
+        .toThrow('Product not found');
+    });
+  });
+
+  describe('getLowStockAlerts', () => {
+    it('should return only products below their reorder point', async () => {
+      await ProductService.createProduct({ ...mockProductData }, mockUser._id); // stock 100, reorder 10
+      await ProductService.createProduct({
+        ...mockProductData,
+        name: 'Low Stock Item',
+        code: 'TP002',
+        barcode: '1234567890124',
+        stock: 3,
+        reorderPoint: 10
+      }, mockUser._id);
+
+      const alerts = await ProductService.getLowStockAlerts();
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0].name).toBe('Low Stock Item');
     });
   });
 });

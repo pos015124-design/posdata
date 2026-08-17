@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { encrypt, decrypt } = require('../utils/fieldEncryption');
 
 const saleSchema = new mongoose.Schema({
   invoiceNumber: {
@@ -11,12 +12,27 @@ const saleSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Customer'
   },
-  // Guest / storefront customer info (no account required)
+  // Guest / storefront customer info (no account required). customerEmail stays
+  // plaintext — it is the invoice-verification lookup key. The rest is PII
+  // encrypted at rest (AES-256-GCM); lean() queries must decrypt via
+  // utils/fieldEncryption.decryptFields before exposing these fields.
   customerName: { type: String, trim: true },
   customerEmail: { type: String, trim: true, lowercase: true },
-  customerPhone: { type: String, trim: true },
-  customerAddress: { type: String, trim: true },
-  customerCity: { type: String, trim: true },
+  customerPhone: {
+    type: String, trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
+  },
+  customerAddress: {
+    type: String, trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
+  },
+  customerCity: {
+    type: String, trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
+  },
   // Source: 'pos' (staff-created) | 'storefront' (public checkout)
   source: { type: String, enum: ['pos', 'storefront'], default: 'pos' },
   items: [{
@@ -118,7 +134,9 @@ const saleSchema = new mongoose.Schema({
     ref: 'User'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { getters: true },
+  toObject: { getters: true }
 });
 
 saleSchema.index({ createdAt: -1 });

@@ -11,6 +11,12 @@ const { requireUser, requireBusinessAdmin } = require('./middleware/auth');
 const { subscribe: sseSubscribe } = require('../utils/sse');
 const { body, validationResult } = require('express-validator');
 const { logger } = require('../config/logger');
+const { decryptFields } = require('../utils/fieldEncryption');
+
+// PII fields that are encrypted at rest on Sale/Order — must be decrypted
+// after any .lean() read (lean bypasses Mongoose getters).
+const SALE_PII = ['customerPhone', 'customerAddress', 'customerCity'];
+const ORDER_PII = ['customerPhone', 'shippingAddress.street', 'shippingAddress.city', 'shippingAddress.state', 'shippingAddress.zipCode', 'shippingAddress.phone'];
 
 // Optional customer middleware
 const optionalCustomer = async (req, res, next) => {
@@ -149,11 +155,17 @@ router.post('/', optionalCustomer, validateCreateOrder, handleValidationErrors, 
 const findTrackable = async (identifier) => {
   const Sale = require('../models/Sale');
   const sale = await Sale.findOne({ invoiceNumber: identifier }).lean();
-  if (sale) return { model: 'sale', doc: sale, key: sale.invoiceNumber };
+  if (sale) {
+    decryptFields(sale, SALE_PII);
+    return { model: 'sale', doc: sale, key: sale.invoiceNumber };
+  }
 
   const Order = require('../models/Order');
   const order = await Order.findOne({ orderNumber: identifier }).lean();
-  if (order) return { model: 'order', doc: order, key: order.orderNumber };
+  if (order) {
+    decryptFields(order, ORDER_PII);
+    return { model: 'order', doc: order, key: order.orderNumber };
+  }
 
   return null;
 };

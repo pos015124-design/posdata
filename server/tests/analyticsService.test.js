@@ -1,7 +1,11 @@
+const mongoose = require('mongoose');
 const AnalyticsService = require('../services/analyticsService');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
+
+// Shared valid ObjectId for fixtures — mongoose 8 rejects bare strings.
+const TEST_BUSINESS_ID = new mongoose.Types.ObjectId();
 const CustomerAccount = require('../models/CustomerAccount');
 const Sale = require('../models/Sale');
 const Expense = require('../models/Expense');
@@ -16,7 +20,7 @@ describe('AnalyticsService', () => {
       password: 'Password123!',
       role: 'business_admin',
       tenantId: 'tenant1',
-      businessId: 'business1',
+      businessId: TEST_BUSINESS_ID,
       isApproved: true
     });
     await mockUser.save();
@@ -27,7 +31,7 @@ describe('AnalyticsService', () => {
       firstName: 'John',
       lastName: 'Doe',
       tenantId: 'tenant1',
-      businessId: 'business1'
+      businessId: TEST_BUSINESS_ID
     });
     await mockCustomer.save();
 
@@ -39,7 +43,7 @@ describe('AnalyticsService', () => {
       stock: 100,
       category: 'Electronics',
       tenantId: 'tenant1',
-      businessId: 'business1'
+      businessId: TEST_BUSINESS_ID
     });
     await mockProduct.save();
   });
@@ -150,7 +154,7 @@ describe('AnalyticsService', () => {
         firstName: 'John',
         lastName: 'Doe',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
 
       await new CustomerAccount({
@@ -158,7 +162,7 @@ describe('AnalyticsService', () => {
         firstName: 'Jane',
         lastName: 'Smith',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
 
       // Create orders for customer analytics
@@ -206,7 +210,7 @@ describe('AnalyticsService', () => {
         stock: 50,
         category: 'Electronics',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
 
       await new Product({
@@ -216,7 +220,7 @@ describe('AnalyticsService', () => {
         stock: 30,
         category: 'Clothing',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
 
       await new Product({
@@ -226,7 +230,7 @@ describe('AnalyticsService', () => {
         stock: 10,
         category: 'Electronics',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
     });
 
@@ -345,7 +349,7 @@ describe('AnalyticsService', () => {
         firstName: 'Jane',
         lastName: 'Smith',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
 
       await new Product({
@@ -355,7 +359,7 @@ describe('AnalyticsService', () => {
         stock: 25,
         category: 'Electronics',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
 
       await new Expense({
@@ -437,7 +441,7 @@ describe('AnalyticsService', () => {
         reorderPoint: 5,
         category: 'Electronics',
         tenantId: 'tenant1',
-        businessId: 'business1'
+        businessId: TEST_BUSINESS_ID
       }).save();
 
       // Create an old order that might be considered late

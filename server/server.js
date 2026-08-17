@@ -92,6 +92,13 @@ const uploadLimiter = rateLimit({
 
 // Environment validation - skip exit for Vercel serverless
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
+
+// PII at rest is encrypted with AES-256-GCM when PII_ENCRYPTION_KEY is set.
+// It is deliberately optional so local dev / CI keep working, but production
+// must set it — warn loudly when it is missing.
+if (process.env.NODE_ENV === 'production' && !process.env.PII_ENCRYPTION_KEY) {
+  console.warn('⚠️  PII_ENCRYPTION_KEY is not set — customer PII (phone/address) will be stored in plaintext. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+}
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {

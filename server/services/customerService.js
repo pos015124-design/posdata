@@ -13,10 +13,11 @@ class CustomerService {
     }
 
     if (search) {
+      // Note: phone is NOT searchable here — it is encrypted at rest
+      // (AES-256-GCM), so a regex match would never hit plaintext.
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
+        { email: { $regex: search, $options: 'i' } }
       ];
     }
 

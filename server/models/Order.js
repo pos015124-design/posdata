@@ -4,6 +4,7 @@
  */
 
 const mongoose = require('mongoose');
+const { encrypt, decrypt } = require('../utils/fieldEncryption');
 
 const orderItemSchema = new mongoose.Schema({
   product: {
@@ -66,35 +67,48 @@ const shippingAddressSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // Shipping-address PII — encrypted at rest (AES-256-GCM).
   street: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   city: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   state: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   zipCode: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   country: {
     type: String,
     required: true,
     trim: true,
-    default: 'US'
+    default: 'US',
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
   phone: {
     type: String,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   }
 }, { _id: false });
 
@@ -137,9 +151,13 @@ const orderSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  // PII encrypted at rest (AES-256-GCM). customerEmail stays plaintext — it is
+  // the lookup key for customer orders.
   customerPhone: {
     type: String,
-    trim: true
+    trim: true,
+    set: (v) => encrypt(v),
+    get: (v) => decrypt(v)
   },
 
   // Business association
@@ -307,7 +325,9 @@ const orderSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { getters: true },
+  toObject: { getters: true }
 });
 
 // Indexes for performance

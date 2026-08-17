@@ -24,6 +24,11 @@ const ArchivedSale = require('../models/ArchivedSale');
 const SaleService  = require('../services/saleService');
 const { requireUser } = require('./middleware/auth');
 const { logger } = require('../config/logger');
+const { decryptFields } = require('../utils/fieldEncryption');
+
+// PII encrypted at rest on Sale/ArchivedSale — decrypt after .lean() reads
+// (lean bypasses getters). Field names are identical on both models.
+const SALE_PII = ['customerPhone', 'customerAddress', 'customerCity'];
 const {
   sendOrderConfirmedToBuyer,
   sendRiderAssignedToBuyer,
@@ -126,6 +131,7 @@ router.get('/orders', requireUser, requireSuperAdmin, async (req, res) => {
       Sale.countDocuments(query)
     ]);
 
+    orders.forEach(o => decryptFields(o, SALE_PII));
     res.json({
       success: true,
       orders,
@@ -284,6 +290,7 @@ router.get('/archived', requireUser, requireSuperAdmin, async (req, res) => {
         .lean(),
       ArchivedSale.countDocuments(query)
     ]);
+    orders.forEach(o => decryptFields(o, SALE_PII));
     res.json({
       success: true,
       orders,

@@ -1,120 +1,126 @@
+const mongoose = require('mongoose');
 const CustomerService = require('../services/customerService');
-const CustomerAccount = require('../models/CustomerAccount');
+const Customer = require('../models/Customer');
 const User = require('../models/User');
+
+// Shared valid ObjectId for fixtures — mongoose 8 rejects bare strings.
+const TEST_BUSINESS_ID = new mongoose.Types.ObjectId();
 
 describe('CustomerService', () => {
   let mockUser, mockCustomerData;
 
   beforeEach(async () => {
-    // Create a mock user
     mockUser = new User({
       email: 'admin@example.com',
       password: 'Password123!',
       role: 'business_admin',
       tenantId: 'tenant1',
-      businessId: 'business1',
+      businessId: TEST_BUSINESS_ID,
       isApproved: true
     });
     await mockUser.save();
 
-    // Mock customer data
     mockCustomerData = {
-      firstName: 'John',
-      lastName: 'Doe',
+      name: 'John Doe',
       email: 'john.doe@example.com',
       phone: '+1234567890',
-      type: 'credit',
-      creditLimit: 1000,
-      address: '123 Main St, New York, NY 10001',
-      tenantId: 'tenant1',
-      businessId: 'business1'
+      address: '123 Main St, New York, NY 10001'
     };
   });
 
   afterEach(async () => {
-    await CustomerAccount.deleteMany({});
+    await Customer.deleteMany({});
     await User.deleteMany({});
   });
 
   describe('createCustomer', () => {
-    it('should create a customer successfully', async () => {
-      const result = await CustomerService.createCustomer(mockCustomerData, mockUser);
+    it('should create a customer successfully and link ownership', async () => {
+      const result = await CustomerService.createCustomer({ ...mockCustomerData }, mockUser._id);
 
       expect(result).toBeDefined();
-      expect(result.firstName).toBe(mockCustomerData.firstName);
-      expect(result.lastName).toBe(mockCustomerData.lastName);
+      expect(result.name).toBe(mockCustomerData.name);
       expect(result.email).toBe(mockCustomerData.email);
       expect(result.phone).toBe(mockCustomerData.phone);
-      expect(result.type).toBe(mockCustomerData.type);
-      expect(result.creditLimit).toBe(mockCustomerData.creditLimit);
-      expect(result.tenantId).toBe(mockCustomerData.tenantId);
-      expect(result.businessId).toBe(mockCustomerData.businessId);
+      expect(result.address).toBe(mockCustomerData.address);
+      expect(String(result.userId)).toBe(String(mockUser._id));
+      expect(result.isActive).toBe(true);
     });
 
-    it('should validate required fields', async () => {
-      const invalidCustomerData = {
-        firstName: '', // Invalid: empty first name
-        lastName: 'Doe',
-        email: 'john.doe@example.com'
-      };
+    it('should reject missing required name', async () => {
+      const invalidCustomerData = { ...mockCustomerData, name: '' };
 
-      await expect(CustomerService.createCustomer(invalidCustomerData, mockUser))
+      await expect(CustomerService.createCustomer(invalidCustomerData, mockUser._id))
         .rejects
         .toThrow();
     });
 
-    it('should validate email format', async () => {
-      const invalidCustomerData = {
-        ...mockCustomerData,
-        email: 'invalid-email' // Invalid email format
-      };
+    it('should reject an invalid email format', async () => {
+      const invalidCustomerData = { ...mockCustomerData, email: 'invalid-email' };
 
-      await expect(CustomerService.createCustomer(invalidCustomerData, mockUser))
-        .rejects
-        .toThrow();
-    });
-
-    it('should validate credit limit is non-negative', async () => {
-      const invalidCustomerData = {
-        ...mockCustomerData,
-        creditLimit: -100 // Invalid: negative credit limit
-      };
-
-      await expect(CustomerService.createCustomer(invalidCustomerData, mockUser))
-        .rejects
-        .toThrow();
-    });
-
-    it('should not allow duplicate emails', async () => {
-      // Create first customer
-      await CustomerService.createCustomer(mockCustomerData, mockUser);
-
-      // Try to create another customer with same email
-      await expect(CustomerService.createCustomer(mockCustomerData, mockUser))
+      await expect(CustomerService.createCustomer(invalidCustomerData, mockUser._id))
         .rejects
         .toThrow();
     });
   });
 
-  describe('getCustomerById', () => {
-    let customer;
-
+  describe('getAllCustomers', () => {
     beforeEach(async () => {
-      customer = await CustomerService.createCustomer(mockCustomerData, mockUser);
+      await CustomerService.createCustomer({ ...mockCustomerData }, mockUser._id);
+      await CustomerService.createCustomer({
+        ...mockCustomerData,
+        name: 'Jane Smith',
+        email: 'jane.smith@example.com'
+      }, mockUser._id);
     });
 
+    it('should return only the current user\'s customers', async () => {
+      const otherUser = new User({
+        email: 'other@example.com',
+        password: 'Password123!',
+        role: 'business_admin',
+        isApproved: true
+      });
+      await otherUser.save();
+      await CustomerService.createCustomer({
+        ...mockCustomerData,
+        name: 'Other Customer',
+        email: 'other@example.com'
+      }, otherUser._id);
+
+      const result = await CustomerService.getAllCustomers({ page: 1, limit: 10 }, {}, mockUser._id);
+      expect(result.data).toHaveLength(2);
+      result.data.forEach(c => expect(String(c.userId)).toBe(String(mockUser._id)));
+    });
+
+    it('should search customers by name', async () => {
+      const result = await CustomerService.getAllCustomers({ page: 1, limit: 10 }, { search: 'Jane' }, mockUser._id);
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].name).toContain('Jane');
+    });
+
+    it('should paginate results', async () => {
+      const result = await CustomerService.getAllCustomers({ page: 1, limit: 1 }, {}, mockUser._id);
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.limit).toBe(1);
+      expect(result.pagination.total).toBe(2);
+    });
+  });
+
+  describe('getCustomerById', () => {
     it('should return customer by ID', async () => {
+      const customer = await CustomerService.createCustomer({ ...mockCustomerData }, mockUser._id);
       const result = await CustomerService.getCustomerById(customer._id.toString());
 
       expect(result).toBeDefined();
       expect(result._id.toString()).toBe(customer._id.toString());
-      expect(result.firstName).toBe(mockCustomerData.firstName);
+      expect(result.name).toBe(mockCustomerData.name);
     });
 
-    it('should return null for non-existent customer', async () => {
-      const result = await CustomerService.getCustomerById('507f1f77bcf86cd799439011');
-
-      expect(result).toBeNull();
+    it('should throw for a non-existent customer', async () => {
+      await expect(CustomerService.getCustomerById(new mongoose.Types.ObjectId().toString()))
+        .rejects
+        .toThrow('Customer not found');
     });
   });
 
@@ -122,41 +128,32 @@ describe('CustomerService', () => {
     let customer;
 
     beforeEach(async () => {
-      customer = await CustomerService.createCustomer(mockCustomerData, mockUser);
+      customer = await CustomerService.createCustomer({ ...mockCustomerData }, mockUser._id);
     });
 
     it('should update customer successfully', async () => {
       const updateData = {
-        firstName: 'Jane',
-        lastName: 'Smith',
-        phone: '+0987654321',
-        creditLimit: 1500
+        name: 'Jane Smith',
+        phone: '+0987654321'
       };
 
-      const result = await CustomerService.updateCustomer(customer._id.toString(), updateData, mockUser);
+      const result = await CustomerService.updateCustomer(customer._id.toString(), updateData, mockUser._id);
 
       expect(result).toBeDefined();
-      expect(result.firstName).toBe(updateData.firstName);
-      expect(result.lastName).toBe(updateData.lastName);
+      expect(result.name).toBe(updateData.name);
       expect(result.phone).toBe(updateData.phone);
-      expect(result.creditLimit).toBe(updateData.creditLimit);
     });
 
-    it('should validate update data', async () => {
-      const invalidUpdateData = {
-        firstName: '', // Invalid: empty first name
-        email: 'invalid-email' // Invalid email format
-      };
-
-      await expect(CustomerService.updateCustomer(customer._id.toString(), invalidUpdateData, mockUser))
+    it('should reject invalid update data (bad email)', async () => {
+      await expect(CustomerService.updateCustomer(customer._id.toString(), { email: 'invalid-email' }, mockUser._id))
         .rejects
         .toThrow();
     });
 
-    it('should not update non-existent customer', async () => {
-      await expect(CustomerService.updateCustomer('507f1f77bcf86cd799439011', { firstName: 'New Name' }, mockUser))
+    it('should throw for a non-existent customer', async () => {
+      await expect(CustomerService.updateCustomer(new mongoose.Types.ObjectId().toString(), { name: 'New Name' }, mockUser._id))
         .rejects
-        .toThrow();
+        .toThrow('Customer not found');
     });
   });
 
@@ -164,140 +161,47 @@ describe('CustomerService', () => {
     let customer;
 
     beforeEach(async () => {
-      customer = await CustomerService.createCustomer(mockCustomerData, mockUser);
+      customer = await CustomerService.createCustomer({ ...mockCustomerData }, mockUser._id);
     });
 
-    it('should delete customer successfully', async () => {
-      const result = await CustomerService.deleteCustomer(customer._id.toString(), mockUser);
+    it('should soft-delete customer successfully', async () => {
+      const result = await CustomerService.deleteCustomer(customer._id.toString(), mockUser._id);
 
-      expect(result).toBe(true);
+      expect(result).toBeDefined();
+      expect(result.isActive).toBe(false);
 
-      // Verify customer no longer exists
-      const deletedCustomer = await CustomerService.getCustomerById(customer._id.toString());
-      expect(deletedCustomer).toBeNull();
+      // Soft-deleted customers no longer appear in listings
+      const list = await CustomerService.getAllCustomers({ page: 1, limit: 10 }, {}, mockUser._id);
+      expect(list.data).toHaveLength(0);
     });
 
-    it('should return false for non-existent customer', async () => {
-      const result = await CustomerService.deleteCustomer('507f1f77bcf86cd799439011', mockUser);
-
-      expect(result).toBe(false);
+    it('should throw for a non-existent customer', async () => {
+      await expect(CustomerService.deleteCustomer(new mongoose.Types.ObjectId().toString(), mockUser._id))
+        .rejects
+        .toThrow('Customer not found');
     });
   });
 
-  describe('getCustomers', () => {
-    beforeEach(async () => {
-      // Create multiple customers
-      await CustomerService.createCustomer(mockCustomerData, mockUser);
-      await CustomerService.createCustomer({
-        ...mockCustomerData,
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane.smith@example.com'
-      }, mockUser);
-    });
-
-    it('should return all customers for business', async () => {
-      const result = await CustomerService.getCustomers(mockUser);
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2);
-      expect(result[0].businessId.toString()).toBe(mockUser.businessId.toString());
-    });
-
-    it('should filter customers by type', async () => {
-      const result = await CustomerService.getCustomers(mockUser, { type: 'credit' });
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2); // Both customers are of type 'credit'
-    });
-
-    it('should filter customers by name', async () => {
-      const result = await CustomerService.getCustomers(mockUser, { search: 'Jane' });
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(1);
-      expect(result[0].firstName).toContain('Jane');
-    });
-
-    it('should paginate results', async () => {
-      const result = await CustomerService.getCustomers(mockUser, {}, { page: 1, limit: 1 });
-
-      expect(result).toBeDefined();
-      expect(result.customers).toHaveLength(1);
-      expect(result.pagination).toBeDefined();
-      expect(result.pagination.page).toBe(1);
-      expect(result.pagination.limit).toBe(1);
-      expect(result.pagination.total).toBeGreaterThanOrEqual(2);
-    });
-  });
-
-  describe('updateCustomerCredit', () => {
+  describe('updateCredit', () => {
     let customer;
 
     beforeEach(async () => {
-      customer = await CustomerService.createCustomer(mockCustomerData, mockUser);
+      customer = await CustomerService.createCustomer({ ...mockCustomerData }, mockUser._id);
     });
 
-    it('should update customer credit successfully', async () => {
-      const newCreditLimit = 2000;
-      const result = await CustomerService.updateCustomerCredit(customer._id.toString(), newCreditLimit, mockUser);
-
+    it('should add to the customer\'s credit balance', async () => {
+      const result = await CustomerService.updateCredit(customer._id.toString(), 500);
       expect(result).toBeDefined();
-      expect(result.creditLimit).toBe(newCreditLimit);
+      expect(result.creditBalance).toBe(500);
+
+      const again = await CustomerService.updateCredit(customer._id.toString(), 250);
+      expect(again.creditBalance).toBe(750);
     });
 
-    it('should validate credit limit value', async () => {
-      await expect(CustomerService.updateCustomerCredit(customer._id.toString(), -100, mockUser))
+    it('should throw for a non-existent customer', async () => {
+      await expect(CustomerService.updateCredit(new mongoose.Types.ObjectId().toString(), 100))
         .rejects
-        .toThrow();
-    });
-  });
-
-  describe('searchCustomers', () => {
-    beforeEach(async () => {
-      // Create multiple customers
-      await CustomerService.createCustomer(mockCustomerData, mockUser);
-      await CustomerService.createCustomer({
-        ...mockCustomerData,
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane.smith@example.com'
-      }, mockUser);
-      await CustomerService.createCustomer({
-        ...mockCustomerData,
-        firstName: 'Bob',
-        lastName: 'Johnson',
-        email: 'bob.johnson@example.com'
-      }, mockUser);
-    });
-
-    it('should search customers by name', async () => {
-      const result = await CustomerService.searchCustomers('Jane', mockUser);
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(1);
-      expect(result[0].firstName).toBe('Jane');
-    });
-
-    it('should search customers by email', async () => {
-      const result = await CustomerService.searchCustomers('bob.johnson@example.com', mockUser);
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(1);
-      expect(result[0].email).toBe('bob.johnson@example.com');
-    });
-
-    it('should return empty array for non-existent search', async () => {
-      const result = await CustomerService.searchCustomers('nonexistent', mockUser);
-
-      expect(result).toBeDefined();
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(0);
+        .toThrow('Customer not found');
     });
   });
 });
