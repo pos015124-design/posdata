@@ -77,10 +77,10 @@ function CartDrawer({
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
-      <div className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed top-0 right-0 h-full w-[85%] max-w-sm bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-blue-600" />

@@ -12,9 +12,7 @@ import {
   Store,
   ExternalLink,
   Copy,
-  Share2,
-  Bell,
-  BellOff
+  Share2
 } from 'lucide-react';
 import * as salesApi from '../api/sales';
 import * as customersApi from '../api/customers';
@@ -54,7 +52,9 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [businessSlug, setBusinessSlug] = useState<string | null>(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  // Browser alert mute is controlled from Settings → Notifications
+  // (shared via localStorage) so the dashboard header stays clean.
+  const [notificationsEnabled] = useState(() => localStorage.getItem('browser-alerts') !== 'off');
   const prevOrderCount = useRef<number | null>(null);
 
   const storeUrl = businessSlug
@@ -211,21 +211,6 @@ export default function Dashboard() {
       <div className="flex items-start justify-between gap-3">
         <p className="text-gray-500 text-sm">Welcome back, {user?.email}</p>
         <div className="flex gap-2 shrink-0">
-          {/* Notification toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (!notificationsEnabled && Notification.permission === 'default') {
-                Notification.requestPermission();
-              }
-              setNotificationsEnabled(v => !v);
-            }}
-            title={notificationsEnabled ? 'Mute order alerts' : 'Enable order alerts'}
-            className={`h-9 w-9 p-0 ${notificationsEnabled ? 'text-blue-600 border-blue-300' : 'text-gray-400'}`}
-          >
-            {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-          </Button>
           {storeUrl && (
             <Button variant="outline" size="sm" onClick={shareStore} className="hidden sm:flex items-center gap-1.5 h-9">
               <Share2 className="w-4 h-4" /><span className="hidden md:inline">Share</span>
@@ -240,7 +225,7 @@ export default function Dashboard() {
 
       {/* Store Link Card */}
       {storeUrl && (
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100">
+        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 shimmer-border">
           <CardContent className="p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <div className="flex-1 min-w-0">

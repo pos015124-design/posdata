@@ -237,7 +237,7 @@ const SuperAdminDashboard: React.FC = () => {
                     </div>
                   ))}
                   {(stats.pendingUsers.length > 5) && (
-                    <p className="text-xs text-gray-400 text-center">+{stats.pendingUsers.length - 5} more — manage in Settings → Users</p>
+                    <Link to="/settings?tab=users" className="block text-xs text-blue-600 text-center hover:underline">+{stats.pendingUsers.length - 5} more — manage in Settings → Users</Link>
                   )}
                 </div>
               ) : (
@@ -300,7 +300,7 @@ const SuperAdminDashboard: React.FC = () => {
             <Link to="/stores"><Building2 className="h-4 w-4" />Store directory</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="gap-1.5">
-            <Link to="/settings"><SettingsIcon className="h-4 w-4" />Users & approvals</Link>
+            <Link to="/settings?tab=users"><SettingsIcon className="h-4 w-4" />Users & approvals</Link>
           </Button>
         </CardContent>
       </Card>

@@ -124,6 +124,9 @@ function generateOrderNumber() {
   return `ORD-${year}${month}${day}-${random}`;
 }
 
+// Short customer-facing tracking code (TRK-XXXXX) — see utils/trackingCode.js
+const { generateTrackingCode } = require('../utils/trackingCode');
+
 const orderSchema = new mongoose.Schema({
   // Order identification
   orderNumber: {
@@ -132,6 +135,12 @@ const orderSchema = new mongoose.Schema({
     unique: true,
     index: true,
     default: generateOrderNumber
+  },
+  trackingCode: {
+    type: String,
+    trim: true,
+    index: true,
+    default: generateTrackingCode
   },
 
   // Customer information
@@ -332,6 +341,7 @@ const orderSchema = new mongoose.Schema({
 
 // Indexes for performance
 orderSchema.index({ orderNumber: 1 });
+orderSchema.index({ trackingCode: 1 }, { unique: true, partialFilterExpression: { trackingCode: { $type: 'string' } } });
 orderSchema.index({ customerId: 1, orderDate: -1 });
 orderSchema.index({ businessId: 1, orderDate: -1 });
 orderSchema.index({ tenantId: 1, status: 1 });

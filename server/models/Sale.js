@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { encrypt, decrypt } = require('../utils/fieldEncryption');
+const { generateTrackingCode } = require('../utils/trackingCode');
 
 const saleSchema = new mongoose.Schema({
   invoiceNumber: {
@@ -7,6 +8,14 @@ const saleSchema = new mongoose.Schema({
     required: true,
     unique: true,
     index: true
+  },
+  // Short customer-facing code (TRK-XXXXX) — the long invoice number is awkward
+  // to type on mobile. Accepted by the public tracking endpoints.
+  trackingCode: {
+    type: String,
+    trim: true,
+    index: true,
+    default: generateTrackingCode
   },
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -147,5 +156,7 @@ saleSchema.index({ source: 1, createdAt: -1 });
 saleSchema.index({ deliveryStatus: 1, source: 1 });
 saleSchema.index({ paymentStatus: 1, createdAt: -1 });
 saleSchema.index({ selcomOrderId: 1 });
+// Unique where present (default-generates for every doc)
+saleSchema.index({ trackingCode: 1 }, { unique: true, partialFilterExpression: { trackingCode: { $type: 'string' } } });
 
 module.exports = mongoose.model('Sale', saleSchema);

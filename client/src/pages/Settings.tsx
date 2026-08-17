@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -13,6 +14,8 @@ import AdminBilling from './AdminBilling';
 import PlatformSettings from './PlatformSettings';
 import TwoFactorSection from '../components/TwoFactorSection';
 import SystemHealth from '../components/SystemHealth';
+import SettingsTabs from '../components/SettingsTabs';
+import type { SettingsTab } from '../components/SettingsTabs';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
@@ -20,7 +23,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [generalSettings, setGeneralSettings] = useState({
     storeName: '',
@@ -44,6 +47,8 @@ export default function Settings() {
     fullName: '',
     email: ''
   });
+
+  const [browserAlertsOn, setBrowserAlertsOn] = useState(() => localStorage.getItem('browser-alerts') !== 'off');
 
   const [notificationSettings, setNotificationSettings] = useState<{
     emailNotifications: boolean;
@@ -452,7 +457,7 @@ export default function Settings() {
     }
   };
 
-  const tabs = [
+  const tabs: SettingsTab[] = [
     { id: 'general', label: 'General', icon: Globe },
     { id: 'business', label: 'Business', icon: Store },
     { id: 'profile', label: 'Profile', icon: User },
@@ -461,6 +466,28 @@ export default function Settings() {
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
   ];
+
+  // Deep-linkable tabs: /settings?tab=users opens the exact section. This is
+  // how dashboard quick-links (e.g. "Users & Approvals") land on the right tab.
+  useEffect(() => {
+    if (!user) return;
+    const validIds = user.role === 'super_admin'
+      ? ['security', 'users', 'businesses', 'billing', 'platform', 'system']
+      : tabs.map(t => t.id);
+    const fromUrl = searchParams.get('tab');
+    if (fromUrl && validIds.includes(fromUrl)) {
+      setActiveTab(fromUrl);
+    } else if (user.role === 'super_admin' && !validIds.includes(activeTab)) {
+      // Super admin has no 'general' tab — never leave the console empty.
+      setActiveTab('security');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, searchParams]);
+
+  const selectTab = (id: string) => {
+    setActiveTab(id);
+    setSearchParams({ tab: id }, { replace: true });
+  };
 
   if (loading) {
     return (
@@ -478,7 +505,7 @@ export default function Settings() {
     // All platform administration lives here, grouped into clear sections:
     // security, users & approvals, businesses, billing, platform config, and
     // system health. The sidebar's standalone admin links now point here.
-    const adminTabs = [
+    const adminTabs: SettingsTab[] = [
       { id: 'security', label: 'Security', icon: Shield },
       { id: 'users', label: 'Users', icon: Users },
       { id: 'businesses', label: 'Businesses', icon: Store },
@@ -505,84 +532,27 @@ export default function Settings() {
           Centralized platform administration — security, users, businesses, billing and configuration.
         </p>
 
-        {/* Mobile Tab Selector */}
-        <div className="md:hidden">
-          <Button
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="w-full bg-blue-600"
-          >
-            <SettingsIcon className="w-4 h-4 mr-2" />
-            {activeAdmin.label}
-          </Button>
+        {/* Unified horizontal tab bar — same on mobile and desktop */}
+        <SettingsTabs tabs={adminTabs} activeId={activeAdmin.id} onSelect={selectTab} />
 
-          {showMobileMenu && (
-            <Card className="mt-2 border-0 shadow-lg">
-              <CardContent className="p-2 space-y-1">
-                {adminTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setShowMobileMenu(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <tab.icon className="w-5 h-5" />
-                    <span className="font-medium">{tab.label}</span>
-                  </button>
-                ))}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900">{header.title}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{header.description}</p>
+          </div>
+
+          {activeAdmin.id === 'security' && (
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-5">
+                <TwoFactorSection />
               </CardContent>
             </Card>
           )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-          {/* Desktop Sidebar */}
-          <div className="hidden md:block md:col-span-3 lg:col-span-2">
-            <Card className="border-0 shadow-lg sticky top-6">
-              <CardContent className="p-4 space-y-2">
-                {adminTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm ${
-                      activeTab === tab.id
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <tab.icon className="w-5 h-5" />
-                    <span className="font-medium">{tab.label}</span>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Content */}
-          <div className="md:col-span-9 lg:col-span-10 space-y-4">
-            <div>
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900">{header.title}</h2>
-              <p className="text-sm text-gray-500 mt-0.5">{header.description}</p>
-            </div>
-
-            {activeTab === 'security' && (
-              <Card className="border-0 shadow-lg">
-                <CardContent className="p-5">
-                  <TwoFactorSection />
-                </CardContent>
-              </Card>
-            )}
-            {activeTab === 'users' && <PendingUsers />}
-            {activeTab === 'businesses' && <BusinessManagement />}
-            {activeTab === 'billing' && <AdminBilling />}
-            {activeTab === 'platform' && <PlatformSettings />}
-            {activeTab === 'system' && <SystemHealth />}
-          </div>
+          {activeAdmin.id === 'users' && <PendingUsers />}
+          {activeAdmin.id === 'businesses' && <BusinessManagement />}
+          {activeAdmin.id === 'billing' && <AdminBilling />}
+          {activeAdmin.id === 'platform' && <PlatformSettings />}
+          {activeAdmin.id === 'system' && <SystemHealth />}
         </div>
       </div>
     );
@@ -593,67 +563,11 @@ export default function Settings() {
       {/* Header */}
       <p className="text-sm text-gray-500">Manage your account and preferences</p>
 
-      {/* Mobile Tab Selector */}
-      <div className="md:hidden">
-        <Button
-          onClick={() => setShowMobileMenu(!showMobileMenu)}
-          className="w-full bg-blue-600"
-        >
-          <SettingsIcon className="w-4 h-4 mr-2" />
-          {tabs.find(t => t.id === activeTab)?.label || 'Settings'}
-        </Button>
-        
-        {showMobileMenu && (
-          <Card className="mt-2 border-0 shadow-lg">
-            <CardContent className="p-2 space-y-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setShowMobileMenu(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <tab.icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Unified horizontal tab bar — same on mobile and desktop */}
+      <SettingsTabs tabs={tabs} activeId={activeTab} onSelect={selectTab} />
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-        {/* Desktop Sidebar */}
-        <div className="hidden md:block md:col-span-3 lg:col-span-2">
-          <Card className="border-0 shadow-lg sticky top-6">
-            <CardContent className="p-4 space-y-2">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm ${
-                    activeTab === tab.id
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <tab.icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Content */}
-        <div className="md:col-span-9 lg:col-span-10">
-          <Card className="border-0 shadow-lg">
+      <div className="space-y-4">
+        <Card className="border-0 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-xl md:text-2xl">
                 {activeTab === 'general' && 'General Settings'}
@@ -1153,6 +1067,28 @@ export default function Settings() {
                     ))}
                   </div>
 
+                  {/* Browser notifications — shared with the dashboard (localStorage) */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <Label className="text-base">Browser Notifications</Label>
+                      <p className="text-sm text-gray-600">Show a browser alert and play a sound when a new order arrives</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={browserAlertsOn}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        if (on && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                          Notification.requestPermission();
+                        }
+                        localStorage.setItem('browser-alerts', on ? 'on' : 'off');
+                        setBrowserAlertsOn(on);
+                      }}
+                      className="w-5 h-5"
+                      aria-label="Enable browser notifications"
+                    />
+                  </div>
+
                   {/* Sales report frequency — daily / weekly / off */}
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
@@ -1189,7 +1125,6 @@ export default function Settings() {
               )}
             </CardContent>
           </Card>
-        </div>
       </div>
     </div>
   );

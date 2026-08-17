@@ -40,6 +40,7 @@ export default function Checkout() {
   const [processing, setProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [invoices, setInvoices] = useState<string[]>([]);
+  const [trackingCodes, setTrackingCodes] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [payPhase, setPayPhase] = useState<PayPhase>({ name: 'idle' });
   const [payError, setPayError] = useState<string | null>(null);
@@ -53,8 +54,9 @@ export default function Checkout() {
 
   const [info, setInfo] = useState({ name: '', email: '', phone: '', address: '', city: '', notes: '' });
 
-  const completeOrder = useCallback((invs: string[]) => {
+  const completeOrder = useCallback((invs: string[], codes: string[] = []) => {
     setInvoices(invs);
+    setTrackingCodes(codes);
     setOrderComplete(true);
     localStorage.removeItem('cart');
     localStorage.setItem('sale-created', Date.now().toString());
@@ -105,7 +107,8 @@ export default function Checkout() {
 
         if (data.paid || data.status === 'paid') {
           const invs = (data.sales || []).map((s: any) => s.invoiceNumber).filter(Boolean);
-          completeOrder(invs);
+          const codes = (data.sales || []).map((s: any) => s.trackingCode).filter(Boolean);
+          completeOrder(invs, codes);
           return;
         }
         if (data.status === 'failed') {
@@ -156,7 +159,8 @@ export default function Checkout() {
       if (!res.ok) throw new Error(payload.message || payload.error || 'Checkout failed');
 
       const invs: string[] = payload.invoiceNumbers || (payload.sales || []).map((s: any) => s.invoiceNumber).filter(Boolean);
-      completeOrder(invs);
+      const codes: string[] = payload.trackingCodes || (payload.sales || []).map((s: any) => s.trackingCode).filter(Boolean);
+      completeOrder(invs, codes);
     } catch (err: any) {
       toast({ title: 'Order failed', description: err?.message || 'Please try again', variant: 'destructive' });
     } finally {
@@ -249,9 +253,11 @@ export default function Checkout() {
           <div className="bg-gray-50 rounded-2xl p-5 mb-6 text-left space-y-3">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">
-                {invoices.length > 1 ? 'Invoice numbers' : 'Invoice number'}
+                {trackingCodes.length > 1 ? 'Tracking codes' : 'Tracking code'}
               </p>
-              {invoices.map(inv => (
+              {trackingCodes.length > 0 ? trackingCodes.map(code => (
+                <p key={code} className="font-mono font-bold text-green-600 text-sm">{code}</p>
+              )) : invoices.map(inv => (
                 <p key={inv} className="font-mono font-bold text-blue-600 text-sm">{inv}</p>
               ))}
             </div>
@@ -268,10 +274,10 @@ export default function Checkout() {
           </div>
 
           <div className="space-y-3">
-            {invoices[0] && (
+            {(invoices[0] || trackingCodes[0]) && (
               <Button 
                 className="w-full bg-green-600 hover:bg-green-700 text-white" 
-                onClick={() => navigate(`/track?invoice=${encodeURIComponent(invoices[0])}`)}
+                onClick={() => navigate(`/track?${trackingCodes[0] ? 'code=' : 'invoice='}${encodeURIComponent(trackingCodes[0] || invoices[0])}`)}
               >
                 Track your order
               </Button>

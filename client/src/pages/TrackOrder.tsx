@@ -7,25 +7,48 @@ import { Button } from '../components/ui/button';
 import formatPrice from '../utils/formatPrice';
 import StatusBadge from '../components/StatusBadge';
 
+const RECENT_KEY = 'bhabyshop:recent-tracks';
+
 function fmtDate(d?: string | number | null) {
   if (!d) return null;
   try { return new Date(d).toLocaleString(); } catch { return String(d); }
 }
 
+function loadRecent(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter((x: unknown) => typeof x === 'string') : [];
+  } catch { return []; }
+}
+
+function saveRecent(code: string) {
+  try {
+    const next = [code, ...loadRecent().filter(c => c !== code)].slice(0, 5);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch { /* storage unavailable — non-fatal */ }
+}
+
 export default function TrackOrder() {
   const [searchParams] = useSearchParams();
-  const invoiceFromQuery = searchParams.get('invoice') || '';
+  const invoiceFromQuery = searchParams.get('invoice') || searchParams.get('code') || '';
 
   const [invoice, setInvoice] = useState(invoiceFromQuery);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recent, setRecent] = useState<string[]>([]);
   const esRef = useRef<EventSource | null>(null);
   const connectedRef = useRef(false);
 
   useEffect(() => {
+    setRecent(loadRecent());
+  }, []);
+
+  useEffect(() => {
     if (invoiceFromQuery) {
+      setInvoice(invoiceFromQuery);
       fetchPublic(invoiceFromQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -44,7 +67,11 @@ export default function TrackOrder() {
     setError(null);
     try {
       const res = await ordersApi.getOrderByInvoicePublic(inv);
-      setOrder(res.data || res.order || res);
+      const data = res.data || res.order || res;
+      setOrder(data);
+      const code = data.trackingCode || data.invoiceNumber || data.orderNumber || inv;
+      saveRecent(code);
+      setRecent(loadRecent());
     } catch (err: any) {
       setError(err.response?.data?.message || 'Order not found');
       setOrder(null);
@@ -55,7 +82,11 @@ export default function TrackOrder() {
     setLoading(true); setError(null);
     try {
       const res = await ordersApi.verifyOrderByInvoice(invoice, email);
-      setOrder(res.data || res.order || res);
+      const data = res.data || res.order || res;
+      setOrder(data);
+      const code = data.trackingCode || data.invoiceNumber || data.orderNumber || invoice;
+      saveRecent(code);
+      setRecent(loadRecent());
       // Open SSE stream using email verification
       openSSE(invoice, email);
     } catch (err: any) {
@@ -98,8 +129,13 @@ export default function TrackOrder() {
     });
   };
 
+  const loadRecentCode = (code: string) => {
+    setInvoice(code);
+    fetchPublic(code);
+  };
+
   return (
-    <div className="max-w-3xl mx-auto py-8">
+    <div className="max-w-3xl mx-auto py-8 px-4">
       <Card>
         <CardHeader>
           <CardTitle>Track your order</CardTitle>
@@ -107,8 +143,9 @@ export default function TrackOrder() {
         <CardContent>
           <div className="space-y-4">
             <div>
-              <label htmlFor="track-invoice" className="text-sm font-medium text-gray-700">Invoice number</label>
-              <Input id="track-invoice" value={invoice} onChange={e => setInvoice(e.target.value)} className="mt-1.5" placeholder="INV-XXXXXXXXXX or ORD-XXXX-XXXXXX" />
+              <label htmlFor="track-invoice" className="text-sm font-medium text-gray-700">Order reference</label>
+              <Input id="track-invoice" value={invoice} onChange={e => setInvoice(e.target.value)} className="mt-1.5" placeholder="TRK-XXXXX, INV-XXXXXXXXXX or ORD-XXXX-XXXXXX" />
+              <p className="text-xs text-gray-500 mt-1">Enter the short tracking code from your receipt or email (e.g. TRK-89A2F).</p>
             </div>
 
             <div>
@@ -117,15 +154,35 @@ export default function TrackOrder() {
             </div>
 
             <div className="flex gap-3">
-              <Button onClick={() => fetchPublic(invoice)} disabled={!invoice || loading} aria-label="Look up order by invoice number">Look up</Button>
-              <Button variant="outline" onClick={verify} disabled={!invoice || !email || loading} aria-label="Verify order with invoice and email">Verify &amp; View</Button>
+              <Button onClick={() => fetchPublic(invoice)} disabled={!invoice || loading} aria-label="Look up order">Look up</Button>
+              <Button variant="outline" onClick={verify} disabled={!invoice || !email || loading} aria-label="Verify order with reference and email">Verify &amp; View</Button>
             </div>
+
+            {recent.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent lookups</p>
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {recent.map(code => (
+                    <button
+                      key={code}
+                      onClick={() => loadRecentCode(code)}
+                      className="text-xs font-mono border border-gray-200 rounded-full px-3 py-1 text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      {code}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {loading && <p className="text-sm text-gray-500">Loading…</p>}
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             {order && (
               <div className="mt-4 space-y-2">
+                {order.trackingCode && (
+                  <p className="text-sm">Tracking code: <strong className="font-mono text-blue-600">{order.trackingCode}</strong></p>
+                )}
                 <p className="text-sm">Invoice: <strong>{order.invoiceNumber || order.orderNumber}</strong></p>
                 <p className="text-sm">Status: <strong><StatusBadge status={order.deliveryStatus || order.status} /></strong></p>
                 <p className="text-sm">Payment: <strong>{order.paymentStatus}</strong></p>

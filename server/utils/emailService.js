@@ -296,14 +296,18 @@ const sendOrderConfirmationToBuyer = async ({ buyerEmail, buyerName, invoices, i
 /**
  * 5. Order confirmed — notify buyer that BHABY GROUP LTD received their order
  */
-const sendOrderConfirmedToBuyer = async ({ buyerEmail, buyerName, invoiceNumber, items, total }) => {
+const sendOrderConfirmedToBuyer = async ({ buyerEmail, buyerName, invoiceNumber, trackingCode, items, total }) => {
   if (!buyerEmail) return;
   const itemRows = (items || []).map(i =>
     row(i.productName || i.name, `${i.quantity} × TZS ${(i.price || 0).toLocaleString()}`)
   ).join('');
+  const trackParam = trackingCode ? `code=${encodeURIComponent(trackingCode)}` : `invoice=${encodeURIComponent(invoiceNumber)}`;
+  const trackHint = trackingCode
+    ? `<p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.7;">Your short tracking code is <strong style="color:#2563eb;">${trackingCode}</strong> — keep it handy to check your delivery status on mobile.</p>`
+    : '';
   return sendEmail({
     to: buyerEmail,
-    subject: `Order confirmed — ${invoiceNumber}`,
+    subject: `Order confirmed — ${trackingCode || invoiceNumber}`,
     html: wrap('Order Confirmed', `
       ${h2(`Thank you, ${buyerName || 'Customer'}!`)}
       ${p(`Your order <strong>${invoiceNumber}</strong> has been received and is being processed by BHABY GROUP LTD.`)}
@@ -311,10 +315,11 @@ const sendOrderConfirmedToBuyer = async ({ buyerEmail, buyerName, invoiceNumber,
         ${itemRows}
         ${row('Total', `<strong style="color:#2563eb;">TZS ${(total || 0).toLocaleString()}</strong>`)}
       </table>
+      ${trackHint}
       ${p('We will notify you when a rider is assigned and your order is on its way.')}
-      ${btn('Track your order', `${FRONTEND}/track?invoice=${encodeURIComponent(invoiceNumber)}`)}
+      ${btn('Track your order', `${FRONTEND}/track?${trackParam}`)}
     `),
-    text: `Order ${invoiceNumber} confirmed. Total: TZS ${(total || 0).toLocaleString()}. We will notify you when a rider is assigned.`
+    text: `Order ${invoiceNumber} confirmed. Total: TZS ${(total || 0).toLocaleString()}${trackingCode ? ` Tracking code: ${trackingCode}.` : ''} We will notify you when a rider is assigned.`
   });
 };
 

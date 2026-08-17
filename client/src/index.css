@@ -255,6 +255,44 @@
   }
 }
 
+/* Subtle shimmer sweep across the top border of primary CTA cards.
+   A thin animated light pass — deliberately not a full-card glow. */
+@keyframes shimmerBorder {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-border {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 9999px 9999px 0 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(37, 99, 235, 0) 25%,
+    rgba(37, 99, 235, 0.6) 50%,
+    rgba(37, 99, 235, 0) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerBorder 4.5s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -292,7 +330,8 @@
   .animate-slide-up,
   .animate-scale-in,
   .animate-bounce-gentle,
-  .animate-pulse-slow {
+  .animate-pulse-slow,
+  .shimmer-border::before {
     animation: none !important;
   }
 }

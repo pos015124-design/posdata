@@ -45,9 +45,11 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
       sales: result.sales.map(s => ({
         _id: s._id,
         invoiceNumber: s.invoiceNumber,
+        trackingCode: s.trackingCode || null,
         total: s.total
       })),
-      invoiceNumbers: result.sales.map(s => s.invoiceNumber)
+      invoiceNumbers: result.sales.map(s => s.invoiceNumber),
+      trackingCodes: result.sales.map(s => s.trackingCode).filter(Boolean)
     });
 
     // ── Post-response: fire emails without blocking the buyer ────────────────
@@ -56,10 +58,12 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
       const allItems = result.sales.flatMap(s => s.items || []);
       const grandTotal = result.sales.reduce((sum, s) => sum + (s.total || 0), 0);
       const invoiceNumbers = result.sales.map(s => s.invoiceNumber).filter(Boolean);
+      const trackingCodes = result.sales.map(s => s.trackingCode).filter(Boolean);
       sendOrderConfirmedToBuyer({
         buyerEmail:    customer.email,
         buyerName:     customer.name,
         invoiceNumber: invoiceNumbers.join(', '),
+        trackingCode:  trackingCodes[0] || null,
         items:         allItems,
         total:         grandTotal
       }).catch(e => logger.error('Failed to send order confirmation to buyer', { error: e.message }));

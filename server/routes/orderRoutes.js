@@ -154,17 +154,27 @@ router.post('/', optionalCustomer, validateCreateOrder, handleValidationErrors, 
  */
 const findTrackable = async (identifier) => {
   const Sale = require('../models/Sale');
-  const sale = await Sale.findOne({ invoiceNumber: identifier }).lean();
+  const Order = require('../models/Order');
+
+  // Accept full invoice/order numbers OR the short customer-facing tracking
+  // code (TRK-XXXXX) — buyers type whichever they were given.
+  const normalized = String(identifier || '').trim();
+  if (!normalized) return null;
+
+  const sale = await Sale.findOne({
+    $or: [{ invoiceNumber: normalized }, { trackingCode: normalized }]
+  }).lean();
   if (sale) {
     decryptFields(sale, SALE_PII);
-    return { model: 'sale', doc: sale, key: sale.invoiceNumber };
+    return { model: 'sale', doc: sale, key: sale.trackingCode || sale.invoiceNumber };
   }
 
-  const Order = require('../models/Order');
-  const order = await Order.findOne({ orderNumber: identifier }).lean();
+  const order = await Order.findOne({
+    $or: [{ orderNumber: normalized }, { trackingCode: normalized }]
+  }).lean();
   if (order) {
     decryptFields(order, ORDER_PII);
-    return { model: 'order', doc: order, key: order.orderNumber };
+    return { model: 'order', doc: order, key: order.trackingCode || order.orderNumber };
   }
 
   return null;
@@ -174,6 +184,7 @@ const findTrackable = async (identifier) => {
 const publicOrderView = ({ doc }) => ({
   id: doc._id,
   invoiceNumber: doc.invoiceNumber || doc.orderNumber,
+  trackingCode: doc.trackingCode || null,
   status: doc.status,
   deliveryStatus: doc.deliveryStatus,
   paymentStatus: doc.paymentStatus,
@@ -191,6 +202,7 @@ const verifiedOrderView = ({ model, doc }) => {
   const view = {
     id: doc._id,
     invoiceNumber: doc.invoiceNumber || doc.orderNumber,
+    trackingCode: doc.trackingCode || null,
     status: doc.status,
     deliveryStatus: doc.deliveryStatus,
     paymentStatus: doc.paymentStatus,

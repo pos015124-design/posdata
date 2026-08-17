@@ -5,13 +5,15 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/useToast';
 import {
   CheckCircle, XCircle, Trash2, UserCheck, UserX,
-  Search, RefreshCw, Shield, Clock, AlertTriangle, FileCheck
+  Search, RefreshCw, Shield, AlertTriangle, FileCheck, MoreHorizontal, Calendar
 } from 'lucide-react';
 import ConfirmDialog, { type ConfirmDialogProps } from '../components/ConfirmDialog';
 
 interface ManagedUser {
   _id: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   role: string;
   isApproved: boolean;
   isActive: boolean;
@@ -39,6 +41,22 @@ const roleBadge = (role: string) => {
   return map[role] || 'bg-gray-100 text-gray-600';
 };
 
+// Full name first (never truncate — the whole point of the two-line layout),
+// falling back to the email prefix when the account has no name.
+const displayName = (u: ManagedUser) => {
+  const first = (u.firstName || '').trim();
+  const last = (u.lastName || '').trim();
+  if (first || last) return `${first} ${last}`.trim();
+  return u.email.split('@')[0] || u.email;
+};
+
+const statusOf = (u: ManagedUser) =>
+  u.isSuspended
+    ? { label: 'Suspended', cls: 'bg-red-100 text-red-700' }
+    : !u.isApproved
+      ? { label: 'Pending approval', cls: 'bg-amber-100 text-amber-700' }
+      : { label: 'Active', cls: 'bg-green-100 text-green-700' };
+
 const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,6 +65,7 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   const [suspendReason, setSuspendReason] = useState('');
   const [suspendTarget, setSuspendTarget] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogProps | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -126,6 +145,7 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   };
 
   const deleteUser = async (id: string, email: string) => {
+    setMenuFor(null);
     setConfirmDialog({
       title: 'Delete user',
       description: `Permanently delete ${email}? This cannot be undone.`,
@@ -145,7 +165,8 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
   };
 
   const filtered = users.filter(u => {
-    const matchSearch = u.email.toLowerCase().includes(search.toLowerCase());
+    const haystack = `${u.email} ${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+    const matchSearch = haystack.includes(search.toLowerCase());
     const matchFilter =
       filter === 'all' ? true :
       filter === 'pending' ? !u.isApproved :
@@ -180,11 +201,11 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
           </div>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex flex-wrap gap-2 mt-3">
+        {/* Filter tabs — single horizontal scroll container, no uneven wrapping */}
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mb-1" role="tablist" aria-label="Filter users">
           {(['all', 'pending', 'active', 'suspended'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors capitalize ${filter === f ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            <button key={f} onClick={() => setFilter(f)} role="tab" aria-selected={filter === f}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors capitalize ${filter === f ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {f} ({counts[f]})
             </button>
           ))}
@@ -192,7 +213,7 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
 
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input placeholder="Search by email…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
       </CardHeader>
 
@@ -219,66 +240,102 @@ const PendingUsers: React.FC<{ onMutate?: () => void }> = ({ onMutate }) => {
             <p className="text-sm">No users match this filter</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {filtered.map(u => (
-              <div key={u._id} className={`flex flex-wrap items-center gap-3 p-3 rounded-xl border transition-colors ${u.isSuspended ? 'bg-red-50 border-red-200' : !u.isApproved ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100 hover:border-blue-200'}`}>
-                {/* Status dot */}
-                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${u.isSuspended ? 'bg-red-500' : !u.isApproved ? 'bg-amber-500' : 'bg-green-500'}`} />
+          <div className="space-y-3">
+            {filtered.map(u => {
+              const status = statusOf(u);
+              return (
+                <div key={u._id} className={`rounded-xl border overflow-hidden ${u.isSuspended ? 'bg-red-50/60 border-red-200' : !u.isApproved ? 'bg-amber-50/60 border-amber-200' : 'bg-white border-gray-100'}`}>
+                  {/* Header: name + status */}
+                  <div className="flex items-start justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{displayName(u)}</p>
+                      <p className="text-xs text-gray-500 break-all mt-0.5 leading-relaxed">{u.email}</p>
+                    </div>
+                    <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-semibold ${status.cls}`}>
+                      {status.label}
+                    </span>
+                  </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-900 truncate">{u.email}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleBadge(u.role)}`}>{u.role.replace('_', ' ')}</span>
-                    {u.isSuspended && <span className="text-xs text-red-600 font-medium flex items-center gap-1"><XCircle className="w-3 h-3" />Suspended</span>}
-                    {!u.isApproved && !u.isSuspended && <span className="text-xs text-amber-600 font-medium flex items-center gap-1"><Clock className="w-3 h-3" />Pending approval</span>}
-                    {u.isApproved && !u.isSuspended && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" />Active</span>}
+                  {/* Body: role + meta */}
+                  <div className="px-4 pb-3 flex flex-wrap items-center gap-1.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${roleBadge(u.role)}`}>
+                      {u.role.replace('_', ' ')}
+                    </span>
                     {u.termsAccepted && (
                       <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <FileCheck className="w-3 h-3" />Terms
+                        <FileCheck className="w-3 h-3" />Terms accepted
+                      </span>
+                    )}
+                    {u.createdAt && (
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />Joined {new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {u.isSuspended && u.suspendedReason && (
+                      <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                        <XCircle className="w-3 h-3" />{u.suspendedReason}
                       </span>
                     )}
                   </div>
-                </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {!u.isApproved && !u.isSuspended && (
-                    <Button size="sm" onClick={() => approve(u._id)}
-                      className="h-8 bg-green-600 hover:bg-green-700 text-white gap-1 text-xs px-2">
-                      <UserCheck className="w-3.5 h-3.5" />Approve
-                    </Button>
-                  )}
-                  {u.isSuspended && (
-                    <Button size="sm" onClick={() => activate(u._id)}
-                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white gap-1 text-xs px-2">
-                      <UserCheck className="w-3.5 h-3.5" />Activate
-                    </Button>
-                  )}
-                  {u.isApproved && !u.isSuspended && u.role !== 'super_admin' && (
-                    <Button size="sm" variant="outline" onClick={() => setSuspendTarget(u._id)}
-                      className="h-8 border-amber-300 text-amber-700 hover:bg-amber-50 gap-1 text-xs px-2">
-                      <UserX className="w-3.5 h-3.5" />Suspend
-                    </Button>
-                  )}
-                  {u.role !== 'super_admin' && (
-                    <Button size="sm" variant="ghost" onClick={() => deleteUser(u._id, u.email)}
-                      className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50 px-2">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                  {/* Fix Business — for approved sellers who have no business profile */}
-                  {u.isApproved && u.role === 'business_admin' && !u.isSuspended && (
-                    <Button size="sm" variant="outline"
-                      onClick={() => fixBusiness(u._id, u.email)}
-                      className="h-8 border-purple-300 text-purple-700 hover:bg-purple-50 gap-1 text-xs px-2"
-                      title="Create or link missing business profile">
-                      <Shield className="w-3.5 h-3.5" />Fix Store
-                    </Button>
-                  )}
+                  {/* Footer: actions */}
+                  <div className="px-4 py-2.5 bg-gray-50/80 border-t flex items-center justify-end gap-1.5 flex-wrap">
+                    {!u.isApproved && !u.isSuspended && (
+                      <Button size="sm" onClick={() => approve(u._id)}
+                        className="h-8 bg-green-600 hover:bg-green-700 text-white gap-1 text-xs px-3">
+                        <UserCheck className="w-3.5 h-3.5" />Approve
+                      </Button>
+                    )}
+                    {u.isSuspended && (
+                      <Button size="sm" onClick={() => activate(u._id)}
+                        className="h-8 bg-blue-600 hover:bg-blue-700 text-white gap-1 text-xs px-3">
+                        <UserCheck className="w-3.5 h-3.5" />Activate
+                      </Button>
+                    )}
+                    {u.isApproved && !u.isSuspended && u.role !== 'super_admin' && (
+                      <Button size="sm" variant="outline" onClick={() => setSuspendTarget(u._id)}
+                        className="h-8 border-amber-300 text-amber-700 hover:bg-amber-50 gap-1 text-xs px-3">
+                        <UserX className="w-3.5 h-3.5" />Suspend
+                      </Button>
+                    )}
+                    {/* Overflow actions — "..." context menu keeps the card footer tidy */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setMenuFor(menuFor === u._id ? null : u._id)}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors"
+                        aria-label={`More actions for ${displayName(u)}`}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      {menuFor === u._id && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setMenuFor(null)} />
+                          <div className="absolute right-0 bottom-full mb-1 z-50 bg-white rounded-xl shadow-xl border py-1 w-48">
+                            {u.isApproved && u.role === 'business_admin' && !u.isSuspended && (
+                              <button
+                                onClick={() => { setMenuFor(null); fixBusiness(u._id, u.email); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-50"
+                                title="Create or link missing business profile"
+                              >
+                                <Shield className="w-3.5 h-3.5" />Fix Store
+                              </button>
+                            )}
+                            {u.role !== 'super_admin' && (
+                              <button
+                                onClick={() => deleteUser(u._id, u.email)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />Delete user
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

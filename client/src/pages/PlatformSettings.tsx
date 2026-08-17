@@ -231,11 +231,6 @@ const PlatformSettings: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-bold text-gray-900">Platform Settings</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Configure platform-wide settings and preferences</p>
-      </div>
-
       {/* Tab bar */}
       <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-xl">
         {tabs.map(t => {
