@@ -8,6 +8,95 @@ const Business = require('../models/Business');
 const Product = require('../models/Product');
 const { logger } = require('../config/logger');
 
+const SELLER_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'isFeatured', 'price', 'name', 'stock']);
+const SELLER_SORT_ORDERS = new Set(['asc', 'desc']);
+const MARKETPLACE_SORTS = new Set(['relevant', 'newest', 'price']);
+const MARKETPLACE_CANDIDATE_LIMIT = 1000;
+
+function tokenize(value) {
+  return String(value || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map(token => token.trim())
+    .filter(Boolean);
+}
+
+function marketplaceRelevance(product, search) {
+  const queryTokens = tokenize(search);
+  if (!queryTokens.length) return 0;
+
+  const nameTokens = tokenize(product.name);
+  const codeTokens = tokenize(product.code);
+  const categoryTokens = tokenize(product.category);
+  const descriptionTokens = tokenize(product.description);
+  const tags = Array.isArray(product.tags) ? product.tags.flatMap(tokenize) : [];
+  let score = 0;
+
+  for (const token of queryTokens) {
+    if (nameTokens.includes(token)) score += 100;
+    else if (nameTokens.some(value => value.startsWith(token))) score += 75;
+    else if (codeTokens.includes(token)) score += 70;
+    else if (categoryTokens.includes(token)) score += 55;
+    else if (tags.includes(token)) score += 45;
+    else if (descriptionTokens.includes(token)) score += 25;
+    else if ([product.name, product.code, product.category, product.description]
+      .some(value => String(value || '').toLowerCase().includes(token))) score += 10;
+  }
+
+  return score / queryTokens.length;
+}
+
+function freshnessScore(createdAt, referenceTime) {
+  const timestamp = new Date(createdAt || 0).getTime();
+  if (!Number.isFinite(timestamp)) return 0;
+  const reference = Number.isFinite(referenceTime) ? referenceTime : timestamp;
+  const ageDays = Math.max(0, (reference - timestamp) / 86400000);
+  return Math.max(0, 5 - Math.min(ageDays, 5));
+}
+
+function marketplaceBaseScore(product, search, referenceTime) {
+  const relevance = marketplaceRelevance(product, search);
+  const availability = product.stock > 0 ? 2 : 0;
+  const featured = product.isFeatured ? 5 : 0;
+  return {
+    relevance,
+    score: relevance * 100 + availability + featured + freshnessScore(product.createdAt, referenceTime)
+  };
+}
+
+function rankMarketplaceCandidates(candidates, search = '') {
+  const referenceTime = Math.max(...candidates.map(product => new Date(product.createdAt || 0).getTime()).filter(Number.isFinite));
+  const scored = candidates.map((product, index) => {
+    const base = marketplaceBaseScore(product, search, referenceTime);
+    return { product, ...base, originalIndex: index };
+  });
+  const selected = [];
+  const sellerCounts = new Map();
+
+  while (scored.length) {
+    const highestRelevance = Math.max(...scored.map(candidate => candidate.relevance));
+    const eligibleAlternatives = scored.filter(candidate => {
+      // With explicit search, diversity is applied only among sufficiently
+      // relevant matches. This prevents unrelated products from being boosted.
+      return highestRelevance === 0 || candidate.relevance >= highestRelevance * 0.8;
+    });
+    const chosen = eligibleAlternatives.reduce((winner, candidate) => {
+      if (!winner) return candidate;
+      const winnerAdjusted = winner.score - (sellerCounts.get(winner.product.storeSlug) || 0) * 8;
+      const candidateAdjusted = candidate.score - (sellerCounts.get(candidate.product.storeSlug) || 0) * 8;
+      if (candidateAdjusted !== winnerAdjusted) return candidateAdjusted > winnerAdjusted ? candidate : winner;
+      if (candidate.score !== winner.score) return candidate.score > winner.score ? candidate : winner;
+      return candidate.originalIndex < winner.originalIndex ? candidate : winner;
+    }, null);
+
+    selected.push(chosen.product);
+    sellerCounts.set(chosen.product.storeSlug, (sellerCounts.get(chosen.product.storeSlug) || 0) + 1);
+    scored.splice(scored.indexOf(chosen), 1);
+  }
+
+  return selected;
+}
+
 class StoreService {
   
   /**
@@ -17,50 +106,20 @@ class StoreService {
    */
   static async getStoreBySlug(slug) {
     try {
-      console.log(`[Store Service] Looking for store slug: "${slug}"`);
+      const normalizedSlug = String(slug || '').trim().toLowerCase();
+      if (!normalizedSlug) throw new Error('Store not found');
+
       
-      // First, try to find ANY business with this slug (ignore status/isPublic)
-      const anyBusiness = await Business.findOne({
-        slug: slug.toLowerCase()
-      });
-      
-      if (!anyBusiness) {
-        console.log(`[Store Service] ❌ No business found with slug: "${slug}"`);
-        console.log(`[Store Service] 💡 Available businesses:`);
-        
-        const allBusinesses = await Business.find({}).select('slug userId status isPublic name');
-        console.log(allBusinesses.map(b => ({
-          slug: b.slug,
-          name: b.name,
-          status: b.status,
-          isPublic: b.isPublic,
-          userId: b.userId
-        })));
-        
-        throw new Error('Store not found');
-      }
-      
-      console.log(`[Store Service] Found business:`, {
-        slug: anyBusiness.slug,
-        name: anyBusiness.name,
-        status: anyBusiness.status,
-        isPublic: anyBusiness.isPublic,
-        userId: anyBusiness.userId
-      });
-      
+
+
       // Find active, public business by slug
       const business = await Business.findOne({
-        slug: slug.toLowerCase(),
+        slug: normalizedSlug,
         status: 'active',
         isPublic: true
       }).select('_id name slug description logo email phone address socialMedia userId');
 
-      if (!business) {
-        console.log(`[Store Service] ❌ Business exists but is not accessible:`);
-        console.log(`   - status: "${anyBusiness.status}" (needs to be "active")`);
-        console.log(`   - isPublic: ${anyBusiness.isPublic} (needs to be true)`);
-        throw new Error('Store not found');
-      }
+      if (!business) throw new Error('Store not found');
       
       console.log(`[Store Service] ✅ Store accessible, fetching products...`);
 
@@ -105,7 +164,7 @@ class StoreService {
         status: 'active'
       })
         .select('name code price images category description stock isFeatured')
-        .sort({ isFeatured: -1, createdAt: -1 });
+        .sort({ isFeatured: -1, createdAt: -1, _id: -1 });
         
       console.log(`[Store Service] Found ${products.length} products for this store`);
 
@@ -154,25 +213,22 @@ class StoreService {
     const page = Math.max(1, parseInt(pagination.page, 10) || 1);
     const limit = Math.min(Math.max(1, parseInt(pagination.limit, 10) || 100), 200);
     const skip = (page - 1) * limit;
+    const search = (pagination.search || '').trim();
+    const category = (pagination.category || '').trim();
+    const sortBy = pagination.sortBy || 'relevant';
+    const sortOrder = pagination.sortOrder || 'desc';
 
-    const businesses = await Business.find({
-      status: 'active',
-      isPublic: true
-    })
-      .select('_id userId name slug')
-      .lean();
-
-    if (!businesses.length) {
-      return {
-        products: [],
-        pagination: { page, limit, total: 0, pages: 0 }
-      };
+    if (!MARKETPLACE_SORTS.has(sortBy) || !['asc', 'desc'].includes(sortOrder)) {
+      throw new Error('Unsupported marketplace sort');
     }
 
-    // A user may own more than one public business. Products with businessId
-    // are attributed directly; legacy products without businessId are only
-    // eligible when their owner has exactly one public business. This avoids
-    // silently assigning Store B's products to Store A.
+    const businesses = await Business.find({ status: 'active', isPublic: true })
+      .select('_id userId name slug')
+      .lean();
+    if (!businesses.length) {
+      return { products: [], pagination: { page, limit, total: 0, pages: 0 } };
+    }
+
     const storesByBusinessId = new Map();
     const businessesByUserId = new Map();
     for (const business of businesses) {
@@ -195,11 +251,10 @@ class StoreService {
       try {
         unambiguousUserIds.push(new mongoose.Types.ObjectId(uid));
       } catch {
-        // Ignore malformed owner references; they cannot safely expose products.
+        // Malformed owner references cannot safely expose legacy products.
       }
     }
     const businessIds = [...storesByBusinessId.keys()].map(id => new mongoose.Types.ObjectId(id));
-
     const query = {
       $and: [
         {
@@ -215,7 +270,6 @@ class StoreService {
       ]
     };
 
-    const search = (pagination.search || '').trim();
     if (search) {
       const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$and.push({
@@ -223,59 +277,53 @@ class StoreService {
           { name: { $regex: esc, $options: 'i' } },
           { code: { $regex: esc, $options: 'i' } },
           { description: { $regex: esc, $options: 'i' } },
-          { category: { $regex: esc, $options: 'i' } }
+          { category: { $regex: esc, $options: 'i' } },
+          { tags: { $regex: esc, $options: 'i' } }
         ]
       });
     }
-
-    const cat = (pagination.category || '').trim();
-    if (cat) {
-      query.category = cat;
-    }
+    if (category) query.category = category;
 
     const total = await Product.countDocuments(query);
-    const raw = await Product.find(query)
-      .select('name code price images category description stock userId businessId isSponsored sponsoredUntil')
-      .sort({ isSponsored: -1, isFeatured: -1, createdAt: -1 }) // sponsored first, then featured, then newest
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const select = 'name code price images category description tags stock userId businessId isFeatured isSponsored sponsoredUntil createdAt';
+    let raw;
+    if (sortBy === 'relevant') {
+      // Rank a bounded, deterministic candidate pool before slicing pages. The
+      // current catalog is well below this bound; larger catalogs can later
+      // move this selection into a dedicated indexed ranking store.
+      raw = await Product.find(query)
+        .select(select)
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(MARKETPLACE_CANDIDATE_LIMIT)
+        .lean();
+    } else {
+      const direction = sortOrder === 'asc' ? 1 : -1;
+      const sort = sortBy === 'newest' ? { createdAt: direction, _id: direction } : { price: direction, _id: direction };
+      raw = await Product.find(query).select(select).sort(sort).skip(skip).limit(limit).lean();
+    }
 
-    const products = raw.map(p => {
-      let store = p.businessId ? storesByBusinessId.get(String(p.businessId)) : null;
+    const attributed = raw.map(product => {
+      let store = product.businessId ? storesByBusinessId.get(String(product.businessId)) : null;
       if (!store) {
-        const owners = businessesByUserId.get(String(p.userId)) || [];
-        if (owners.length === 1) {
-          store = storesByBusinessId.get(String(owners[0]._id));
-        }
+        const owners = businessesByUserId.get(String(product.userId)) || [];
+        if (owners.length === 1) store = storesByBusinessId.get(String(owners[0]._id));
       }
-      // The query only admits safely attributable products. Keep a defensive
-      // fallback so a future query change cannot emit an invented store.
       store = store || { storeName: null, storeSlug: null, businessId: null };
       return {
-        _id: p._id,
-        name: p.name,
-        code: p.code,
-        price: p.price,
-        images: p.images || [],
-        category: p.category,
-        description: p.description,
-        stock: p.stock,
-        isSponsored: p.isSponsored || false,
+        ...product,
+        images: product.images || [],
         storeName: store.storeName,
         storeSlug: store.storeSlug,
-        ownerId: p.userId
+        ownerId: product.userId,
+        isSponsored: product.isSponsored || false
       };
     });
 
+    const ordered = sortBy === 'relevant' ? rankMarketplaceCandidates(attributed, search) : attributed;
+    const products = sortBy === 'relevant' ? ordered.slice(skip, skip + limit) : ordered;
     return {
       products,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: total ? Math.ceil(total / limit) : 0
-      }
+      pagination: { page, limit, total, pages: total ? Math.ceil(total / limit) : 0 }
     };
   }
 
@@ -423,9 +471,12 @@ class StoreService {
    */
   static async getStoreProducts(slug, filters = {}, pagination = {}) {
     try {
+      const normalizedSlug = String(slug || '').trim().toLowerCase();
+      if (!normalizedSlug) throw new Error('Store not found');
+
       // Verify store exists and is public
       const business = await Business.findOne({
-        slug: slug.toLowerCase(),
+        slug: normalizedSlug,
         status: 'active',
         isPublic: true
       });
@@ -435,6 +486,12 @@ class StoreService {
       }
 
       const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+      if (!SELLER_SORT_FIELDS.has(sortBy)) {
+        throw new Error(`Unsupported seller sort field: ${sortBy}`);
+      }
+      if (!SELLER_SORT_ORDERS.has(sortOrder)) {
+        throw new Error(`Unsupported seller sort order: ${sortOrder}`);
+      }
       const skip = (page - 1) * limit;
 
       // Build query
@@ -478,9 +535,12 @@ class StoreService {
         query.stock = { $gt: 0 };
       }
 
-      // Sort options
-      const sort = {};
-      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+      // Sort options remain seller-local. The final _id key makes equal-value
+      // products deterministic without changing the requested primary order.
+      const direction = sortOrder === 'desc' ? -1 : 1;
+      const sort = { [sortBy]: direction };
+      if (sortBy !== 'createdAt') sort.createdAt = -1;
+      sort._id = direction;
 
       // Get total count
       const total = await Product.countDocuments(query);

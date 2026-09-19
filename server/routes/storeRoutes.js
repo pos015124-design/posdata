@@ -103,12 +103,14 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
  */
 router.get('/products', async (req, res) => {
   try {
-    const { page = 1, limit = 100, search = '', category = '' } = req.query;
+    const { page = 1, limit = 100, search = '', category = '', sortBy = 'relevant', sortOrder = 'desc' } = req.query;
     const result = await StoreService.getMarketplaceProducts({
       page: parseInt(page, 10) || 1,
       limit: Math.min(parseInt(limit, 10) || 100, 200),
       search: typeof search === 'string' ? search : '',
-      category: typeof category === 'string' ? category : ''
+      category: typeof category === 'string' ? category : '',
+      sortBy: typeof sortBy === 'string' ? sortBy : 'relevant',
+      sortOrder: typeof sortOrder === 'string' ? sortOrder : 'desc'
     });
     res.json({
       success: true,
@@ -117,6 +119,9 @@ router.get('/products', async (req, res) => {
     });
   } catch (error) {
     logger.error('Failed to get marketplace products', { error: error.message });
+    if (error.message === 'Unsupported marketplace sort') {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({
       error: 'Failed to fetch products',
       message: error.message
@@ -203,29 +208,10 @@ router.get('/store/:slug', async (req, res) => {
     
   } catch (error) {
     if (error.message === 'Store not found') {
-      // HELPFUL: Return list of available stores
-      try {
-        const Business = require('../models/Business');
-        const allBusinesses = await Business.find({}).select('slug name status isPublic');
-        
-        return res.status(404).json({
-          error: 'Store not found',
-          message: `Store '${req.params.slug}' does not exist or is not public`,
-          availableStores: allBusinesses.map(b => ({
-            slug: b.slug,
-            name: b.name,
-            status: b.status,
-            isPublic: b.isPublic,
-            accessible: b.status === 'active' && b.isPublic === true
-          })),
-          hint: 'Store must have status="active" AND isPublic=true to be accessible'
-        });
-      } catch (e) {
-        return res.status(404).json({
-          error: 'Store not found',
-          message: 'This store does not exist or is not public'
-        });
-      }
+      return res.status(404).json({
+        error: 'Store not found',
+        message: 'This store does not exist or is not public'
+      });
     }
     
     logger.error('Failed to get store', {
@@ -301,6 +287,9 @@ router.get('/store/:slug/products', async (req, res) => {
         error: 'Store not found',
         message: 'This store does not exist or is not public'
       });
+    }
+    if (error.message.includes('Unsupported seller sort')) {
+      return res.status(400).json({ error: error.message });
     }
     
     logger.error('Failed to get store products', {
