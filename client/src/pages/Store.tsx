@@ -392,13 +392,13 @@ export default function Store() {
       {/* ── Guest navbar — compact, search-first ── */}
       {!isInsideLayout && (
         <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-3">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 min-h-14 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 py-2 sm:py-0">
             <Link to="/" className="shrink-0" aria-label="Home">
               <Logo className="h-8" />
             </Link>
 
             {/* Search bar — centre, grows to fill */}
-            <div className="flex-1 relative">
+            <div className="order-3 w-full min-w-0 relative sm:order-none sm:w-auto sm:flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
               <Input
                 ref={searchRef}
