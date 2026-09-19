@@ -12,6 +12,7 @@ const SELLER_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'isFeatured', 'pri
 const SELLER_SORT_ORDERS = new Set(['asc', 'desc']);
 const MARKETPLACE_SORTS = new Set(['relevant', 'newest', 'price']);
 const MARKETPLACE_CANDIDATE_LIMIT = 1000;
+const SPONSORED_PRIORITY_BONUS = 12;
 
 function tokenize(value) {
   return String(value || '')
@@ -64,11 +65,23 @@ function marketplaceBaseScore(product, search, referenceTime) {
   };
 }
 
-function rankMarketplaceCandidates(candidates, search = '') {
+function isCurrentlySponsored(product, rankingNow) {
+  if (product.isSponsored !== true) return false;
+  if (product.sponsoredUntil == null) return true;
+  const expiry = new Date(product.sponsoredUntil).getTime();
+  return Number.isFinite(expiry) && expiry > rankingNow;
+}
+
+function rankMarketplaceCandidates(candidates, search = '', rankingNow = Date.now()) {
   const referenceTime = Math.max(...candidates.map(product => new Date(product.createdAt || 0).getTime()).filter(Number.isFinite));
   const scored = candidates.map((product, index) => {
     const base = marketplaceBaseScore(product, search, referenceTime);
-    return { product, ...base, originalIndex: index };
+    return {
+      product,
+      ...base,
+      sponsored: isCurrentlySponsored(product, rankingNow),
+      originalIndex: index
+    };
   });
   const selected = [];
   const sellerCounts = new Map();
@@ -82,8 +95,10 @@ function rankMarketplaceCandidates(candidates, search = '') {
     });
     const chosen = eligibleAlternatives.reduce((winner, candidate) => {
       if (!winner) return candidate;
-      const winnerAdjusted = winner.score - (sellerCounts.get(winner.product.storeSlug) || 0) * 8;
-      const candidateAdjusted = candidate.score - (sellerCounts.get(candidate.product.storeSlug) || 0) * 8;
+      const sponsoredPriority = (candidate.sponsored && (highestRelevance === 0 || candidate.relevance >= highestRelevance * 0.8)) ? SPONSORED_PRIORITY_BONUS : 0;
+      const winnerSponsoredPriority = (winner.sponsored && (highestRelevance === 0 || winner.relevance >= highestRelevance * 0.8)) ? SPONSORED_PRIORITY_BONUS : 0;
+      const winnerAdjusted = winner.score + winnerSponsoredPriority - (sellerCounts.get(winner.product.storeSlug) || 0) * 8;
+      const candidateAdjusted = candidate.score + sponsoredPriority - (sellerCounts.get(candidate.product.storeSlug) || 0) * 8;
       if (candidateAdjusted !== winnerAdjusted) return candidateAdjusted > winnerAdjusted ? candidate : winner;
       if (candidate.score !== winner.score) return candidate.score > winner.score ? candidate : winner;
       return candidate.originalIndex < winner.originalIndex ? candidate : winner;
@@ -215,6 +230,7 @@ class StoreService {
     const skip = (page - 1) * limit;
     const search = (pagination.search || '').trim();
     const category = (pagination.category || '').trim();
+    const rankingNow = Date.now();
     const sortBy = pagination.sortBy || 'relevant';
     const sortOrder = pagination.sortOrder || 'desc';
 
@@ -319,7 +335,9 @@ class StoreService {
       };
     });
 
-    const ordered = sortBy === 'relevant' ? rankMarketplaceCandidates(attributed, search) : attributed;
+    const ordered = sortBy === 'relevant'
+      ? rankMarketplaceCandidates(attributed, search, rankingNow)
+      : attributed;
     const products = sortBy === 'relevant' ? ordered.slice(skip, skip + limit) : ordered;
     return {
       products,
