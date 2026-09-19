@@ -53,7 +53,7 @@ class StoreService {
         slug: slug.toLowerCase(),
         status: 'active',
         isPublic: true
-      }).select('name slug description logo email phone address socialMedia userId');
+      }).select('_id name slug description logo email phone address socialMedia userId');
 
       if (!business) {
         console.log(`[Store Service] ❌ Business exists but is not accessible:`);
@@ -87,9 +87,20 @@ class StoreService {
         };
       }
 
-      // Get published products for this business
+      const ownerBusinessCount = await Business.countDocuments({
+        userId: business.userId,
+        status: 'active',
+        isPublic: true
+      });
+
+      // Legacy products without businessId are safe here only when this owner
+      // has one public business. New products are scoped by businessId.
+      const productOwnership = ownerBusinessCount === 1
+        ? { $or: [{ businessId: business._id }, { userId: ownerObjectId, $or: [{ businessId: { $exists: false } }, { businessId: null }] }] }
+        : { businessId: business._id };
+
       const products = await Product.find({
-        userId: ownerObjectId,
+        ...productOwnership,
         isPublished: true,
         status: 'active'
       })
@@ -148,7 +159,7 @@ class StoreService {
       status: 'active',
       isPublic: true
     })
-      .select('userId name slug')
+      .select('_id userId name slug')
       .lean();
 
     if (!businesses.length) {
@@ -158,37 +169,63 @@ class StoreService {
       };
     }
 
-    const userIdToStore = new Map();
-    const userIds = [];
-    for (const b of businesses) {
-      if (!b.userId) continue;
-      const uid = String(b.userId);
-      if (!userIdToStore.has(uid)) {
-        // Cast to ObjectId so the $in query matches product.userId (ObjectId field)
-        try {
-          userIds.push(new mongoose.Types.ObjectId(uid));
-        } catch {
-          continue; // skip malformed ids
-        }
-        userIdToStore.set(uid, { storeName: b.name, storeSlug: b.slug });
+    // A user may own more than one public business. Products with businessId
+    // are attributed directly; legacy products without businessId are only
+    // eligible when their owner has exactly one public business. This avoids
+    // silently assigning Store B's products to Store A.
+    const storesByBusinessId = new Map();
+    const businessesByUserId = new Map();
+    for (const business of businesses) {
+      storesByBusinessId.set(String(business._id), {
+        storeName: business.name,
+        storeSlug: business.slug,
+        businessId: business._id
+      });
+      if (business.userId) {
+        const uid = String(business.userId);
+        const owners = businessesByUserId.get(uid) || [];
+        owners.push(business);
+        businessesByUserId.set(uid, owners);
       }
     }
 
+    const unambiguousUserIds = [];
+    for (const [uid, owners] of businessesByUserId) {
+      if (owners.length !== 1) continue;
+      try {
+        unambiguousUserIds.push(new mongoose.Types.ObjectId(uid));
+      } catch {
+        // Ignore malformed owner references; they cannot safely expose products.
+      }
+    }
+    const businessIds = [...storesByBusinessId.keys()].map(id => new mongoose.Types.ObjectId(id));
+
     const query = {
-      userId: { $in: userIds },
-      isPublished: true,
-      status: 'active'
+      $and: [
+        {
+          $or: [
+            { businessId: { $in: businessIds } },
+            {
+              userId: { $in: unambiguousUserIds },
+              $or: [{ businessId: { $exists: false } }, { businessId: null }]
+            }
+          ]
+        },
+        { isPublished: true, status: 'active' }
+      ]
     };
 
     const search = (pagination.search || '').trim();
     if (search) {
       const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.$or = [
-        { name: { $regex: esc, $options: 'i' } },
-        { code: { $regex: esc, $options: 'i' } },
-        { description: { $regex: esc, $options: 'i' } },
-        { category: { $regex: esc, $options: 'i' } }
-      ];
+      query.$and.push({
+        $or: [
+          { name: { $regex: esc, $options: 'i' } },
+          { code: { $regex: esc, $options: 'i' } },
+          { description: { $regex: esc, $options: 'i' } },
+          { category: { $regex: esc, $options: 'i' } }
+        ]
+      });
     }
 
     const cat = (pagination.category || '').trim();
@@ -198,14 +235,23 @@ class StoreService {
 
     const total = await Product.countDocuments(query);
     const raw = await Product.find(query)
-      .select('name code price images category description stock userId isSponsored sponsoredUntil')
+      .select('name code price images category description stock userId businessId isSponsored sponsoredUntil')
       .sort({ isSponsored: -1, isFeatured: -1, createdAt: -1 }) // sponsored first, then featured, then newest
       .skip(skip)
       .limit(limit)
       .lean();
 
     const products = raw.map(p => {
-      const store = userIdToStore.get(String(p.userId)) || { storeName: 'Store', storeSlug: null };
+      let store = p.businessId ? storesByBusinessId.get(String(p.businessId)) : null;
+      if (!store) {
+        const owners = businessesByUserId.get(String(p.userId)) || [];
+        if (owners.length === 1) {
+          store = storesByBusinessId.get(String(owners[0]._id));
+        }
+      }
+      // The query only admits safely attributable products. Keep a defensive
+      // fallback so a future query change cannot emit an invented store.
+      store = store || { storeName: null, storeSlug: null, businessId: null };
       return {
         _id: p._id,
         name: p.name,
@@ -239,18 +285,35 @@ class StoreService {
       status: 'active',
       isPublic: true
     })
-      .select('userId')
+      .select('_id userId')
       .lean();
 
-    const userIds = businesses.map(b => b.userId).filter(Boolean);
-    if (!userIds.length) {
-      return { categories: [] };
+    if (!businesses.length) return { categories: [] };
+
+    const owners = new Map();
+    for (const business of businesses) {
+      if (!business.userId) continue;
+      const uid = String(business.userId);
+      owners.set(uid, (owners.get(uid) || 0) + 1);
     }
+    const businessIds = businesses.map(b => b._id);
+    const unambiguousUserIds = businesses
+      .filter(b => b.userId && owners.get(String(b.userId)) === 1)
+      .map(b => b.userId);
 
     const raw = await Product.distinct('category', {
-      userId: { $in: userIds },
-      isPublished: true,
-      status: 'active'
+      $and: [
+        {
+          $or: [
+            { businessId: { $in: businessIds } },
+            {
+              userId: { $in: unambiguousUserIds },
+              $or: [{ businessId: { $exists: false } }, { businessId: null }]
+            }
+          ]
+        },
+        { isPublished: true, status: 'active' }
+      ]
     });
 
     const categories = (raw || [])
@@ -306,8 +369,15 @@ class StoreService {
           if (business.userId) {
             try {
               const ownerObjectId = new mongoose.Types.ObjectId(String(business.userId));
-              productCount = await Product.countDocuments({
+              const ownerBusinessCount = await Business.countDocuments({
                 userId: ownerObjectId,
+                status: 'active',
+                isPublic: true
+              });
+              productCount = await Product.countDocuments({
+                ...(ownerBusinessCount === 1
+                  ? { $or: [{ businessId: business._id }, { userId: ownerObjectId, $or: [{ businessId: { $exists: false } }, { businessId: null }] }] }
+                  : { businessId: business._id }),
                 isPublished: true,
                 status: 'active'
               });
@@ -368,10 +438,19 @@ class StoreService {
       const skip = (page - 1) * limit;
 
       // Build query
+      const ownerObjectId = new mongoose.Types.ObjectId(String(business.userId));
+      const ownerBusinessCount = await Business.countDocuments({
+        userId: ownerObjectId,
+        status: 'active',
+        isPublic: true
+      });
       const query = {
-        userId: new mongoose.Types.ObjectId(String(business.userId)),
-        isPublished: true,
-        status: 'active'
+        $and: [
+          ownerBusinessCount === 1
+            ? { $or: [{ businessId: business._id }, { userId: ownerObjectId, $or: [{ businessId: { $exists: false } }, { businessId: null }] }] }
+            : { businessId: business._id },
+          { isPublished: true, status: 'active' }
+        ]
       };
 
       // Apply filters
@@ -380,11 +459,13 @@ class StoreService {
       }
 
       if (filters.search) {
-        query.$or = [
-          { name: { $regex: filters.search, $options: 'i' } },
-          { description: { $regex: filters.search, $options: 'i' } },
-          { code: { $regex: filters.search, $options: 'i' } }
-        ];
+        query.$and.push({
+          $or: [
+            { name: { $regex: filters.search, $options: 'i' } },
+            { description: { $regex: filters.search, $options: 'i' } },
+            { code: { $regex: filters.search, $options: 'i' } }
+          ]
+        });
       }
 
       if (filters.priceMin || filters.priceMax) {

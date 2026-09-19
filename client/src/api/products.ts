@@ -213,6 +213,16 @@ export const importProducts = async (file: File) => {
 // Description: Download CSV import template
 // Endpoint: GET /api/products/import/template
 // Response: CSV file
-export const downloadImportTemplate = () => {
-  window.open('/api/products/import/template', '_blank');
+export const downloadImportTemplate = async () => {
+  const response = await api.get('/api/products/import/template', {
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'product-import-template.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 };

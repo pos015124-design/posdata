@@ -1,4 +1,5 @@
 import React from 'react';
+import api from '../api/api';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -32,18 +33,12 @@ class ErrorBoundary extends React.Component {
 
   logErrorToService = (error, errorInfo) => {
     // Example: Send error to logging service
-    fetch('/api/logs/error', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        error: error.toString(),
-        errorInfo: errorInfo.componentStack,
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString(),
-      }),
+    api.post('/api/logs/error', {
+      error: error.toString(),
+      errorInfo: errorInfo.componentStack,
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString(),
     }).catch(err => {
       // If logging service fails, at least log to console
       console.error('Failed to log error to service:', err);

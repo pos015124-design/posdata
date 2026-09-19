@@ -48,7 +48,10 @@ router.get('/',
 // Get customer by ID
 router.get('/:id', requireUser, mongoIdValidation('id'), handleValidationErrors, async (req, res) => {
   try {
-    const customer = await CustomerService.getCustomerById(req.params.id);
+    const customer = await CustomerService.getCustomerById(
+      req.params.id,
+      req.user.role === 'super_admin' ? null : req.user.userId
+    );
     res.json({ customer });
   } catch (error) {
     console.error('Error fetching customer:', error);
@@ -145,7 +148,11 @@ router.put('/:id/credit', requireUser, mongoIdValidation('id'), async (req, res)
       return res.status(400).json({ message: 'Amount must be a valid number' });
     }
     
-    const customer = await CustomerService.updateCredit(req.params.id, parsedAmount);
+    const customer = await CustomerService.updateCredit(
+      req.params.id,
+      parsedAmount,
+      req.user.role === 'super_admin' ? null : req.user.userId
+    );
     res.json({ 
       success: true,
       customer 

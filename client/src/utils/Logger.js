@@ -1,3 +1,5 @@
+import api from '../api/api';
+
 class Logger {
   constructor() {
     this.level = 'info';
@@ -79,13 +81,7 @@ class Logger {
 
   async sendToServer(logEntry) {
     try {
-      await fetch('/api/logs/client', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(logEntry),
-      });
+      await api.post('/api/logs/client', logEntry);
     } catch (error) {
       // If server logging fails, at least keep it in memory
       console.warn('Failed to send log to server:', error);

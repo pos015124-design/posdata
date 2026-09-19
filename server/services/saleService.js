@@ -97,7 +97,7 @@ class SaleService {
         throw new Error('Each item must include a product id');
       }
 
-      const p = await Product.findById(pid).select('userId price stock name status isPublished');
+      const p = await Product.findById(pid).select('userId businessId price stock name status isPublished');
       if (!p) {
         throw new Error(`Product not found: ${pid}`);
       }
@@ -117,7 +117,8 @@ class SaleService {
         name: p.name,
         price: p.price,
         quantity: requestedQty,
-        ownerId: p.userId.toString()
+        ownerId: p.userId.toString(),
+        businessId: p.businessId ? p.businessId.toString() : null
       });
     }
     return resolved;
@@ -133,12 +134,15 @@ class SaleService {
     }
 
     const resolved = await this.resolveCartItems(items);
-
     const byOwner = new Map();
     for (const r of resolved) {
-      const list = byOwner.get(r.ownerId) || [];
+      // Keep businesses separate when one user owns multiple stores. The sale
+      // remains owned by the user, but grouping by business prevents one
+      // storefront order from losing its store boundary.
+      const groupKey = `${r.ownerId}:${r.businessId || 'legacy'}`;
+      const list = byOwner.get(groupKey) || [];
       list.push(r);
-      byOwner.set(r.ownerId, list);
+      byOwner.set(groupKey, list);
     }
 
     const sales = [];
@@ -164,7 +168,7 @@ class SaleService {
         source: 'storefront'
       };
 
-      const result = await this.processSale(saleData, groupItems[0].ownerId);
+      const result = await this.processSale(saleData, groupItems[0].ownerId, { allowForeignProducts: true });
       sales.push(result.sale);
     }
 
@@ -255,9 +259,10 @@ class SaleService {
     const resolved = await this.resolveCartItems(items);
     const byOwner = new Map();
     for (const r of resolved) {
-      const list = byOwner.get(r.ownerId) || [];
+      const groupKey = `${r.ownerId}:${r.businessId || 'legacy'}`;
+      const list = byOwner.get(groupKey) || [];
       list.push(r);
-      byOwner.set(r.ownerId, list);
+      byOwner.set(groupKey, list);
     }
 
     const sales = [];
@@ -597,28 +602,51 @@ class SaleService {
    * @param {string} userId - User ID for data isolation
    * @returns {Promise<Object>} Processed sale with details
    */
-  async processSale(saleData, userId) {
+  async processSale(saleData, userId, { allowForeignProducts = false } = {}) {
     const { items, paymentMethod, customerId, discounts, notes, amountPaid, taxRate, transactionNumber, total,
       customerName, customerEmail, customerPhone, customerAddress, customerCity, source } = saleData;
 
-    // Validate items
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw new Error('Items are required and must be an array');
     }
 
-    // Validate payment method
     if (!paymentMethod) {
       throw new Error('Payment method is required');
     }
 
-    // Calculate totals
+    // POS callers must not be able to sell or decrement another owner's product
+    // by submitting a foreign product ID. Public checkout passes an explicit
+    // allowForeignProducts flag only after resolveCartItems has verified that
+    // each listing is active, published, and in stock.
+    const Product = require('../models/Product');
+    const resolvedItems = [];
+    for (const item of items) {
+      const productId = item.product || item._id;
+      const productQuery = allowForeignProducts
+        ? { _id: productId }
+        : { _id: productId, userId };
+      const product = await Product.findOne(productQuery).select('name price stock status isPublished');
+      if (!product) throw new Error('Product not found');
+      if (product.status !== 'active') throw new Error(`Product is not active: ${product.name}`);
+
+      const quantity = parseInt(item.quantity, 10);
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        throw new Error(`Invalid quantity for "${product.name}"`);
+      }
+      if (product.stock < quantity) {
+        throw new Error(`Insufficient stock for "${product.name}" (available: ${product.stock})`);
+      }
+      resolvedItems.push({ productId, productName: product.name, quantity, price: product.price });
+    }
+
+    // Prices come from the authoritative Product document, not the client.
     let subtotal = 0;
-    const processedItems = items.map(item => {
+    const processedItems = resolvedItems.map(item => {
       const itemTotal = item.price * item.quantity;
       subtotal += itemTotal;
       return {
-        productId: item.product || item._id,
-        productName: item.name,
+        productId: item.productId,
+        productName: item.productName,
         quantity: item.quantity,
         price: item.price,
         total: itemTotal
@@ -662,11 +690,10 @@ class SaleService {
     await sale.save();
 
     // Update product stock levels and business analytics
-    const Product = require('../models/Product');
     const Business = require('../models/Business');
     const lowStockCrossings = []; // products that just fell to/under their reorder point
-    for (const item of items) {
-      const productId = item.product || item._id;
+    for (const item of resolvedItems) {
+      const productId = item.productId;
       if (productId) {
         // { new: false } returns the pre-update document so we can detect a fresh
         // low-stock crossing (stock was above the reorder point, now at/below it)

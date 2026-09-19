@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ProductService = require('../services/productService');
+const Business = require('../models/Business');
 const { requireUser, checkPermission } = require('./middleware/auth');
 const {
   productValidation,
@@ -66,6 +67,44 @@ router.get('/catalog',
   }
 );
 
+// Static product paths must precede /:id (otherwise "barcode" and "catalog"
+// are treated as Mongo IDs and rejected by validation).
+router.get('/barcode/:barcode', requireUser, async (req, res) => {
+  try {
+    const product = await ProductService.getProductByBarcode(req.params.barcode, req.user.userId);
+    res.json({ product });
+  } catch (error) {
+    if (error.message === 'Product not found' || error.message.endsWith('Product not found')) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Public catalog route must precede /:id so "catalog" is not validated as a Mongo ID.
+router.get('/catalog/public', requireUser, async (req, res) => {
+  try {
+    const Product = require('../models/Product');
+    const { search = '', category = '', page = 1, limit = 20 } = req.query;
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const safePage = Math.max(parseInt(page, 10) || 1, 1);
+    const skip = (safePage - 1) * safeLimit;
+    const query = { isPublished: true, status: 'active', userId: { $ne: req.user.userId } };
+    if (category) query.category = category;
+    if (search) query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { category: { $regex: search, $options: 'i' } }
+    ];
+    const [products, total] = await Promise.all([
+      Product.find(query).select('name code price images category description userId').skip(skip).limit(safeLimit).lean(),
+      Product.countDocuments(query)
+    ]);
+    res.json({ success: true, products, pagination: { page: safePage, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get product by ID
 router.get('/:id',
   requireUser,
@@ -74,7 +113,10 @@ router.get('/:id',
   handleValidationErrors,
   async (req, res) => {
     try {
-      const product = await ProductService.getProductById(req.params.id);
+      const product = await ProductService.getProductById(
+        req.params.id,
+        req.user.role === 'super_admin' ? null : req.user.userId
+      );
 
       auditLogger.info('Product accessed', {
         action: 'VIEW_PRODUCT',
@@ -102,24 +144,20 @@ router.get('/:id',
   }
 );
 
-// Get product by barcode
-router.get('/barcode/:barcode', requireUser, async (req, res) => {
-  try {
-    const product = await ProductService.getProductByBarcode(req.params.barcode);
-    res.json({ product });
-  } catch (error) {
-    console.error('Error fetching product by barcode:', error);
-    if (error.message === 'Product not found') {
-      return res.status(404).json({ message: error.message });
-    }
-    res.status(500).json({ message: error.message });
-  }
-});
-
 // Create a new product
 router.post('/', requireUser, productValidation, handleValidationErrors, async (req, res) => {
   try {
-    const product = await ProductService.createProduct(req.body, req.user.userId);
+    let businessId = null;
+    if (req.user.businessId) {
+      const ownsBusiness = req.user.role === 'super_admin'
+        ? await Business.exists({ _id: req.user.businessId })
+        : await Business.exists({ _id: req.user.businessId, userId: req.user.userId });
+      if (!ownsBusiness) {
+        return res.status(403).json({ message: 'You do not have access to this business' });
+      }
+      businessId = req.user.businessId;
+    }
+    const product = await ProductService.createProduct(req.body, req.user.userId, businessId);
     res.status(201).json({ 
       success: true,
       product 
@@ -156,7 +194,11 @@ router.post('/', requireUser, productValidation, handleValidationErrors, async (
 // Update a product — uses partial validation (all fields optional for PATCH-style updates)
 router.put('/:id', requireUser, mongoIdValidation('id'), productUpdateValidation, handleValidationErrors, async (req, res) => {
   try {
-    const product = await ProductService.updateProduct(req.params.id, req.body);
+    const product = await ProductService.updateProduct(
+      req.params.id,
+      req.body,
+      req.user.role === 'super_admin' ? null : req.user.userId
+    );
     res.json({ 
       success: true,
       product 
@@ -173,7 +215,10 @@ router.put('/:id', requireUser, mongoIdValidation('id'), productUpdateValidation
 // Delete a product
 router.delete('/:id', requireUser, mongoIdValidation('id'), handleValidationErrors, async (req, res) => {
   try {
-    await ProductService.deleteProduct(req.params.id);
+    await ProductService.deleteProduct(
+      req.params.id,
+      req.user.role === 'super_admin' ? null : req.user.userId
+    );
     res.json({ 
       success: true,
       message: 'Product deleted successfully' 
@@ -193,7 +238,7 @@ router.post('/cart/add', requireUser, async (req, res) => {
     const { productId, quantity } = req.body;
     
     // Validate product exists
-    await ProductService.getProductById(productId);
+    await ProductService.getProductById(productId, req.user.userId);
     
     // In a real implementation, this would add to a cart in a database or session
     res.json({
@@ -242,7 +287,17 @@ router.post('/:id/clone', requireUser, mongoIdValidation('id'), handleValidation
       requiresShipping: source.requiresShipping
     };
 
-    const product = await ProductService.createProduct(cloneData, req.user.userId);
+    let businessId = null;
+    if (req.user.businessId) {
+      const ownsBusiness = req.user.role === 'super_admin'
+        ? await Business.exists({ _id: req.user.businessId })
+        : await Business.exists({ _id: req.user.businessId, userId: req.user.userId });
+      if (!ownsBusiness) {
+        return res.status(403).json({ message: 'You do not have access to this business' });
+      }
+      businessId = req.user.businessId;
+    }
+    const product = await ProductService.createProduct(cloneData, req.user.userId, businessId);
     res.status(201).json({ success: true, product, message: 'Product cloned to your inventory' });
   } catch (error) {
     console.error('Error cloning product:', error);
@@ -250,34 +305,6 @@ router.post('/:id/clone', requireUser, mongoIdValidation('id'), handleValidation
   }
 });
 
-// GET /api/products/catalog/public — browse all published products for cloning
-router.get('/catalog/public', requireUser, async (req, res) => {
-  try {
-    const Product = require('../models/Product');
-    const { search = '', category = '', page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const query = {
-      isPublished: true,
-      status: 'active',
-      userId: { $ne: req.user.userId } // exclude own products
-    };
-    if (category) query.category = category;
-    if (search) query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { category: { $regex: search, $options: 'i' } }
-    ];
-
-    const [products, total] = await Promise.all([
-      Product.find(query).select('name code price images category description userId').skip(skip).limit(parseInt(limit)).lean(),
-      Product.countDocuments(query)
-    ]);
-
-    res.json({ success: true, products, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) } });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 const Seller = require('../models/Seller');
 
 // GET /api/products/:id/sellers - Get all sellers for a product

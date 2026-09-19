@@ -48,7 +48,8 @@ const requireUser = async (req, res, next) => {
       ip: req.ip,
       userAgent: req.get('User-Agent')
     });
-    return res.status(403).json({ error: 'Authentication required' });
+    const status = ['TokenExpiredError', 'JsonWebTokenError', 'NotBeforeError'].includes(err.name) ? 401 : 403;
+    return res.status(status).json({ error: 'Authentication required' });
   }
 };
 
@@ -103,7 +104,8 @@ const requireAdmin = async (req, res, next) => {
       error: err.message,
       ip: req.ip
     });
-    return res.status(403).json({ error: 'Authentication required' });
+    const status = ['TokenExpiredError', 'JsonWebTokenError', 'NotBeforeError'].includes(err.name) ? 401 : 403;
+    return res.status(status).json({ error: 'Authentication required' });
   }
 };
 
@@ -131,7 +133,8 @@ const requireSuperAdmin = async (req, res, next) => {
       error: err.message,
       ip: req.ip
     });
-    return res.status(403).json({ error: 'Authentication required' });
+    const status = ['TokenExpiredError', 'JsonWebTokenError', 'NotBeforeError'].includes(err.name) ? 401 : 403;
+    return res.status(status).json({ error: 'Authentication required' });
   }
 };
 
@@ -160,7 +163,8 @@ const requireBusinessAdmin = async (req, res, next) => {
       error: err.message,
       ip: req.ip
     });
-    return res.status(403).json({ error: 'Authentication required' });
+    const status = ['TokenExpiredError', 'JsonWebTokenError', 'NotBeforeError'].includes(err.name) ? 401 : 403;
+    return res.status(status).json({ error: 'Authentication required' });
   }
 };
 

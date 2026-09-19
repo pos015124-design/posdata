@@ -38,8 +38,8 @@ class CustomerService {
     };
   }
 
-  async getCustomerById(id) {
-    const customer = await Customer.findById(id);
+  async getCustomerById(id, userId = null) {
+    const customer = await Customer.findOne(userId ? { _id: id, userId } : { _id: id });
     if (!customer) {
       throw new Error('Customer not found');
     }
@@ -92,8 +92,8 @@ class CustomerService {
     return customer;
   }
 
-  async updateCredit(id, amount) {
-    const customer = await Customer.findById(id);
+  async updateCredit(id, amount, userId = null) {
+    const customer = await Customer.findOne(userId ? { _id: id, userId } : { _id: id });
     if (!customer) {
       throw new Error('Customer not found');
     }

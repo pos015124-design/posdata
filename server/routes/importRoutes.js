@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { requireUser } = require('./middleware/auth');
 const ImportService = require('../services/importService');
+const Business = require('../models/Business');
 
 // Configure temp upload for imports
 const tempDir = path.join(__dirname, '..', 'uploads', 'temp');
@@ -60,7 +61,22 @@ router.post('/', requireUser, upload.single('file'), async (req, res) => {
     const fileExt = path.extname(req.file.originalname).toLowerCase();
     const fileType = fileExt === '.csv' ? 'csv' : 'excel';
 
-    const results = await ImportService.importProducts(filePath, fileType, req.user.userId);
+    // businessId is carried in the signed token, but still verify the
+    // relationship against the database before assigning imported products.
+    // This prevents a stale or incorrect business context from crossing tenants.
+    let businessId = null;
+    if (req.user.businessId) {
+      const ownsBusiness = req.user.role === 'super_admin'
+        ? await Business.exists({ _id: req.user.businessId })
+        : await Business.exists({ _id: req.user.businessId, userId: req.user.userId });
+      if (!ownsBusiness) {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        return res.status(403).json({ error: 'You do not have access to this business' });
+      }
+      businessId = req.user.businessId;
+    }
+
+    const results = await ImportService.importProducts(filePath, fileType, req.user.userId, businessId);
 
     res.json({
       success: true,

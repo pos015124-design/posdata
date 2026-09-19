@@ -23,6 +23,22 @@ export interface MarketplaceCartLine {
   image?: string;
 }
 
+interface StorePreview {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logo?: string;
+  productCount: number;
+}
+
+interface MarketplaceResponse {
+  products?: Product[];
+  pagination?: { page?: number; limit?: number; total?: number; pages?: number };
+  message?: string;
+  error?: string;
+}
+
 interface Product {
   _id: string;
   name: string;
@@ -250,11 +266,16 @@ export default function Store() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categories,      setCategories]      = useState<string[]>([]);
+  const [stores,          setStores]          = useState<StorePreview[]>([]);
   const [page,            setPage]            = useState(1);
   const [cart,            setCart]            = useState<MarketplaceCartLine[]>([]);
   const [cartOpen,        setCartOpen]        = useState(false);
   const { toast } = useToast();
   const searchRef = useRef<HTMLInputElement>(null);
+  // Collapse display-only duplicates without mutating stored category values.
+  const displayCategories = Array.from(
+    new Map(categories.map(category => [category.trim().toLocaleLowerCase(), category.trim()])).values()
+  );
 
   // Restore cart from localStorage on mount
   useEffect(() => {
@@ -280,6 +301,17 @@ export default function Store() {
     } catch { /* non-critical */ }
   }, []);
 
+  const fetchStores = useCallback(async () => {
+    try {
+      const r = await fetch(`${BASE}/api/public/stores?limit=12`);
+      const d = await r.json().catch(() => ({}));
+      const nextStores = d?.data?.stores;
+      if (Array.isArray(nextStores)) setStores(nextStores.filter((store: StorePreview) => store.productCount > 0));
+    } catch {
+      // Store discovery is additive; the all-products catalog remains usable.
+    }
+  }, []);
+
   const fetchProducts = useCallback(async (silent = false) => {
     try {
       setLoadError(null);
@@ -292,7 +324,7 @@ export default function Store() {
       if (selectedCategory) params.set('category', selectedCategory);
       const r   = await fetch(`${BASE}/api/public/products?${params}`);
       const raw = await r.text();
-      let d: any = {};
+      let d: MarketplaceResponse = {};
       try { d = raw ? JSON.parse(raw) : {}; } catch {
         setLoadError('Could not read product list. Check VITE_API_URL.');
         setProducts([]); return;
@@ -309,7 +341,7 @@ export default function Store() {
     finally  { setLoading(false); }
   }, [page, debouncedSearch, selectedCategory]);
 
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+  useEffect(() => { fetchCategories(); fetchStores(); }, [fetchCategories, fetchStores]);
   useEffect(() => { fetchProducts();   }, [fetchProducts]);
 
   useEffect(() => {
@@ -460,7 +492,7 @@ export default function Store() {
             </button>
           </div>
           {/* Inline category pills when inside layout */}
-          {categories.length > 0 && (
+          {displayCategories.length > 0 && (
             <div
               className="flex gap-2 overflow-x-auto py-2.5 scrollbar-hide"
               role="list"
@@ -475,7 +507,7 @@ export default function Store() {
               >
                 All
               </button>
-              {categories.map(cat => (
+              {displayCategories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(prev => prev === cat ? '' : cat)}
@@ -523,7 +555,7 @@ export default function Store() {
       )}
 
       {/* ── Guest category pills — sticky below navbar ── */}
-      {!isInsideLayout && categories.length > 0 && (
+      {!isInsideLayout && displayCategories.length > 0 && (
         <div className="bg-white border-b border-gray-100 sticky top-14 z-20">
           <div className="max-w-7xl mx-auto px-4">
             <div
@@ -540,7 +572,7 @@ export default function Store() {
               >
                 All
               </button>
-              {categories.map(cat => (
+              {displayCategories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(prev => prev === cat ? '' : cat)}
@@ -555,6 +587,41 @@ export default function Store() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Store discovery: make the marketplace multi-vendor at a glance ── */}
+      {stores.length > 0 && !debouncedSearch && !selectedCategory && (
+        <section className={`${isInsideLayout ? '' : 'max-w-7xl mx-auto px-3 sm:px-4'} pt-5`} aria-labelledby="discover-stores-heading">
+          <div className="flex items-end justify-between gap-3 mb-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">Shop by store</p>
+              <h2 id="discover-stores-heading" className="text-lg font-bold text-slate-900">Discover independent stores</h2>
+            </div>
+            <Link to="/stores" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View all</Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {stores.map(store => (
+              <Link
+                key={store._id}
+                to={`/store/${store.slug}`}
+                className="group rounded-xl border border-slate-200 bg-white p-3 shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
+                    {store.logo
+                      ? <img src={imgUrl(store.logo)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      : <Building2 className="h-6 w-6 text-slate-300" />}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{store.name}</h3>
+                    <p className="text-xs text-slate-500">{store.productCount.toLocaleString()} products</p>
+                    {store.description && <p className="mt-0.5 truncate text-xs text-slate-400">{store.description}</p>}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* ── Main product grid ── */}

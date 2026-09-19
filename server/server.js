@@ -286,6 +286,9 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
     }
   }]);
 });
+// Register the literal import prefix before /api/products/:id. Express would
+// otherwise send /import/template into the product ID route.
+app.use('/api/products/import', importRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/customers', customerRoutes);
 // app.use('/api/customer-payments', customerPaymentRoutes);
@@ -311,7 +314,6 @@ app.use('/api/public/payments', require('./routes/paymentRoutes'));
 // GET /api/public/products is defined in routes/storeRoutes.js (marketplace: active public stores only)
 
 app.use('/api/sellers', sellerRoutes);
-app.use('/api/products/import', importRoutes);
 app.use('/api/seller-inventory', sellerInventoryRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/billing', require('./routes/billingRoutes'));

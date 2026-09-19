@@ -3,6 +3,23 @@ const ExcelJS = require('exceljs');
 const fs = require('fs');
 const Product = require('../models/Product');
 
+const IMPORT_HEADER_NAMES = {
+  name: 'name',
+  code: 'code',
+  barcode: 'barcode',
+  price: 'price',
+  purchaseprice: 'purchasePrice',
+  stock: 'stock',
+  category: 'category',
+  description: 'description',
+  reorderpoint: 'reorderPoint'
+};
+
+const normalizeImportHeader = (header) => {
+  const trimmed = String(header ?? '').trim();
+  return IMPORT_HEADER_NAMES[trimmed.toLowerCase()] || trimmed;
+};
+
 class ImportService {
   /**
    * Parse CSV file and return products array
@@ -14,7 +31,11 @@ class ImportService {
       fs.createReadStream(filePath)
         .pipe(csv())
         .on('data', (row) => {
-          products.push(row);
+          const normalizedRow = {};
+          for (const [header, value] of Object.entries(row)) {
+            normalizedRow[normalizeImportHeader(header)] = value;
+          }
+          products.push(normalizedRow);
         })
         .on('end', () => {
           fs.unlinkSync(filePath); // Clean up temp file
@@ -44,7 +65,7 @@ class ImportService {
     // Build header → column index map from the first row
     const headers = {};
     worksheet.getRow(1).eachCell((cell, colNumber) => {
-      const name = String(cell.value ?? '').trim().toLowerCase();
+      const name = normalizeImportHeader(cell.value);
       if (name) headers[name] = colNumber;
     });
 
@@ -129,7 +150,7 @@ class ImportService {
    * @param {string} fileType - 'csv' | 'excel'
    * @param {string} userId - Owner user id (required by the Product model)
    */
-  static async importProducts(filePath, fileType, userId) {
+  static async importProducts(filePath, fileType, userId, businessId = null) {
     if (!userId) {
       throw new Error('User ID is required to import products');
     }
@@ -178,7 +199,7 @@ class ImportService {
         }
 
         // Create new product owned by the requesting user
-        const product = new Product({ ...validation.product, userId });
+        const product = new Product({ ...validation.product, userId, ...(businessId ? { businessId } : {}) });
         await product.save();
         
         results.success++;

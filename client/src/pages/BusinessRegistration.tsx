@@ -34,6 +34,8 @@ interface BusinessFormData {
   confirmPassword: string;
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+
 const BusinessRegistration: React.FC = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -138,7 +140,7 @@ const BusinessRegistration: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('/api/business/register', {
+      const response = await fetch(`${API_BASE}/api/business/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,7 +178,7 @@ const BusinessRegistration: React.FC = () => {
       } else {
         setError(data.message || 'Registration failed. Please try again.');
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);

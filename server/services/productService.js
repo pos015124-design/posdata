@@ -99,9 +99,10 @@ class ProductService {
    * @param {string} id - Product ID
    * @returns {Promise<Object>} Product object
    */
-  static async getProductById(id) {
+  static async getProductById(id, userId = null) {
     try {
-      const product = await Product.findById(id);
+      const filter = userId ? { _id: id, userId } : { _id: id };
+      const product = await Product.findOne(filter);
       if (!product) {
         throw new Error('Product not found');
       }
@@ -116,9 +117,9 @@ class ProductService {
    * @param {string} barcode - Product barcode
    * @returns {Promise<Object>} Product object
    */
-  static async getProductByBarcode(barcode) {
+  static async getProductByBarcode(barcode, userId = null) {
     try {
-      const product = await Product.findOne({ barcode });
+      const product = await Product.findOne(userId ? { barcode, userId } : { barcode });
       if (!product) {
         throw new Error('Product not found');
       }
@@ -134,17 +135,24 @@ class ProductService {
    * @param {string} userId - User ID creating the product
    * @returns {Promise<Object>} Created product
    */
-  static async createProduct(productData, userId = null) {
+  static async createProduct(productData, userId = null, businessId = null) {
     try {
       console.log(`[PRODUCT CREATE] Called with userId: ${userId}`);
       console.log(`[PRODUCT CREATE] Product name: ${productData.name}`);
+
+      // Ownership is server-controlled. Never allow a request body to attach
+      // a product to another user or business.
+      const safeProductData = { ...productData };
+      delete safeProductData.userId;
+      delete safeProductData.businessId;
+      delete safeProductData.isGlobal;
       
       // Check if product with same code or barcode already exists for this user
       const existingProduct = await Product.findOne({
         userId: userId,
         $or: [
-          { code: productData.code },
-          { barcode: productData.barcode }
+          { code: safeProductData.code },
+          { barcode: safeProductData.barcode }
         ]
       });
 
@@ -157,15 +165,21 @@ class ProductService {
         }
       }
 
-      // Set ownership
+      // Set ownership. If the route did not provide an explicit, already
+      // validated business context, use the authenticated user's persisted
+      // businessId rather than any client-supplied field.
       if (userId) {
-        productData.userId = userId;
+        const User = require('../models/User');
+        const owner = await User.findById(userId).select('businessId');
+        const authoritativeBusinessId = businessId || owner?.businessId || null;
+        safeProductData.userId = userId;
+        if (authoritativeBusinessId) safeProductData.businessId = authoritativeBusinessId;
         console.log(`[PRODUCT CREATE] Setting userId: ${userId}`);
       } else {
         console.error(`[PRODUCT CREATE] WARNING: No userId provided!`);
       }
 
-      const product = new Product(productData);
+      const product = new Product(safeProductData);
       await product.save();
       return product;
     } catch (error) {
@@ -179,35 +193,42 @@ class ProductService {
    * @param {Object} productData - Updated product data
    * @returns {Promise<Object>} Updated product
    */
-  static async updateProduct(id, productData) {
+  static async updateProduct(id, productData, userId = null) {
     try {
+      // Ownership and global-catalog flags are immutable through the normal
+      // product endpoint. Store attribution must not be changed by a client.
+      const safeProductData = { ...productData };
+      delete safeProductData.userId;
+      delete safeProductData.businessId;
+      delete safeProductData.isGlobal;
+
       // Check if updating code or barcode to one that already exists
-      if (productData.code || productData.barcode) {
-        const query = { _id: { $ne: id } };
+      if (safeProductData.code || safeProductData.barcode) {
+        const query = { _id: { $ne: id }, ...(userId ? { userId } : {}) };
         
-        if (productData.code) {
-          query.code = productData.code;
+        if (safeProductData.code) {
+          query.code = safeProductData.code;
         }
         
-        if (productData.barcode) {
-          query.barcode = productData.barcode;
+        if (safeProductData.barcode) {
+          query.barcode = safeProductData.barcode;
         }
         
         const existingProduct = await Product.findOne(query);
         
         if (existingProduct) {
-          if (productData.code && existingProduct.code === productData.code) {
+          if (safeProductData.code && existingProduct.code === safeProductData.code) {
             throw new Error('Product with this code already exists');
           }
-          if (productData.barcode && existingProduct.barcode === productData.barcode) {
+          if (safeProductData.barcode && existingProduct.barcode === safeProductData.barcode) {
             throw new Error('Product with this barcode already exists');
           }
         }
       }
 
-      const product = await Product.findByIdAndUpdate(
-        id,
-        { ...productData, updatedAt: Date.now() },
+      const product = await Product.findOneAndUpdate(
+        userId ? { _id: id, userId } : { _id: id },
+        { ...safeProductData, updatedAt: Date.now() },
         { new: true, runValidators: true }
       );
 
@@ -226,9 +247,9 @@ class ProductService {
    * @param {string} id - Product ID
    * @returns {Promise<boolean>} True if deleted successfully
    */
-  static async deleteProduct(id) {
+  static async deleteProduct(id, userId = null) {
     try {
-      const result = await Product.findByIdAndDelete(id);
+      const result = await Product.findOneAndDelete(userId ? { _id: id, userId } : { _id: id });
       if (!result) {
         throw new Error('Product not found');
       }
