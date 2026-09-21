@@ -26,7 +26,10 @@ router.get('/', requireUser, async (req, res) => {
 // Get seller by ID
 router.get('/:id', requireUser, async (req, res) => {
   try {
-    const seller = await Seller.findById(req.params.id);
+    const seller = await Seller.findOne({
+      _id: req.params.id,
+      ...(req.user.role === 'super_admin' ? {} : { userId: req.user.userId })
+    });
     if (!seller) return res.status(404).json({ error: 'Seller not found' });
     res.json({ seller });
   } catch (err) {

@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const Business = require('../models/Business');
 const Product = require('../models/Product');
 const { logger } = require('../config/logger');
+const { getMarketplaceProductQuery } = require('./marketplaceEligibilityService');
 
 const SELLER_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'isFeatured', 'price', 'name', 'stock']);
 const SELLER_SORT_ORDERS = new Set(['asc', 'desc']);
@@ -261,30 +262,7 @@ class StoreService {
       }
     }
 
-    const unambiguousUserIds = [];
-    for (const [uid, owners] of businessesByUserId) {
-      if (owners.length !== 1) continue;
-      try {
-        unambiguousUserIds.push(new mongoose.Types.ObjectId(uid));
-      } catch {
-        // Malformed owner references cannot safely expose legacy products.
-      }
-    }
-    const businessIds = [...storesByBusinessId.keys()].map(id => new mongoose.Types.ObjectId(id));
-    const query = {
-      $and: [
-        {
-          $or: [
-            { businessId: { $in: businessIds } },
-            {
-              userId: { $in: unambiguousUserIds },
-              $or: [{ businessId: { $exists: false } }, { businessId: null }]
-            }
-          ]
-        },
-        { isPublished: true, status: 'active' }
-      ]
-    };
+    const query = await getMarketplaceProductQuery();
 
     if (search) {
       const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -347,41 +325,8 @@ class StoreService {
 
   /** Distinct product categories among all marketplace-eligible listings */
   static async getMarketplaceCategories() {
-    const businesses = await Business.find({
-      status: 'active',
-      isPublic: true
-    })
-      .select('_id userId')
-      .lean();
-
-    if (!businesses.length) return { categories: [] };
-
-    const owners = new Map();
-    for (const business of businesses) {
-      if (!business.userId) continue;
-      const uid = String(business.userId);
-      owners.set(uid, (owners.get(uid) || 0) + 1);
-    }
-    const businessIds = businesses.map(b => b._id);
-    const unambiguousUserIds = businesses
-      .filter(b => b.userId && owners.get(String(b.userId)) === 1)
-      .map(b => b.userId);
-
-    const raw = await Product.distinct('category', {
-      $and: [
-        {
-          $or: [
-            { businessId: { $in: businessIds } },
-            {
-              userId: { $in: unambiguousUserIds },
-              $or: [{ businessId: { $exists: false } }, { businessId: null }]
-            }
-          ]
-        },
-        { isPublished: true, status: 'active' }
-      ]
-    });
-
+    const query = await getMarketplaceProductQuery();
+    const raw = await Product.distinct('category', query);
     const categories = (raw || [])
       .filter(c => c != null && String(c).trim() !== '')
       .map(c => String(c))

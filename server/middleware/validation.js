@@ -245,15 +245,16 @@ const expenseValidation = [
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    // Log validation failures for security monitoring
-    console.error('VALIDATION ERROR:', JSON.stringify(errors.array(), null, 2));
+    // Validation errors may contain submitted secrets (for example a password
+    // field). Keep field/message metadata, but never log the rejected value.
+    const safeErrors = errors.array().map(({ type, msg, path, location }) => ({ type, msg, path, location }));
     securityLogger.warn('Validation failed', {
-      errors: errors.array(),
+      errors: safeErrors,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       url: req.url,
       method: req.method,
-      body: req.body
+      fields: Object.keys(req.body || {})
     });
 
     return res.status(400).json({

@@ -16,6 +16,13 @@ const paymentSessionSchema = new mongoose.Schema({
     unique: true,
     index: true
   },
+  // Capability returned only to the checkout that created this session.
+  // It is required for status/cancellation because order IDs are not secrets.
+  sessionCapability: {
+    type: String,
+    required: true,
+    select: false
+  },
   vendor: { type: String, trim: true },
 
   amount: { type: Number, required: true, min: 0 },

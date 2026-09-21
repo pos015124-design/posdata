@@ -335,7 +335,7 @@ router.post('/merge', getSessionId, requireCustomer, [
  * GET /api/cart/validate/:cartId
  * Validate cart before checkout
  */
-router.get('/validate/:cartId', async (req, res) => {
+router.get('/validate/:cartId', getSessionId, optionalCustomer, async (req, res) => {
   try {
     const { cartId } = req.params;
     
@@ -345,7 +345,11 @@ router.get('/validate/:cartId', async (req, res) => {
       });
     }
     
-    const validation = await CartService.validateCart(cartId);
+    const validation = await CartService.validateCart(
+      cartId,
+      req.sessionId,
+      req.customer?.customerId || null
+    );
     
     res.json({
       success: true,

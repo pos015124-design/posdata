@@ -170,7 +170,7 @@ router.post('/verify-email', async (req, res) => {
   } catch (error) {
     logger.error('Email verification failed', {
       error: error.message,
-      token: req.body.token
+      hasToken: Boolean(req.body.token)
     });
     
     res.status(400).json({
@@ -238,7 +238,7 @@ router.post('/reset-password', [
   } catch (error) {
     logger.error('Password reset failed', {
       error: error.message,
-      token: req.body.token
+      hasToken: Boolean(req.body.token)
     });
     
     res.status(400).json({

@@ -4,12 +4,15 @@
  */
 
 const Product = require('../models/Product');
-const Business = require('../models/Business');
-const Category = require('../models/Category');
 const { logger } = require('../config/logger');
+const {
+  getPublicBusiness,
+  getBusinessProductOwnershipQuery,
+  getMarketplaceProductQuery,
+  isPublicMarketplaceProduct
+} = require('./marketplaceEligibilityService');
 
 class CatalogService {
-  
   /**
    * Get public products for a business
    * @param {string} businessId - Business ID
@@ -19,64 +22,45 @@ class CatalogService {
    */
   static async getBusinessProducts(businessId, filters = {}, pagination = {}) {
     try {
-      // Verify business is public and active
-      const business = await Business.findOne({
-        _id: businessId,
-        status: 'active',
-        isPublic: true
-      });
-      
-      if (!business) {
-        throw new Error('Business not found or not public');
-      }
-      
+      const business = await getPublicBusiness(businessId);
+      const ownership = await getBusinessProductOwnershipQuery(business);
       const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
       const skip = (page - 1) * limit;
-      
-      // Build query for published products only
+
       const query = {
-        isPublished: true,
-        status: 'active'
+        $and: [
+          ownership,
+          { isPublished: true, status: 'active' }
+        ]
       };
-      
-      // Apply filters
-      if (filters.category) {
-        query.category = filters.category;
-      }
-      
-      if (filters.subcategory) {
-        query.subcategory = filters.subcategory;
-      }
-      
+
+      if (filters.category) query.$and.push({ category: filters.category });
+      if (filters.subcategory) query.$and.push({ subcategory: filters.subcategory });
+
       if (filters.priceMin || filters.priceMax) {
-        query.price = {};
-        if (filters.priceMin) query.price.$gte = parseFloat(filters.priceMin);
-        if (filters.priceMax) query.price.$lte = parseFloat(filters.priceMax);
+        const price = {};
+        if (filters.priceMin) price.$gte = parseFloat(filters.priceMin);
+        if (filters.priceMax) price.$lte = parseFloat(filters.priceMax);
+        query.$and.push({ price });
       }
-      
+
       if (filters.inStock === 'true') {
-        query.$or = [
-          { trackInventory: false },
-          { trackInventory: true, stock: { $gt: 0 } },
-          { trackInventory: true, allowBackorder: true }
-        ];
+        query.$and.push({
+          $or: [
+            { trackInventory: false },
+            { trackInventory: true, stock: { $gt: 0 } },
+            { trackInventory: true, allowBackorder: true }
+          ]
+        });
       }
-      
-      if (filters.featured === 'true') {
-        query.isFeatured = true;
-      }
-      
-      if (filters.search) {
-        query.$text = { $search: filters.search };
-      }
-      
-      // Build sort object
+
+      if (filters.featured === 'true') query.$and.push({ isFeatured: true });
+      if (filters.search) query.$and.push({ $text: { $search: filters.search } });
+
       const sort = {};
-      if (filters.search) {
-        sort.score = { $meta: 'textScore' };
-      }
+      if (filters.search) sort.score = { $meta: 'textScore' };
       sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-      
+
       const [products, total] = await Promise.all([
         Product.find(query)
           .select('name slug description shortDescription price compareAtPrice images category subcategory tags isFeatured stock trackInventory allowBackorder analytics')
@@ -86,8 +70,7 @@ class CatalogService {
           .lean(),
         Product.countDocuments(query)
       ]);
-      
-      // Increment view count for products
+
       if (products.length > 0) {
         const productIds = products.map(p => p._id);
         await Product.updateMany(
@@ -95,7 +78,7 @@ class CatalogService {
           { $inc: { 'analytics.views': 1 } }
         );
       }
-      
+
       return {
         products,
         business: {
@@ -113,7 +96,6 @@ class CatalogService {
           pages: Math.ceil(total / limit)
         }
       };
-      
     } catch (error) {
       logger.error('Failed to get business products', {
         error: error.message,
@@ -124,7 +106,7 @@ class CatalogService {
       throw error;
     }
   }
-  
+
   /**
    * Get product details by slug
    * @param {string} businessId - Business ID
@@ -133,33 +115,22 @@ class CatalogService {
    */
   static async getProductBySlug(businessId, productSlug) {
     try {
-      // Verify business is public and active
-      const business = await Business.findOne({
-        _id: businessId,
-        status: 'active',
-        isPublic: true
-      });
-      
-      if (!business) {
-        throw new Error('Business not found or not public');
-      }
-      
+      const business = await getPublicBusiness(businessId);
+      const ownership = await getBusinessProductOwnershipQuery(business);
       const product = await Product.findOne({
-        slug: productSlug,
-        isPublished: true,
-        status: 'active'
+        $and: [
+          ownership,
+          { slug: productSlug, isPublished: true, status: 'active' }
+        ]
       }).lean();
-      
-      if (!product) {
-        throw new Error('Product not found');
-      }
-      
-      // Increment view count
+
+      if (!product) throw new Error('Product not found');
+
       await Product.findByIdAndUpdate(
         product._id,
         { $inc: { 'analytics.views': 1 } }
       );
-      
+
       return {
         product,
         business: {
@@ -171,7 +142,6 @@ class CatalogService {
           colors: business.colors
         }
       };
-      
     } catch (error) {
       logger.error('Failed to get product by slug', {
         error: error.message,
@@ -181,7 +151,7 @@ class CatalogService {
       throw error;
     }
   }
-  
+
   /**
    * Search products across all businesses
    * @param {string} searchQuery - Search query
@@ -193,25 +163,17 @@ class CatalogService {
     try {
       const { page = 1, limit = 20 } = pagination;
       const skip = (page - 1) * limit;
-      
-      // Build query
-      const query = {
-        isPublished: true,
-        status: 'active',
-        $text: { $search: searchQuery }
-      };
-      
-      // Apply filters
-      if (filters.category) {
-        query.category = filters.category;
-      }
-      
+      const query = await getMarketplaceProductQuery();
+      query.$and.push({ $text: { $search: searchQuery } });
+
+      if (filters.category) query.$and.push({ category: filters.category });
       if (filters.priceMin || filters.priceMax) {
-        query.price = {};
-        if (filters.priceMin) query.price.$gte = parseFloat(filters.priceMin);
-        if (filters.priceMax) query.price.$lte = parseFloat(filters.priceMax);
+        const price = {};
+        if (filters.priceMin) price.$gte = parseFloat(filters.priceMin);
+        if (filters.priceMax) price.$lte = parseFloat(filters.priceMax);
+        query.$and.push({ price });
       }
-      
+
       const [products, total] = await Promise.all([
         Product.find(query)
           .select('name slug description price compareAtPrice images category tags businessId')
@@ -222,28 +184,18 @@ class CatalogService {
           .lean(),
         Product.countDocuments(query)
       ]);
-      
+
       return {
         products,
         searchQuery,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) }
       };
-      
     } catch (error) {
-      logger.error('Failed to search products', {
-        error: error.message,
-        searchQuery,
-        filters
-      });
+      logger.error('Failed to search products', { error: error.message, searchQuery, filters });
       throw error;
     }
   }
-  
+
   /**
    * Get featured products across all businesses
    * @param {Object} pagination - Pagination options
@@ -253,44 +205,26 @@ class CatalogService {
     try {
       const { page = 1, limit = 20 } = pagination;
       const skip = (page - 1) * limit;
-      
+      const query = await getMarketplaceProductQuery();
+      query.$and.push({ isFeatured: true });
       const [products, total] = await Promise.all([
-        Product.find({
-          isPublished: true,
-          status: 'active',
-          isFeatured: true
-        })
+        Product.find(query)
           .select('name slug description price compareAtPrice images category tags businessId')
           .sort({ 'analytics.sales': -1, createdAt: -1 })
           .skip(skip)
           .limit(limit)
           .populate('businessId', 'name slug logo colors')
           .lean(),
-        Product.countDocuments({
-          isPublished: true,
-          status: 'active',
-          isFeatured: true
-        })
+        Product.countDocuments(query)
       ]);
-      
-      return {
-        products,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      };
-      
+
+      return { products, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
     } catch (error) {
-      logger.error('Failed to get featured products', {
-        error: error.message
-      });
+      logger.error('Failed to get featured products', { error: error.message });
       throw error;
     }
   }
-  
+
   /**
    * Get product categories for a business
    * @param {string} businessId - Business ID
@@ -298,22 +232,12 @@ class CatalogService {
    */
   static async getBusinessCategories(businessId) {
     try {
-      // Verify business is public and active
-      const business = await Business.findOne({
-        _id: businessId,
-        status: 'active',
-        isPublic: true
-      });
-      
-      if (!business) {
-        throw new Error('Business not found or not public');
-      }
-      
+      const business = await getPublicBusiness(businessId);
+      const ownership = await getBusinessProductOwnershipQuery(business);
       const categories = await Product.aggregate([
         {
           $match: {
-            isPublished: true,
-            status: 'active'
+            $and: [ownership, { isPublished: true, status: 'active' }]
           }
         },
         {
@@ -323,26 +247,20 @@ class CatalogService {
             subcategories: { $addToSet: '$subcategory' }
           }
         },
-        {
-          $sort: { count: -1 }
-        }
+        { $sort: { count: -1 } }
       ]);
-      
+
       return categories.map(cat => ({
         name: cat._id,
         count: cat.count,
         subcategories: cat.subcategories.filter(Boolean)
       }));
-      
     } catch (error) {
-      logger.error('Failed to get business categories', {
-        error: error.message,
-        businessId
-      });
+      logger.error('Failed to get business categories', { error: error.message, businessId });
       throw error;
     }
   }
-  
+
   /**
    * Get related products
    * @param {string} productId - Product ID
@@ -352,28 +270,19 @@ class CatalogService {
   static async getRelatedProducts(productId, limit = 4) {
     try {
       const product = await Product.findById(productId);
-      if (!product) {
-        throw new Error('Product not found');
-      }
-      
-      const relatedProducts = await Product.find({
-        _id: { $ne: productId },
-        category: product.category,
-        isPublished: true,
-        status: 'active'
-      })
+      if (!await isPublicMarketplaceProduct(product)) throw new Error('Product not found');
+
+      const query = await getMarketplaceProductQuery();
+      query.$and.push({ _id: { $ne: productId }, category: product.category });
+      const relatedProducts = await Product.find(query)
         .select('name slug price compareAtPrice images category')
         .sort({ 'analytics.sales': -1 })
         .limit(limit)
         .lean();
-      
+
       return relatedProducts;
-      
     } catch (error) {
-      logger.error('Failed to get related products', {
-        error: error.message,
-        productId
-      });
+      logger.error('Failed to get related products', { error: error.message, productId });
       throw error;
     }
   }

@@ -29,8 +29,11 @@ class OrderService {
     session.startTransaction();
     
     try {
-      // Get cart with populated products
-      const cart = await Cart.findById(cartId).populate('items.product').session(session);
+      // Cart ownership is part of the query, not a post-fetch check. This prevents
+      // an authenticated customer from submitting another customer's cart ID.
+      const cartQuery = { _id: cartId };
+      if (customerId) cartQuery.customerId = customerId;
+      const cart = await Cart.findOne(cartQuery).populate('items.product').session(session);
       if (!cart) {
         throw new Error('Cart not found');
       }
@@ -346,7 +349,20 @@ class OrderService {
         throw new Error('Invalid order status');
       }
       
+      const allowedTransitions = {
+        pending: ['confirmed', 'cancelled'],
+        confirmed: ['processing', 'cancelled'],
+        processing: ['shipped', 'cancelled'],
+        shipped: ['delivered'],
+        delivered: ['completed'],
+        completed: ['refunded'],
+        cancelled: [],
+        refunded: []
+      };
       const oldStatus = order.status;
+      if (!allowedTransitions[oldStatus]?.includes(newStatus)) {
+        throw new Error(`Invalid order status transition: ${oldStatus} -> ${newStatus}`);
+      }
       await order.updateStatus(newStatus, staffId);
 
       logger.info('Order status updated', {

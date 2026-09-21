@@ -52,6 +52,18 @@ describe('ProductService', () => {
       expect(String(result.userId)).toBe(String(mockUser._id));
     });
 
+    it('ignores a client-supplied businessId and uses the authenticated owner business', async () => {
+      const foreignBusinessId = new mongoose.Types.ObjectId();
+      const result = await ProductService.createProduct({
+        ...mockProductData,
+        businessId: foreignBusinessId
+      }, mockUser._id);
+
+      expect(String(result.userId)).toBe(String(mockUser._id));
+      expect(String(result.businessId)).toBe(String(TEST_BUSINESS_ID));
+      expect(String(result.businessId)).not.toBe(String(foreignBusinessId));
+    });
+
     it('should reject a duplicate code for the same user', async () => {
       await ProductService.createProduct({ ...mockProductData }, mockUser._id);
 

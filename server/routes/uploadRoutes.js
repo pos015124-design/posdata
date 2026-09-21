@@ -15,6 +15,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireUser } = require('./middleware/auth');
+const Product = require('../models/Product');
 const cloudinary = require('../config/cloudinary');
 
 /* ── helpers ─────────────────────────────────────────────────────── */
@@ -145,10 +146,32 @@ router.post('/product-images', requireUser, async (req, res) => {
   }
 });
 
+function isSafeImageFilename(filename) {
+  const path = require('path');
+  return Boolean(filename) &&
+    filename === path.basename(filename) &&
+    !filename.includes('\0') &&
+    !filename.includes('..') &&
+    !/%(?:2e|2f|5c|00)/i.test(filename) &&
+    !filename.includes('/') &&
+    !filename.includes('\\') &&
+    !/[\u0000-\u001f]/.test(filename);
+}
+
 /* ── DELETE /api/uploads/product-image/:filename ─────────────────── */
 router.delete('/product-image/:filename', requireUser, async (req, res) => {
   try {
     const { filename } = req.params;
+    if (!isSafeImageFilename(filename)) {
+      return res.status(400).json({ error: 'Invalid image filename' });
+    }
+
+    const imagePattern = new RegExp(`${filename.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}$`);
+    const ownerFilter = req.user.role === 'super_admin' ? {} : { userId: req.user.userId };
+    const owningProduct = await Product.findOne({ ...ownerFilter, 'images.url': imagePattern }).select('_id images userId');
+    if (!owningProduct) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
 
     if (cloudinary) {
       // filename here is the Cloudinary public_id or the last segment of the URL
@@ -166,7 +189,7 @@ router.delete('/product-image/:filename', requireUser, async (req, res) => {
     }
 
     // Local disk fallback
-    const fs   = require('fs');
+    const fs = require('fs');
     const path = require('path');
     const filePath = path.join(__dirname, '..', 'uploads', 'products', filename);
     if (fs.existsSync(filePath)) {
@@ -180,3 +203,4 @@ router.delete('/product-image/:filename', requireUser, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.isSafeImageFilename = isSafeImageFilename;

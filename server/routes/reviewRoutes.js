@@ -19,7 +19,11 @@ const validate = [
  */
 router.get('/:slug', async (req, res) => {
   try {
-    const business = await Business.findOne({ slug: req.params.slug }).select('_id name');
+    const business = await Business.findOne({
+      slug: String(req.params.slug || '').trim().toLowerCase(),
+      status: 'active',
+      isPublic: true
+    }).select('_id name');
     if (!business) return res.status(404).json({ error: 'Store not found' });
 
     const reviews = await Review.find({ businessId: business._id, isApproved: true })
@@ -50,7 +54,11 @@ router.post('/:slug', validate, async (req, res) => {
   if (!errors.isEmpty()) return res.status(400).json({ error: 'Validation failed', details: errors.array() });
 
   try {
-    const business = await Business.findOne({ slug: req.params.slug, status: 'active' }).select('_id slug');
+    const business = await Business.findOne({
+      slug: String(req.params.slug || '').trim().toLowerCase(),
+      status: 'active',
+      isPublic: true
+    }).select('_id slug');
     if (!business) return res.status(404).json({ error: 'Store not found' });
 
     const { reviewerName, reviewerEmail, rating, comment } = req.body;

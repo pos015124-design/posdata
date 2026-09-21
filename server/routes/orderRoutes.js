@@ -97,10 +97,22 @@ const handleValidationErrors = (req, res, next) => {
  * POST /api/orders
  * Create order from cart
  */
-router.post('/', optionalCustomer, validateCreateOrder, handleValidationErrors, async (req, res) => {
+router.post('/', requireCustomer, validateCreateOrder, handleValidationErrors, async (req, res) => {
   try {
-    const orderData = req.body;
+    const orderData = { ...req.body };
     const customerId = req.customer?.customerId || null;
+    const authenticatedEmail = String(req.customer?.email || '').toLowerCase();
+    if (authenticatedEmail && String(orderData.customerEmail).toLowerCase() !== authenticatedEmail) {
+      return res.status(403).json({ error: 'Customer email does not match authenticated account' });
+    }
+    // Customer identity is server-authoritative; never persist a client-submitted
+    // customer name/email for an authenticated order.
+    if (authenticatedEmail) {
+      orderData.customerEmail = authenticatedEmail;
+      if (req.customer.firstName || req.customer.lastName) {
+        orderData.customerName = [req.customer.firstName, req.customer.lastName].filter(Boolean).join(' ');
+      }
+    }
     
     logger.info('Order creation attempt', {
       cartId: orderData.cartId,
@@ -325,7 +337,7 @@ router.get('/verify', async (req, res) => {
   }
 });
 
-router.get('/:id', optionalCustomer, async (req, res) => {
+router.get('/:id([0-9a-fA-F]{24})', optionalCustomer, async (req, res) => {
   try {
     const { id } = req.params;
     const customerId = req.customer?.customerId || null;
@@ -430,7 +442,9 @@ router.get('/business/:businessId', requireUser, requireBusinessAdmin, async (re
     } = req.query;
     
     // Check if user has access to this business
-    if (req.user.role !== 'super_admin' && req.user.businessId !== businessId) {
+    // req.user.businessId comes from the persisted user document (ObjectId)
+    // while the path param is a string, so compare normalized values.
+    if (req.user.role !== 'super_admin' && String(req.user.businessId || '') !== String(businessId)) {
       return res.status(403).json({
         error: 'Access denied',
         message: 'You do not have access to this business orders'

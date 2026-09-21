@@ -67,7 +67,7 @@ router.post('/register', validateBusinessRegistration, handleValidationErrors, a
       businessName: business?.name,
       ownerEmail: owner?.email,
       ip: req.ip,
-      body: req.body
+      fields: Object.keys(req.body || {})
     });
     const result = await BusinessService.registerBusiness(business, owner);
     res.status(201).json({
@@ -82,7 +82,7 @@ router.post('/register', validateBusinessRegistration, handleValidationErrors, a
       error: error.message,
       stack: error.stack,
       ip: req.ip,
-      body: req.body
+      fields: Object.keys(req.body || {})
     });
     res.status(400).json({
       error: 'Registration failed',

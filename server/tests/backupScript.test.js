@@ -4,6 +4,9 @@
  */
 
 process.env.BACKUP_ENCRYPTION_KEY = 'test-backup-encryption-key-1234567890';
+// The backup module validates this at import time; keep it pointed at a
+// disposable local URI so the test never reads or contacts production.
+process.env.DATABASE_URL = 'mongodb://127.0.0.1:27017/posdata_backup_test';
 
 const fs = require('fs');
 const os = require('os');

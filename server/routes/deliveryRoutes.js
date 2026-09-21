@@ -37,7 +37,7 @@ const {
 
 // All delivery routes require super_admin
 const requireSuperAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'super_admin') {
+  if (!req.userDetails || req.userDetails.role !== 'super_admin' || !req.userDetails.isActive || req.userDetails.isSuspended) {
     return res.status(403).json({ error: 'Super admin access required' });
   }
   next();
@@ -148,23 +148,26 @@ router.put('/orders/:id/assign', requireUser, requireSuperAdmin, async (req, res
     const { riderId, notes } = req.body;
     if (!riderId) return res.status(400).json({ error: 'riderId is required' });
 
-    const [order, rider] = await Promise.all([
-      Sale.findById(req.params.id),
-      Rider.findById(riderId)
-    ]);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const rider = await Rider.findById(riderId);
     if (!rider) return res.status(404).json({ error: 'Rider not found' });
-    if (order.source !== 'storefront') {
-      return res.status(400).json({ error: 'Only storefront orders can be assigned to riders' });
+    const now = new Date();
+    const order = await Sale.findOneAndUpdate(
+      { _id: req.params.id, source: 'storefront', paymentStatus: 'paid', deliveryStatus: 'unassigned' },
+      { $set: {
+        riderId: rider._id,
+        riderName: rider.name,
+        riderPhone: rider.phone,
+        deliveryStatus: 'assigned',
+        assignedAt: now,
+        ...(notes ? { deliveryNotes: notes } : {})
+      } },
+      { new: true }
+    );
+    if (!order) {
+      const existing = await Sale.findById(req.params.id).select('source paymentStatus deliveryStatus');
+      if (!existing) return res.status(404).json({ error: 'Order not found' });
+      return res.status(400).json({ error: 'Order is not eligible for rider assignment' });
     }
-
-    order.riderId        = rider._id;
-    order.riderName      = rider.name;
-    order.riderPhone     = rider.phone;
-    order.deliveryStatus = 'assigned';
-    order.assignedAt     = new Date();
-    if (notes) order.deliveryNotes = notes;
-    await order.save();
 
     // Publish SSE update to any subscribers for this invoice
     try {
@@ -205,12 +208,16 @@ router.put('/orders/:id/assign', requireUser, requireSuperAdmin, async (req, res
 // PUT /api/delivery/orders/:id/collect  — rider collected from seller
 router.put('/orders/:id/collect', requireUser, requireSuperAdmin, async (req, res) => {
   try {
-    const order = await Sale.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-
-    order.deliveryStatus = 'out_for_delivery';
-    order.collectedAt    = new Date();
-    await order.save();
+    const order = await Sale.findOneAndUpdate(
+      { _id: req.params.id, source: 'storefront', paymentStatus: 'paid', deliveryStatus: 'assigned' },
+      { $set: { deliveryStatus: 'out_for_delivery', collectedAt: new Date() } },
+      { new: true }
+    );
+    if (!order) {
+      const existing = await Sale.findById(req.params.id).select('source paymentStatus deliveryStatus');
+      if (!existing) return res.status(404).json({ error: 'Order not found' });
+      return res.status(400).json({ error: 'Order must be assigned before collection' });
+    }
 
     try { const { publish } = require('../utils/sse'); publish(order.invoiceNumber, 'delivery:update', { deliveryStatus: order.deliveryStatus, collectedAt: order.collectedAt }); } catch(e){ logger.error('SSE publish failed', { error: e.message }); }
 
@@ -224,13 +231,16 @@ router.put('/orders/:id/collect', requireUser, requireSuperAdmin, async (req, re
 // PUT /api/delivery/orders/:id/deliver  — delivered to buyer, send confirmation email
 router.put('/orders/:id/deliver', requireUser, requireSuperAdmin, async (req, res) => {
   try {
-    const order = await Sale.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-
-    order.deliveryStatus = 'delivered';
-    order.deliveredAt    = new Date();
-    order.status         = 'completed';
-    await order.save();
+    const order = await Sale.findOneAndUpdate(
+      { _id: req.params.id, source: 'storefront', paymentStatus: 'paid', deliveryStatus: 'out_for_delivery' },
+      { $set: { deliveryStatus: 'delivered', deliveredAt: new Date(), status: 'completed' } },
+      { new: true }
+    );
+    if (!order) {
+      const existing = await Sale.findById(req.params.id).select('source paymentStatus deliveryStatus');
+      if (!existing) return res.status(404).json({ error: 'Order not found' });
+      return res.status(400).json({ error: 'Order must be out for delivery first' });
+    }
 
     // Publish SSE update
     try { const { publish } = require('../utils/sse'); publish(order.invoiceNumber, 'delivery:update', { deliveryStatus: order.deliveryStatus, deliveredAt: order.deliveredAt }); } catch(e){ logger.error('SSE publish failed', { error: e.message }); }
@@ -305,12 +315,21 @@ router.get('/archived', requireUser, requireSuperAdmin, async (req, res) => {
 router.put('/orders/:id/fail', requireUser, requireSuperAdmin, async (req, res) => {
   try {
     const { reason } = req.body;
-    const order = await Sale.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-
-    order.deliveryStatus = 'failed';
-    if (reason) order.deliveryNotes = reason;
-    await order.save();
+    const order = await Sale.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        source: 'storefront',
+        paymentStatus: 'paid',
+        deliveryStatus: { $in: ['unassigned', 'assigned', 'out_for_delivery'] }
+      },
+      { $set: { deliveryStatus: 'failed', ...(reason ? { deliveryNotes: reason } : {}) } },
+      { new: true }
+    );
+    if (!order) {
+      const existing = await Sale.findById(req.params.id).select('source paymentStatus deliveryStatus');
+      if (!existing) return res.status(404).json({ error: 'Order not found' });
+      return res.status(400).json({ error: 'Delivery is already terminal or not eligible' });
+    }
 
     try { const { publish } = require('../utils/sse'); publish(order.invoiceNumber, 'delivery:update', { deliveryStatus: order.deliveryStatus, deliveryNotes: order.deliveryNotes }); } catch(e){ logger.error('SSE publish failed', { error: e.message }); }
 

@@ -13,6 +13,7 @@
  *        Side-effect: increments Product.stock and updates Product.purchasePrice for each item
  */
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Supplier = require('../models/Supplier');
 const Product  = require('../models/Product');
@@ -113,16 +114,28 @@ router.post('/:id/stock-in', requireUser, async (req, res) => {
       return res.status(400).json({ error: 'At least one item is required' });
     }
 
-    // Validate and enrich items
+    // Validate every product and value before changing the supplier record.
     const enrichedItems = [];
     let deliveryTotal = 0;
+    const productIds = items.map(item => item.productId).filter(Boolean);
+    const ownedProducts = await Product.find({
+      _id: { $in: productIds },
+      userId: req.user.userId
+    }).select('_id name');
+    const ownedProductIds = new Set(ownedProducts.map(product => String(product._id)));
 
     for (const item of items) {
-      if (!item.productId || !item.quantity || item.unitCost === undefined) {
+      if (!item.productId || item.quantity === undefined || item.unitCost === undefined) {
         return res.status(400).json({ error: 'Each item needs productId, quantity, and unitCost' });
       }
       const qty  = Number(item.quantity);
       const cost = Number(item.unitCost);
+      if (!Number.isInteger(qty) || qty <= 0 || !Number.isFinite(cost) || cost < 0) {
+        return res.status(400).json({ error: 'Quantity must be a positive integer and unitCost must be non-negative' });
+      }
+      if (!ownedProductIds.has(String(item.productId))) {
+        return res.status(403).json({ error: 'All products must belong to your account' });
+      }
       const lineTotal = qty * cost;
       enrichedItems.push({
         productId:   item.productId,
@@ -147,26 +160,58 @@ router.post('/:id/stock-in', requireUser, async (req, res) => {
       amountPaid:    paid
     };
 
-    supplier.stockIns.push(stockIn);
+    // MongoDB can abort one of two legitimate concurrent transactions with a
+    // transient write conflict. Retry the complete transaction, never just a
+    // subset of its writes, so each committed stock-in remains all-or-nothing.
+    let committed = false;
+    let lastTransactionError;
+    for (let attempt = 0; attempt < 3 && !committed; attempt += 1) {
+      const dbSession = await mongoose.startSession();
+      try {
+        dbSession.startTransaction();
 
-    // Recalculate supplier totals
-    supplier.totalSpent = supplier.stockIns.reduce((s, si) => s + si.totalCost, 0);
-    const totalPaidAll  = supplier.stockIns.reduce((s, si) => s + (si.amountPaid || 0), 0);
-    supplier.totalOwed  = Math.max(0, supplier.totalSpent - totalPaidAll);
-
-    await supplier.save();
-
-    // Update product stock and purchase price for each item
-    const productUpdates = enrichedItems.map(item =>
-      Product.findOneAndUpdate(
-        { _id: item.productId, userId: req.user.userId },
-        {
-          $inc: { stock: item.quantity },
-          $set: { purchasePrice: item.unitCost, supplier: supplier.name }
+        const supplierUpdate = await Supplier.updateOne(
+          { _id: supplier._id, userId: req.user.userId },
+          {
+            $push: { stockIns: stockIn },
+            $inc: {
+              totalSpent: deliveryTotal,
+              totalOwed: Math.max(0, deliveryTotal - paid)
+            }
+          },
+          { session: dbSession }
+        );
+        if (supplierUpdate.modifiedCount !== 1) {
+          throw new Error('Supplier update failed; stock-in rolled back');
         }
-      )
-    );
-    await Promise.all(productUpdates);
+
+        for (const item of enrichedItems) {
+          const updated = await Product.findOneAndUpdate(
+            { _id: item.productId, userId: req.user.userId },
+            {
+              $inc: { stock: item.quantity },
+              $set: { purchasePrice: item.unitCost, supplier: supplier.name }
+            },
+            { session: dbSession, new: true }
+          );
+          if (!updated) throw new Error('Product update failed; stock-in rolled back');
+        }
+        await dbSession.commitTransaction();
+        committed = true;
+      } catch (error) {
+        lastTransactionError = error;
+        if (dbSession.inTransaction()) await dbSession.abortTransaction();
+        const transient = error.hasErrorLabel?.('TransientTransactionError') ||
+          /WriteConflict|TransientTransactionError|NoSuchTransaction/i.test(error.message || '');
+        if (!transient || attempt === 2) throw error;
+      } finally {
+        await dbSession.endSession();
+      }
+    }
+    if (!committed) throw lastTransactionError || new Error('Stock-in transaction failed');
+
+    const savedSupplier = await Supplier.findOne({ _id: supplier._id, ...userFilter(req) }).lean();
+    const savedStockIn = savedSupplier?.stockIns?.[savedSupplier.stockIns.length - 1];
 
     logger.info('Stock-in recorded', {
       supplierId: supplier._id,
@@ -178,8 +223,8 @@ router.post('/:id/stock-in', requireUser, async (req, res) => {
     res.status(201).json({
       success: true,
       message: `Stock-in recorded. ${enrichedItems.length} product(s) updated.`,
-      stockIn: supplier.stockIns[supplier.stockIns.length - 1],
-      supplierTotals: { totalSpent: supplier.totalSpent, totalOwed: supplier.totalOwed }
+      stockIn: savedStockIn,
+      supplierTotals: { totalSpent: savedSupplier?.totalSpent || 0, totalOwed: savedSupplier?.totalOwed || 0 }
     });
   } catch (err) {
     logger.error('Failed to record stock-in', { error: err.message, userId: req.user.userId });

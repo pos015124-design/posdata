@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 const Sale = require('../models/Sale');
+const { isPublicMarketplaceProduct } = require('./marketplaceEligibilityService');
+
+async function reserveProductStock(Product, productId, quantity) {
+  return Product.findOneAndUpdate(
+    { _id: productId, stock: { $gte: quantity } },
+    { $inc: { stock: -quantity } },
+    { new: false }
+  );
+}
 
 class SaleService {
   async getAllSales(pagination, filters = {}, userId = null) {
@@ -104,8 +113,14 @@ class SaleService {
       if (p.status !== 'active' || !p.isPublished) {
         throw new Error(`Product is not available for sale: ${p.name}`);
       }
+      if (!await isPublicMarketplaceProduct(p)) {
+        throw new Error(`Product is not available in the public marketplace: ${p.name}`);
+      }
 
-      const requestedQty = Math.max(1, parseInt(line.quantity, 10) || 1);
+      const requestedQty = Number(line.quantity);
+      if (!Number.isInteger(requestedQty) || requestedQty < 1 || requestedQty > 100) {
+        throw new Error(`Invalid quantity for "${p.name}"`);
+      }
       const stock = typeof p.stock === 'number' ? p.stock : 0;
       if (stock < requestedQty) {
         throw new Error(`Insufficient stock for "${p.name}" (available: ${stock})`);
@@ -328,29 +343,40 @@ class SaleService {
     });
     await sale.save();
 
-    // Reserve stock now so the same item can't be oversold while payment is in flight.
+    // Reserve stock atomically. A conditional decrement prevents concurrent
+    // check-then-decrement races from producing negative inventory.
     const Product = require('../models/Product');
     const lowStockCrossings = [];
-    for (const item of items) {
-      const productId = item.product || item._id;
-      if (!productId) continue;
-      const prev = await Product.findByIdAndUpdate(productId, { $inc: { stock: -item.quantity } }, { new: false });
-      if (
-        prev &&
-        typeof prev.stock === 'number' &&
-        typeof prev.reorderPoint === 'number' &&
-        prev.reorderPoint > 0 &&
-        prev.stock > prev.reorderPoint &&
-        (prev.stock - item.quantity) <= prev.reorderPoint
-      ) {
-        lowStockCrossings.push({
-          _id: prev._id,
-          name: prev.name,
-          stock: Math.max(0, prev.stock - item.quantity),
-          reorderPoint: prev.reorderPoint,
-          userId: prev.userId
-        });
+    const reserved = [];
+    try {
+      for (const item of items) {
+        const productId = item.product || item._id;
+        if (!productId) continue;
+        const prev = await reserveProductStock(Product, productId, item.quantity);
+        if (!prev) throw new Error(`Insufficient stock for ${item.name || productId}`);
+        reserved.push({ productId, quantity: item.quantity });
+        if (
+          typeof prev.stock === 'number' &&
+          typeof prev.reorderPoint === 'number' &&
+          prev.reorderPoint > 0 &&
+          prev.stock > prev.reorderPoint &&
+          (prev.stock - item.quantity) <= prev.reorderPoint
+        ) {
+          lowStockCrossings.push({
+            _id: prev._id,
+            name: prev.name,
+            stock: Math.max(0, prev.stock - item.quantity),
+            reorderPoint: prev.reorderPoint,
+            userId: prev.userId
+          });
+        }
       }
+    } catch (error) {
+      for (const item of reserved) {
+        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+      }
+      await Sale.findByIdAndDelete(sale._id);
+      throw error;
     }
     if (lowStockCrossings.length > 0) {
       this.notifyLowStockCrossings(lowStockCrossings);
@@ -409,13 +435,29 @@ class SaleService {
     const Business = require('../models/Business');
     const mongoose = require('mongoose');
 
-    const sales = await Sale.find({ _id: { $in: saleIds } });
     const newlyPaid = [];
 
-    for (const sale of sales) {
-      if (sale.paymentStatus === 'paid') continue; // idempotency: already processed
+    for (const saleId of saleIds) {
+      // The conditional update is the idempotency gate. Only one concurrent
+      // callback can atomically move a pending sale to paid.
+      const pending = await Sale.findOne({ _id: saleId, paymentStatus: 'pending', status: 'pending' });
+      if (!pending) continue;
+      const sale = await Sale.findOneAndUpdate(
+        { _id: saleId, paymentStatus: 'pending', status: 'pending' },
+        { $set: {
+          paymentStatus: 'paid',
+          status: 'completed',
+          amountPaid: pending.total,
+          change: 0,
+          ...(transactionId ? { transactionId } : {}),
+          ...(selcomOrderId ? { selcomOrderId } : {}),
+          paidAt: new Date()
+        } },
+        { new: true }
+      );
+      if (!sale) continue;
 
-      // Book revenue on the products
+      // These effects run only for the winner of the atomic settlement race.
       for (const item of sale.items || []) {
         if (!item.productId) continue;
         await Product.findByIdAndUpdate(item.productId, {
@@ -426,7 +468,6 @@ class SaleService {
         });
       }
 
-      // Sync Business analytics (super admin live numbers)
       try {
         await Business.findOneAndUpdate(
           { userId: new mongoose.Types.ObjectId(String(sale.createdBy)) },
@@ -434,14 +475,6 @@ class SaleService {
         );
       } catch { /* non-critical */ }
 
-      sale.paymentStatus = 'paid';
-      sale.status = 'completed';
-      sale.amountPaid = sale.total;
-      sale.change = 0;
-      sale.transactionId = transactionId || sale.transactionId;
-      sale.selcomOrderId = selcomOrderId || sale.selcomOrderId;
-      sale.paidAt = new Date();
-      await sale.save();
       newlyPaid.push(sale);
 
       // Realtime push: tell the seller's live sockets their payment landed so the
@@ -488,13 +521,41 @@ class SaleService {
     const Business = require('../models/Business');
     const mongoose = require('mongoose');
 
-    const sale = await Sale.findById(saleId);
-    if (!sale) throw new Error('Sale not found');
-    if (sale.paymentStatus !== 'paid') {
+    const existing = await Sale.findById(saleId);
+    if (!existing) throw new Error('Sale not found');
+    if (existing.paymentStatus === 'refunded' || existing.status === 'refunded') {
+      return { sale: existing, alreadyRefunded: true };
+    }
+    if (existing.paymentStatus !== 'paid') {
       throw new Error('Only paid orders can be refunded');
     }
-    if (sale.status === 'refunded') {
-      return { sale, alreadyRefunded: true };
+
+    const refundNotes = (existing.notes ? existing.notes + ' | ' : '') + 'Refunded' + (reason ? `: ${reason}` : '');
+
+    // Atomically claim the refund before touching stock. findOneAndUpdate is
+    // atomic on a single document, so only one of two concurrent refunds can
+    // move a paid sale to refunded — stock and analytics are never restored
+    // twice, and the loser is reported as already refunded.
+    const sale = await Sale.findOneAndUpdate(
+      { _id: saleId, paymentStatus: 'paid', status: { $ne: 'refunded' } },
+      {
+        $set: {
+          paymentStatus: 'refunded',
+          status: 'refunded',
+          refundedAt: new Date(),
+          refundedBy: refundedBy || null,
+          refundReason: reason || '',
+          notes: refundNotes
+        }
+      },
+      { new: true }
+    );
+    if (!sale) {
+      const current = await Sale.findById(saleId);
+      if (current && (current.paymentStatus === 'refunded' || current.status === 'refunded')) {
+        return { sale: current, alreadyRefunded: true };
+      }
+      throw new Error('Only paid orders can be refunded');
     }
 
     // Return reserved stock to the seller
@@ -522,13 +583,6 @@ class SaleService {
       );
     } catch { /* non-critical */ }
 
-    sale.paymentStatus = 'refunded';
-    sale.status = 'refunded';
-    sale.refundedAt = new Date();
-    sale.refundedBy = refundedBy || null;
-    sale.refundReason = reason || '';
-    sale.notes = (sale.notes ? sale.notes + ' | ' : '') + 'Refunded' + (reason ? `: ${reason}` : '');
-    await sale.save();
 
     // Realtime push: tell the seller their order was refunded so the bell + dashboard react.
     try {
@@ -580,17 +634,28 @@ class SaleService {
     const Sale = require('../models/Sale');
     const Product = require('../models/Product');
 
-    const sales = await Sale.find({ _id: { $in: saleIds }, paymentStatus: 'pending' });
+    const candidates = await Sale.find({ _id: { $in: saleIds }, paymentStatus: 'pending' });
     let count = 0;
-    for (const sale of sales) {
+    for (const candidate of candidates) {
+      // Claim each pending sale atomically before restoring stock, so two
+      // concurrent release runs cannot both return the same reserved stock.
+      const sale = await Sale.findOneAndUpdate(
+        { _id: candidate._id, paymentStatus: 'pending' },
+        {
+          $set: {
+            paymentStatus: 'failed',
+            status: 'cancelled',
+            notes: (candidate.notes ? candidate.notes + ' | ' : '') + 'Payment abandoned or failed; stock released'
+          }
+        },
+        { new: true }
+      );
+      if (!sale) continue; // another concurrent release already handled it
+
       for (const item of sale.items || []) {
         if (!item.productId) continue;
         await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
       }
-      sale.paymentStatus = 'failed';
-      sale.status = 'cancelled';
-      sale.notes = (sale.notes ? sale.notes + ' | ' : '') + 'Payment abandoned or failed; stock released';
-      await sale.save();
       count++;
     }
     return { count };
@@ -692,21 +757,23 @@ class SaleService {
     // Update product stock levels and business analytics
     const Business = require('../models/Business');
     const lowStockCrossings = []; // products that just fell to/under their reorder point
-    for (const item of resolvedItems) {
-      const productId = item.productId;
-      if (productId) {
-        // { new: false } returns the pre-update document so we can detect a fresh
-        // low-stock crossing (stock was above the reorder point, now at/below it)
-        const prev = await Product.findByIdAndUpdate(productId, {
-          $inc: { 
+    const reserved = [];
+    try {
+      for (const item of resolvedItems) {
+        const productId = item.productId;
+        if (!productId) continue;
+        const prev = await Product.findOneAndUpdate(
+          { _id: productId, stock: { $gte: item.quantity } },
+          { $inc: {
             stock: -item.quantity,
             'analytics.sales': item.quantity,
             'analytics.revenue': item.price * item.quantity
-          }
-        }, { new: false });
-
+          } },
+          { new: false }
+        );
+        if (!prev) throw new Error(`Insufficient stock for "${item.productName}"`);
+        reserved.push(item);
         if (
-          prev &&
           typeof prev.stock === 'number' &&
           typeof prev.reorderPoint === 'number' &&
           prev.reorderPoint > 0 &&
@@ -722,6 +789,16 @@ class SaleService {
           });
         }
       }
+    } catch (error) {
+      for (const item of reserved) {
+        await Product.findByIdAndUpdate(item.productId, { $inc: {
+          stock: item.quantity,
+          'analytics.sales': -item.quantity,
+          'analytics.revenue': -(item.price * item.quantity)
+        } });
+      }
+      await Sale.findByIdAndDelete(sale._id);
+      throw error;
     }
 
     // Notify sellers once per low-stock crossing (non-blocking, never throws)

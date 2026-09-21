@@ -15,7 +15,7 @@ router.get('/sales', requireUser, async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const sales = await Sale.find({
-      userId: userId,  // CRITICAL: Only current user's sales
+      createdBy: userId,  // Sale ownership is stored in createdBy.
       createdAt: { $gte: thirtyDaysAgo }
     }).sort({ createdAt: 1 });
 

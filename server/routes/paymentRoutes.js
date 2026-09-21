@@ -14,6 +14,7 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
@@ -85,8 +86,10 @@ router.post('/selcom/initiate', initiateLimiter, async (req, res) => {
     });
 
     const orderId = generateOrderId();
+    const sessionCapability = crypto.randomBytes(32).toString('hex');
     const session = new PaymentSession({
       selcomOrderId: orderId,
+      sessionCapability,
       vendor: process.env.SELCOM_VENDOR || '',
       amount: result.total,
       currency: 'TZS',
@@ -201,6 +204,7 @@ router.post('/selcom/initiate', initiateLimiter, async (req, res) => {
     res.status(201).json({
       success: true,
       orderId,
+      sessionCapability,
       method: paymentMethod,
       status: 'pending',
       amount: session.amount,
@@ -220,10 +224,10 @@ router.post('/selcom/initiate', initiateLimiter, async (req, res) => {
  */
 router.get('/selcom/status', async (req, res) => {
   try {
-    const { orderId } = req.query;
-    if (!orderId) return res.status(400).json({ error: 'orderId is required' });
+    const { orderId, capability } = req.query;
+    if (!orderId || !capability) return res.status(400).json({ error: 'orderId and capability are required' });
 
-    const session = await PaymentSession.findOne({ selcomOrderId: orderId });
+    const session = await PaymentSession.findOne({ selcomOrderId: orderId, sessionCapability: capability });
     if (!session) return res.status(404).json({ error: 'Payment session not found' });
 
     // Lazy expiry: abandoned sessions release their reserved stock.
@@ -275,8 +279,6 @@ router.get('/selcom/status', async (req, res) => {
       method: session.method,
       result: session.result,
       resultcode: session.resultcode,
-      reference: session.reference,
-      redirectUrl: session.redirectUrl || null,
       sales: sales.map((s) => ({ invoiceNumber: s.invoiceNumber, total: s.total, paymentStatus: s.paymentStatus })),
       paid: paidCount === session.sales.length && session.sales.length > 0
     });
@@ -292,10 +294,10 @@ router.get('/selcom/status', async (req, res) => {
  */
 router.post('/selcom/cancel', async (req, res) => {
   try {
-    const { orderId } = req.body || {};
-    if (!orderId) return res.status(400).json({ error: 'orderId is required' });
+    const { orderId, capability } = req.body || {};
+    if (!orderId || !capability) return res.status(400).json({ error: 'orderId and capability are required' });
 
-    const session = await PaymentSession.findOne({ selcomOrderId: orderId });
+    const session = await PaymentSession.findOne({ selcomOrderId: orderId, sessionCapability: capability });
     if (!session) return res.status(404).json({ error: 'Payment session not found' });
     if (session.status === 'paid') {
       return res.status(400).json({ error: 'Payment already completed — cannot cancel' });
@@ -350,7 +352,7 @@ router.post('/selcom/callback', async (req, res) => {
     const strict = process.env.SELCOM_STRICT_WEBHOOK !== 'false';
     const verified = verifyWebhookSignature(body, req.headers);
     if (strict && verified === false) {
-      logger.error('[Selcom] webhook signature verification FAILED', { orderId, headers: req.headers });
+      logger.error('[Selcom] webhook signature verification FAILED', { orderId, signed: true });
       return ack('FAIL', '401', 'Signature verification failed');
     }
     if (strict && verified === null) {
@@ -409,7 +411,7 @@ router.post('/selcom/callback', async (req, res) => {
       session.message = body.message || 'Payment failed';
       session.failedAt = new Date();
       await session.save();
-      logger.warn('[Selcom] payment failed', { orderId, result: body });
+      logger.warn('[Selcom] payment failed', { orderId, result: body.result, resultcode: body.resultcode });
       return ack('SUCCESS', '000', 'Payment failed recorded');
     }
 
@@ -421,7 +423,7 @@ router.post('/selcom/callback', async (req, res) => {
     await session.save();
     return ack('SUCCESS', '000', 'In progress');
   } catch (error) {
-    logger.error('[Selcom] webhook error', { error: error.message, body });
+    logger.error('[Selcom] webhook error', { orderId: body.order_id || body.orderId, error: error.message });
     return ack('FAIL', '500', 'Internal error');
   }
 });

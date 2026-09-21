@@ -108,6 +108,9 @@ class ProductService {
       }
       return product;
     } catch (error) {
+      // Not-found must stay recognisable so callers answer 404. Wrapping it
+      // turned every tenant-scoped miss into a 500 response.
+      if (error.message === 'Product not found') throw error;
       throw new Error(`Error fetching product: ${error.message}`);
     }
   }
@@ -125,6 +128,7 @@ class ProductService {
       }
       return product;
     } catch (error) {
+      if (error.message === 'Product not found') throw error;
       throw new Error(`Error fetching product by barcode: ${error.message}`);
     }
   }
@@ -238,6 +242,8 @@ class ProductService {
 
       return product;
     } catch (error) {
+      // Preserve not-found so the route can answer 404 instead of a 400/500.
+      if (error.message === 'Product not found') throw error;
       throw new Error(`Error updating product: ${error.message}`);
     }
   }
@@ -255,6 +261,7 @@ class ProductService {
       }
       return true;
     } catch (error) {
+      if (error.message === 'Product not found') throw error;
       throw new Error(`Error deleting product: ${error.message}`);
     }
   }

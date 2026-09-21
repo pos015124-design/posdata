@@ -7,6 +7,7 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const Business = require('../models/Business');
 const { logger } = require('../config/logger');
+const { isProductEligibleForBusiness } = require('./marketplaceEligibilityService');
 
 class CartService {
   
@@ -82,6 +83,9 @@ class CartService {
       if (!product.isPublished || product.status !== 'active') {
         throw new Error('Product is not available');
       }
+      if (!await isProductEligibleForBusiness(product, businessId)) {
+        throw new Error('Product is not available in this public store');
+      }
       
       // Check stock availability
       if (product.trackInventory && product.stock < quantity) {
@@ -134,6 +138,9 @@ class CartService {
       } else {
         // Check stock availability
         const product = await Product.findById(productId);
+        if (product && !await isProductEligibleForBusiness(product, businessId)) {
+          throw new Error('Product is not available in this public store');
+        }
         if (product && product.trackInventory && product.stock < quantity) {
           throw new Error(`Insufficient stock. Only ${product.stock} items available.`);
         }
@@ -326,9 +333,12 @@ class CartService {
    * @param {string} cartId - Cart ID
    * @returns {Promise<Object>} Validation result
    */
-  static async validateCart(cartId) {
+  static async validateCart(cartId, sessionId = null, customerId = null) {
     try {
-      const cart = await Cart.findById(cartId).populate('items.product');
+      const identity = customerId
+        ? { _id: cartId, customerId }
+        : { _id: cartId, sessionId };
+      const cart = await Cart.findOne(identity).populate('items.product');
       if (!cart) {
         throw new Error('Cart not found');
       }

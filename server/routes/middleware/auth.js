@@ -116,17 +116,20 @@ const requireSuperAdmin = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.role !== 'super_admin') {
+    const user = await User.findById(decoded.userId).select('role isActive isSuspended isApproved businessId tenantId permissions');
+    if (!user || !user.isActive || user.isSuspended || user.role !== 'super_admin') {
       securityLogger.warn('Super admin access denied', {
         userId: decoded.userId,
-        role: decoded.role,
+        role: user?.role || decoded.role,
         ip: req.ip,
         path: req.path
       });
       return res.status(403).json({ message: 'Super admin access required' });
     }
 
-    req.user = decoded;
+    req.user = { ...decoded, role: user.role, businessId: user.businessId, tenantId: user.tenantId };
+    req.userDetails = user;
+    req.userPermissions = user.permissions;
     next();
   } catch (err) {
     securityLogger.warn('Super admin authentication failed', {
@@ -145,18 +148,21 @@ const requireBusinessAdmin = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    const user = await User.findById(decoded.userId).select('role isActive isSuspended isApproved businessId tenantId permissions');
     const businessAdminRoles = ['super_admin', 'business_admin'];
-    if (!businessAdminRoles.includes(decoded.role)) {
+    if (!user || !user.isActive || user.isSuspended || !businessAdminRoles.includes(user.role)) {
       securityLogger.warn('Business admin access denied', {
         userId: decoded.userId,
-        role: decoded.role,
+        role: user?.role || decoded.role,
         ip: req.ip,
         path: req.path
       });
       return res.status(403).json({ message: 'Business admin access required' });
     }
 
-    req.user = decoded;
+    req.user = { ...decoded, role: user.role, businessId: user.businessId, tenantId: user.tenantId };
+    req.userDetails = user;
+    req.userPermissions = user.permissions;
     next();
   } catch (err) {
     securityLogger.warn('Business admin authentication failed', {

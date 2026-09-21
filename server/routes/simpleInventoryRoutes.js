@@ -7,6 +7,7 @@ const { requireUser } = require('./middleware/auth');
 router.get('/alerts', requireUser, async (req, res) => {
   try {
     const lowStockProducts = await Product.find({
+      userId: req.user.userId,
       $expr: { $lte: ['$stock', '$reorderPoint'] }
     }).select('name stock reorderPoint');
 

@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const ProductService = require('../services/productService');
 const Business = require('../models/Business');
-const { requireUser, checkPermission } = require('./middleware/auth');
+const SellerInventory = require('../models/SellerInventory');
+const { requireUser, requireAdmin, checkPermission } = require('./middleware/auth');
 const {
   productValidation,
   productUpdateValidation,
@@ -12,6 +13,7 @@ const {
 } = require('../middleware/validation');
 const { paginationMiddleware } = require('../utils/pagination');
 const { auditLogger } = require('../config/logger');
+const { getMarketplaceProductQuery } = require('../services/marketplaceEligibilityService');
 
 // Get all products with pagination and search (USER'S PRODUCTS ONLY)
 router.get('/',
@@ -89,12 +91,14 @@ router.get('/catalog/public', requireUser, async (req, res) => {
     const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
     const safePage = Math.max(parseInt(page, 10) || 1, 1);
     const skip = (safePage - 1) * safeLimit;
-    const query = { isPublished: true, status: 'active', userId: { $ne: req.user.userId } };
-    if (category) query.category = category;
-    if (search) query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { category: { $regex: search, $options: 'i' } }
-    ];
+    const query = await getMarketplaceProductQuery();
+    if (category) query.$and.push({ category });
+    if (search) query.$and.push({
+      $or: [
+        { name: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } }
+      ]
+    });
     const [products, total] = await Promise.all([
       Product.find(query).select('name code price images category description userId').skip(skip).limit(safeLimit).lean(),
       Product.countDocuments(query)
@@ -263,6 +267,10 @@ router.post('/:id/clone', requireUser, mongoIdValidation('id'), handleValidation
     const source = await ProductService.getProductById(req.params.id);
     if (!source) return res.status(404).json({ message: 'Product not found' });
 
+    // Cloning another seller's listing copies sellable content only. The cost
+    // price stays private to the seller who owns the source product.
+    const ownsSource = source.userId && String(source.userId) === String(req.user.userId);
+
     // Build clone data — new ownership, reset analytics, keep content
     const cloneData = {
       name: source.name,
@@ -272,7 +280,7 @@ router.post('/:id/clone', requireUser, mongoIdValidation('id'), handleValidation
       barcode: '',
       price: source.price,
       compareAtPrice: source.compareAtPrice,
-      purchasePrice: source.purchasePrice || 0,
+      purchasePrice: ownsSource ? (source.purchasePrice || 0) : 0,
       stock: 0,           // seller sets their own stock
       reorderPoint: source.reorderPoint,
       category: source.category,
@@ -308,11 +316,14 @@ router.post('/:id/clone', requireUser, mongoIdValidation('id'), handleValidation
 const Seller = require('../models/Seller');
 
 // GET /api/products/:id/sellers - Get all sellers for a product
-router.get('/:id/sellers', requireUser, async (req, res) => {
+router.get('/:id/sellers', requireAdmin, async (req, res) => {
   try {
+    const sellerScope = req.user.role === 'super_admin'
+      ? {}
+      : { userId: req.user.userId };
     const inventories = await SellerInventory.find({ product: req.params.id, isActive: true })
-      .populate('seller');
-    const sellers = inventories.map(inv => inv.seller);
+      .populate({ path: 'seller', match: sellerScope });
+    const sellers = inventories.map(inv => inv.seller).filter(Boolean);
     res.json({ sellers });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -320,11 +331,16 @@ router.get('/:id/sellers', requireUser, async (req, res) => {
 });
 
 // GET /api/products/by-seller/:sellerId - Get all products for a seller
-router.get('/by-seller/:sellerId', requireUser, async (req, res) => {
+router.get('/by-seller/:sellerId', requireAdmin, async (req, res) => {
   try {
-    const inventories = await SellerInventory.find({ seller: req.params.sellerId, isActive: true })
+    const sellerScope = req.user.role === 'super_admin'
+      ? {}
+      : { userId: req.user.userId };
+    const seller = await Seller.findOne({ _id: req.params.sellerId, ...sellerScope }).select('_id');
+    if (!seller) return res.status(404).json({ error: 'Seller not found' });
+    const inventories = await SellerInventory.find({ seller: seller._id, isActive: true })
       .populate('product');
-    const products = inventories.map(inv => inv.product);
+    const products = inventories.map(inv => inv.product).filter(Boolean);
     res.json({ products });
   } catch (error) {
     res.status(500).json({ message: error.message });

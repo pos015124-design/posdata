@@ -9,12 +9,41 @@ if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir);
 }
 
+const SENSITIVE_KEY = /(password|token|secret|authorization|cookie|api[-_]?key|signature|credential|privatekey|refresh)/i;
+const redactSensitive = (value, key = '') => {
+  if (SENSITIVE_KEY.test(key)) return '[REDACTED]';
+  if (typeof value === 'string') {
+    const redacted = value.replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]');
+    // Stack traces are useful for diagnosis, but must not expose deployment
+    // filesystem paths through API/application logs.
+    if (key === 'stack') {
+      return redacted.replace(/(?:[A-Za-z]:\\|\/)[^()\r\n]+?(?=:\d+:\d+\)?)/g, '[REDACTED_PATH]');
+    }
+    return redacted;
+  }
+  if (Array.isArray(value)) return value.map((item) => redactSensitive(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [
+      childKey,
+      redactSensitive(childValue, childKey)
+    ]));
+  }
+  return value;
+};
+const redactionFormat = winston.format((info) => {
+  // Mutate the Winston info object in place so its non-enumerable level
+  // symbols remain intact and transports still receive the event.
+  Object.assign(info, redactSensitive(info));
+  return info;
+});
+
 // Define log format
 const logFormat = winston.format.combine(
   winston.format.timestamp({
     format: 'YYYY-MM-DD HH:mm:ss'
   }),
   winston.format.errors({ stack: true }),
+  redactionFormat(),
   winston.format.json(),
   winston.format.prettyPrint()
 );
@@ -25,6 +54,7 @@ const consoleFormat = winston.format.combine(
   winston.format.timestamp({
     format: 'HH:mm:ss'
   }),
+  redactionFormat(),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
     return `${timestamp} [${level}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''}`;
   })
@@ -65,6 +95,7 @@ const logger = winston.createLogger({
       zippedArchive: true,
       format: winston.format.combine(
         winston.format.timestamp(),
+        redactionFormat(),
         winston.format.json(),
         winston.format.label({ label: 'SECURITY' })
       )
@@ -105,6 +136,7 @@ const securityLogger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
+    redactionFormat(),
     winston.format.json(),
     winston.format.label({ label: 'SECURITY' })
   ),
@@ -124,6 +156,7 @@ const auditLogger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
+    redactionFormat(),
     winston.format.json(),
     winston.format.label({ label: 'AUDIT' })
   ),
@@ -138,8 +171,8 @@ const auditLogger = winston.createLogger({
   ]
 });
 
-module.exports = {
-  logger,
+module.exports = {  logger,
   securityLogger,
-  auditLogger
+  auditLogger,
+  redactSensitive
 };
