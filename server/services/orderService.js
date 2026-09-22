@@ -37,6 +37,13 @@ class OrderService {
       if (!cart) {
         throw new Error('Cart not found');
       }
+
+      // A converted cart has already produced an order. Re-submitting it (a
+      // double-click, a retry, or a deliberate replay) must not create a second
+      // order or decrement stock again.
+      if (cart.status === 'converted') {
+        throw new Error('Cart has already been converted to an order');
+      }
       
       if (cart.items.length === 0) {
         throw new Error('Cart is empty');
