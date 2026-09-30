@@ -108,8 +108,14 @@ export default function Dashboard() {
 
       setStats({
         totalSales: salesArray.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0),
+        // Sales endpoint returns the full (unpaginated) list of actionable
+        // orders. The service's pagination.total would include cancelled and
+        // refunded sales that the route deliberately hides, so the array
+        // length is the correct order count here.
         totalOrders: newOrderCount,
-        totalCustomers: customersArray.length,
+        // Customers endpoint is paginated (default page limit = 10), same as
+        // products — use the server-computed total, not page-1 length.
+        totalCustomers: customersRes?.pagination?.total ?? customersArray.length,
         // Products endpoint is paginated (default page limit = 10), so the
         // array length is only page 1. Use the server-computed total.
         totalProducts: productsRes?.pagination?.totalCount ?? productsArray.length,
