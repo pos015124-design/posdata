@@ -589,37 +589,43 @@ export default function Store() {
         </div>
       )}
 
-      {/* ── Store discovery: make the marketplace multi-vendor at a glance ── */}
+      {/* ── Compact store discovery ─────────────────────────────────────── */}
       {stores.length > 0 && !debouncedSearch && !selectedCategory && (
-        <section className={`${isInsideLayout ? '' : 'max-w-7xl mx-auto px-3 sm:px-4'} pt-5`} aria-labelledby="discover-stores-heading">
-          <div className="flex items-end justify-between gap-3 mb-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">Shop by store</p>
-              <h2 id="discover-stores-heading" className="text-lg font-bold text-slate-900">Discover independent stores</h2>
-            </div>
-            <Link to="/stores" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View all</Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {stores.map(store => (
+        <section
+          className={`${isInsideLayout ? '' : 'max-w-7xl mx-auto px-3 sm:px-4'} pt-3`}
+          aria-labelledby="discover-stores-heading"
+        >
+          <div className="flex min-h-11 items-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-2.5 shadow-sm">
+            <span id="discover-stores-heading" className="flex shrink-0 items-center gap-1.5 px-1 text-xs font-bold text-slate-700">
+              <StoreIcon className="h-4 w-4 text-blue-600" aria-hidden="true" />
+              Stores
+            </span>
+            <div className="h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Browse stores">
               <Link
-                key={store._id}
-                to={`/store/${store.slug}`}
-                className="group rounded-xl border border-slate-200 bg-white p-3 shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
+                to="/store"
+                className="shrink-0 rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white"
+                aria-current="page"
               >
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
-                    {store.logo
-                      ? <img src={imgUrl(store.logo)} alt="" loading="lazy" className="h-full w-full object-cover" />
-                      : <Building2 className="h-6 w-6 text-slate-300" />}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{store.name}</h3>
-                    <p className="text-xs text-slate-500">{store.productCount.toLocaleString()} products</p>
-                    {store.description && <p className="mt-0.5 truncate text-xs text-slate-400">{store.description}</p>}
-                  </div>
-                </div>
+                All products
               </Link>
-            ))}
+              {stores.slice(0, 8).map(store => (
+                <Link
+                  key={store._id}
+                  to={`/store/${store.slug}`}
+                  className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                  title={`${store.name} · ${store.productCount.toLocaleString()} products`}
+                >
+                  {store.name}
+                </Link>
+              ))}
+              <Link
+                to="/stores"
+                className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
+              >
+                View all
+              </Link>
+            </div>
           </div>
         </section>
       )}

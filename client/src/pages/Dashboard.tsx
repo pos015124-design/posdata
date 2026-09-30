@@ -110,7 +110,9 @@ export default function Dashboard() {
         totalSales: salesArray.reduce((sum: number, sale: any) => sum + (sale.total || 0), 0),
         totalOrders: newOrderCount,
         totalCustomers: customersArray.length,
-        totalProducts: productsArray.length,
+        // Products endpoint is paginated (default page limit = 10), so the
+        // array length is only page 1. Use the server-computed total.
+        totalProducts: productsRes?.pagination?.totalCount ?? productsArray.length,
         recentOrders: salesArray.slice(0, 5)
       });
 

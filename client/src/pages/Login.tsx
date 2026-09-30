@@ -43,7 +43,7 @@ export default function Login() {
       // for unapproved users (PrivateRoute shows WaitingApproval, but the
       // explicit navigate fires first and creates a redirect loop).
       toast({
-        title: 'Welcome back!',
+        title: 'Signed in',
         description: 'Logged in successfully.',
       });
     } catch (error: any) {
@@ -65,7 +65,7 @@ export default function Login() {
     try {
       await verifyTwoFactor(twoFactorToken, code.trim());
       toast({
-        title: 'Welcome back!',
+        title: 'Signed in',
         description: 'Logged in successfully.',
       });
     } catch (error: any) {
@@ -144,12 +144,12 @@ export default function Login() {
   }
 
   return (
-    <AuthShell heading="Welcome back to your store." subheading="Sign in to manage your store, sales and inventory.">
+    <AuthShell heading="Run your store with confidence." subheading="Manage your products, orders and sales from one place.">
       <Card className="w-full shadow-lg border border-gray-200 bg-white">
         <CardHeader className="space-y-2 text-center pb-5">
-          <CardTitle className="text-2xl font-bold text-gray-900">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-bold text-gray-900">Sign in to your store</CardTitle>
           <CardDescription className="text-sm text-gray-500">
-            Sign in to your seller account
+            Access your seller account
           </CardDescription>
         </CardHeader>
         
@@ -191,7 +191,8 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -214,9 +215,9 @@ export default function Login() {
             </Button>
 
             <div className="text-center text-sm text-gray-600">
-              Don't have an account?{' '}
+              New to selling on BHABY E-Shop?{' '}
               <Link to="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
-                Sign up
+                Create a seller account
               </Link>
             </div>
           </form>

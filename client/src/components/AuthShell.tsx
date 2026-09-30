@@ -29,9 +29,9 @@ import Logo from './Logo';
  */
 
 const SELLING_POINTS = [
-  { icon: ShoppingBag, title: 'Multi-vendor marketplace', desc: 'Buy and sell across dozens of verified local stores in one place.' },
-  { icon: Smartphone, title: 'Pay with mobile money', desc: 'M-Pesa, Tigo Pesa & Airtel Money USSD push — no card needed.' },
-  { icon: BarChart3, title: 'Real-time seller tools', desc: 'Live sales, inventory, low-stock alerts and daily reports.' },
+  { icon: ShoppingBag, title: 'Grow your store', desc: 'Reach customers across the BHABY E-Shop marketplace.' },
+  { icon: Package, title: 'Manage your business', desc: 'Products, inventory and store information in one place.' },
+  { icon: BarChart3, title: 'Stay on top of orders', desc: 'Track orders, sales and payments as your business grows.' },
 ];
 
 /** Wander path (px / deg) for each icon — three keyframe waypoints. */
@@ -116,7 +116,9 @@ export default function AuthShell({ children, heading, subheading, wide = false 
 }) {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-blue-950 via-blue-800 to-blue-900 text-white">
-      <FloatingIconField className="z-0" />
+      <div className="hidden lg:block">
+        <FloatingIconField className="z-0" />
+      </div>
 
       <div className="relative z-10 min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr]">
         {/* ── Branded panel (desktop) ─────────────────────────────────────── */}
@@ -145,17 +147,22 @@ export default function AuthShell({ children, heading, subheading, wide = false 
           </div>
 
           <p className="relative z-10 text-xs text-white/50">
-            © {new Date().getFullYear()} BHABY GROUP LTD · E-Shop Marketplace
+            © {new Date().getFullYear()} BHABY GROUP LTD · Seller Portal
           </p>
         </div>
 
         {/* ── Form side ───────────────────────────────────────────────────── */}
         <div className="relative flex flex-col justify-center items-center min-h-screen p-4 sm:p-8 lg:pt-8">
           {/* Mobile header (no fixed height boundary — flows naturally with background) */}
-          <div className={`lg:hidden relative z-10 w-full flex flex-col items-center ${wide ? 'pt-5 pb-4' : 'pt-8 pb-6'}`}>
-            <Logo variant="white" className="h-9" />
+          <div className={`lg:hidden relative z-10 w-full flex flex-col items-center ${wide ? 'pt-3 pb-2' : 'pt-4 pb-2'}`}>
+            <Logo variant="white" className="h-7" />
+            {heading && (
+              <h1 className="mt-2 max-w-sm text-center text-lg font-extrabold leading-tight text-white">
+                {heading}
+              </h1>
+            )}
             {subheading && (
-              <p className="text-center text-[11px] text-gray-300 mt-3 max-w-xs leading-snug">
+              <p className="mt-1 max-w-xs text-center text-[11px] leading-snug text-gray-300">
                 {subheading}
               </p>
             )}
